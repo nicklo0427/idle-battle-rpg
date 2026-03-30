@@ -1,0 +1,29 @@
+import SwiftUI
+import SwiftData
+
+@main
+struct IdleBattleRPGApp: App {
+    let container: ModelContainer
+
+    init() {
+        do {
+            container = try ModelContainer(
+                for:
+                    GameStateModel.self,
+                    HeroModel.self,
+                    EquipmentModel.self,
+                    BattleSessionModel.self,
+                    GeneratedContentModel.self
+            )
+        } catch {
+            fatalError("Failed to create ModelContainer: \(error)")
+        }
+    }
+
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+                .modelContainer(container)
+        }
+    }
+}

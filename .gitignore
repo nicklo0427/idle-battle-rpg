@@ -1,0 +1,25 @@
+# Xcode 產生的專案檔（用 xcodegen generate 重新產生）
+*.xcodeproj/
+*.xcworkspace/
+!*.xcworkspace/contents.xcworkspacedata
+
+# Build products
+build/
+DerivedData/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# User-specific Xcode settings
+xcuserdata/
+*.xcuserstate
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# SwiftData / SQLite（本地測試用，不進 git）
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
