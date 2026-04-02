@@ -9,12 +9,18 @@ import SwiftData
 struct DatabaseSeeder {
 
     /// 若 DB 中尚無玩家資料，建立初始資料
-    /// 應在 App 啟動時（主 container 已就緒後）呼叫一次
+    /// 三個 sub-seeder 各自 insert，最後統一 save 一次，避免部分寫入的問題
     @MainActor
     static func seedIfNeeded(context: ModelContext) {
         seedPlayerState(context: context)
         seedMaterialInventory(context: context)
         seedStartingEquipment(context: context)
+
+        do {
+            try context.save()
+        } catch {
+            print("[DatabaseSeeder] save failed: \(error)")
+        }
     }
 
     // MARK: - Private
@@ -26,19 +32,18 @@ struct DatabaseSeeder {
         guard existing.isEmpty else { return }
 
         let player = PlayerStateModel(
-            gold:                    AppConstants.Initial.gold,
-            heroLevel:               1,
-            availableStatPoints:     0,
-            atkPoints:               5,
-            defPoints:               3,
-            hpPoints:                20,
-            lastOpenedAt:            .now,
-            hasUsedFirstCraftBoost:  false,
+            gold:                     AppConstants.Initial.gold,
+            heroLevel:                1,
+            availableStatPoints:      0,
+            atkPoints:                5,
+            defPoints:                3,
+            hpPoints:                 20,
+            lastOpenedAt:             .now,
+            hasUsedFirstCraftBoost:   false,
             hasUsedFirstDungeonBoost: false,
-            onboardingStep:          0
+            onboardingStep:           0
         )
         context.insert(player)
-        save(context)
     }
 
     @MainActor
@@ -55,12 +60,10 @@ struct DatabaseSeeder {
             ancientFragment: 0
         )
         context.insert(inventory)
-        save(context)
     }
 
     @MainActor
     private static func seedStartingEquipment(context: ModelContext) {
-        // 只在沒有任何裝備時才 seed
         let descriptor = FetchDescriptor<EquipmentModel>()
         let existing = (try? context.fetch(descriptor)) ?? []
         guard existing.isEmpty else { return }
@@ -70,7 +73,6 @@ struct DatabaseSeeder {
             return
         }
 
-        // 破舊短劍預設已裝備
         let sword = EquipmentModel(
             defKey:     def.key,
             slot:       def.slot,
@@ -78,15 +80,5 @@ struct DatabaseSeeder {
             isEquipped: true
         )
         context.insert(sword)
-        save(context)
-    }
-
-    @MainActor
-    private static func save(_ context: ModelContext) {
-        do {
-            try context.save()
-        } catch {
-            print("[DatabaseSeeder] save failed: \(error)")
-        }
     }
 }

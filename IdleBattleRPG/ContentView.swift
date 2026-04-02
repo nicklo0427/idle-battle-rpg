@@ -1,7 +1,15 @@
 // ContentView.swift
-// Phase 1 最小可讀寫驗證畫面
-// 目的：確認 SwiftData seeding 正常、四個 Model 可讀可寫
-// Phase 4 完成後此檔案將被替換為正式 TabView 介面
+// App 主容器 — Phase 9
+//
+// 責任（嚴格限縮）：
+//   1. 在 View 樹內初始化 AppState（此處可取得 @Environment(\.modelContext)）
+//   2. 監聽 scenePhase：
+//      - → .active   ：啟動前台 Timer + 掃描結算
+//      - → .inactive / .background：停止前台 Timer
+//   3. 持有正式 TabView（Base / Adventure / Character）
+//   4. 綁定 AppState.shouldShowSettlement → 顯示 SettlementSheet
+//
+// ContentView 本身不做任何遊戲邏輯或資料讀取，只負責組裝與導覽。
 
 import SwiftUI
 import SwiftData
@@ -9,124 +17,101 @@ import SwiftData
 struct ContentView: View {
 
     @Environment(\.modelContext) private var context
+    @Environment(\.scenePhase)   private var scenePhase
 
-    @Query private var players:    [PlayerStateModel]
-    @Query private var inventories:[MaterialInventoryModel]
-    @Query private var equipments: [EquipmentModel]
-    @Query private var tasks:      [TaskModel]
+    @State private var appState: AppState?
+
+    // MARK: - Body
 
     var body: some View {
-        NavigationStack {
-            List {
-
-                // ── 玩家狀態 ────────────────────────────────────────
-                Section("玩家狀態") {
-                    if let p = players.first {
-                        row("金幣",    "\(p.gold)")
-                        row("等級",    "Lv.\(p.heroLevel)")
-                        row("ATK 點", "\(p.atkPoints)")
-                        row("DEF 點", "\(p.defPoints)")
-                        row("HP 點",  "\(p.hpPoints)")
-                        row("Onboarding", "\(p.onboardingStep) / 3")
-                    } else {
-                        Text("⚠️ 尚無玩家資料").foregroundStyle(.red)
+        Group {
+            if let appState {
+                mainTabView(appState: appState)
+                    // 結算 Sheet：由 AppState.shouldShowSettlement 驅動
+                    .sheet(isPresented: Binding(
+                        get: { appState.shouldShowSettlement },
+                        set: { show in if !show { appState.claimAllCompleted() } }
+                    )) {
+                        SettlementSheet(appState: appState)
                     }
-                }
-
-                // ── 素材庫存 ────────────────────────────────────────
-                Section("素材庫存") {
-                    if let inv = inventories.first {
-                        row("🪵 木材",    "\(inv.wood)")
-                        row("🪨 礦石",    "\(inv.ore)")
-                        row("🐾 獸皮",    "\(inv.hide)")
-                        row("💎 魔晶石",  "\(inv.crystalShard)")
-                        row("🔮 古代碎片","\(inv.ancientFragment)")
-                    } else {
-                        Text("⚠️ 尚無素材資料").foregroundStyle(.red)
-                    }
-                }
-
-                // ── 裝備（背包）────────────────────────────────────
-                Section("裝備（\(equipments.count) 件）") {
-                    ForEach(equipments) { equip in
-                        HStack {
-                            Text(equip.slot.icon)
-                            Text(equip.displayName)
-                            Spacer()
-                            Text(equip.rarity.displayName)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            if equip.isEquipped {
-                                Text("已裝備")
-                                    .font(.caption2)
-                                    .foregroundStyle(.blue)
-                            }
-                        }
-                    }
-                    if equipments.isEmpty {
-                        Text("⚠️ 尚無裝備資料").foregroundStyle(.red)
-                    }
-                }
-
-                // ── 任務（TaskModel 寫入測試）──────────────────────
-                Section("任務（\(tasks.count) 筆）") {
-                    ForEach(tasks) { task in
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("\(task.kind.rawValue) — \(task.actorKey)")
-                                .font(.subheadline)
-                            Text("結束：\(task.endsAt.formatted(date: .omitted, time: .shortened))")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    if tasks.isEmpty {
-                        Text("無進行中任務").foregroundStyle(.secondary)
-                    }
-
-                    // 寫入測試按鈕
-                    Button("➕ 新增測試採集任務") {
-                        insertTestGatherTask()
-                    }
-                }
-
-                // ── 靜態資料快查 ────────────────────────────────────
-                Section("靜態資料（不存 DB）") {
-                    row("採集地點", "\(GatherLocationDef.all.count) 個")
-                    row("鑄造配方", "\(CraftRecipeDef.all.count) 個")
-                    row("地下城區域", "\(DungeonAreaDef.all.count) 個")
-                    row("裝備定義", "\(EquipmentDef.all.count) 種")
-                    row("商人兌換", "\(MerchantTradeDef.all.count) 筆")
-                }
+            } else {
+                // AppState 初始化前的短暫過渡（通常不可見）
+                ProgressView()
             }
-            .navigationTitle("Phase 1 驗證")
-            .navigationBarTitleDisplayMode(.inline)
+        }
+        .onAppear {
+            guard appState == nil else { return }
+            let state = AppState(context: context)
+            appState = state
+            // 啟動後首次掃描，補跑離線期間到期的任務
+            state.scanAndSettle()
+            state.startForegroundTimer()
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            switch newPhase {
+            case .active:
+                // App 回到前景：先補跑離線到期任務，再啟動 Timer
+                appState?.scanAndSettle()
+                appState?.startForegroundTimer()
+            case .inactive, .background:
+                // App 進入背景：停止 Timer，節省資源
+                appState?.stopForegroundTimer()
+            @unknown default:
+                break
+            }
         }
     }
 
-    // MARK: - Helpers
+    // MARK: - Main Tab View
 
-    private func row(_ label: String, _ value: String) -> some View {
-        HStack {
-            Text(label).foregroundStyle(.secondary)
-            Spacer()
-            Text(value).fontWeight(.medium)
+    @ViewBuilder
+    private func mainTabView(appState: AppState) -> some View {
+        TabView {
+            BaseView(appState: appState)
+                .tabItem {
+                    Label("基地", systemImage: "house.fill")
+                }
+
+            AdventureView(appState: appState)
+                .tabItem {
+                    Label("冒險", systemImage: "map.fill")
+                }
+
+            CharacterView()
+                .tabItem {
+                    Label("角色", systemImage: "person.fill")
+                }
+        }
+        // ── 輕量 Toast 覆蓋（非阻擋，結算 Sheet 開啟時也可見）─────
+        .overlay(alignment: .top) {
+            if let msg = appState.toastMessage {
+                ToastBanner(message: msg)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .animation(.easeInOut(duration: 0.3), value: appState.toastMessage)
+                    .padding(.top, 8)
+            }
         }
     }
+}
 
-    /// 插入一筆測試採集任務，驗證 TaskModel 可正常寫入
-    private func insertTestGatherTask() {
-        let now   = Date.now
-        let task  = TaskModel(
-            kind:         .gather,
-            actorKey:     AppConstants.Actor.gatherer1,
-            definitionKey: GatherLocationDef.all[0].key,
-            startedAt:    now,
-            endsAt:       now.addingTimeInterval(
-                TimeInterval(GatherLocationDef.all[0].durationSeconds)
-            )
-        )
-        context.insert(task)
-        try? context.save()
+// MARK: - ToastBanner（輕量任務完成提示，非阻擋）
+
+private struct ToastBanner: View {
+    let message: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+            Text(message)
+                .font(.subheadline)
+                .fontWeight(.medium)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(.regularMaterial)
+        .clipShape(Capsule())
+        .shadow(color: .black.opacity(0.12), radius: 6, y: 3)
     }
 }
 

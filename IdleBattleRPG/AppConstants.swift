@@ -24,7 +24,7 @@ enum AppConstants {
 
     // MARK: - 遊戲規則
     enum Game {
-        static let maxOfflineSeconds      = 8 * 3600   // 8 小時離線上限
+        static let maxOfflineSeconds      = 12 * 3600  // 12 小時離線上限
         static let secondsPerBattle       = 60          // 每場戰鬥 60 秒
         static let heroMaxLevel           = 10
         static let statPointsPerLevel     = 3
@@ -34,19 +34,19 @@ enum AppConstants {
 
     // MARK: - 出征時長選項（秒）
     enum DungeonDuration {
-        static let short:  Int = 15 * 60       // 15 分鐘
-        static let medium: Int = 60 * 60       // 1 小時
-        static let long:   Int = 8 * 3600      // 8 小時
+        static let quick:  Int = 60             // 1 分鐘（測試用）
+        static let short:  Int = 15 * 60        // 15 分鐘
+        static let medium: Int = 60 * 60        // 1 小時
+        static let long:   Int = 12 * 3600      // 12 小時
 
-        static let all: [Int] = [short, medium, long]
+        static let all: [Int] = [quick, short, medium, long]
 
         static func displayName(for seconds: Int) -> String {
-            switch seconds {
-            case short:  return "15 分鐘"
-            case medium: return "1 小時"
-            case long:   return "8 小時"
-            default:     return "\(seconds / 60) 分鐘"
-            }
+            let h = seconds / 3600
+            let m = (seconds % 3600) / 60
+            if h > 0 && m > 0 { return "\(h) 小時 \(m) 分鐘" }
+            if h > 0           { return "\(h) 小時" }
+            return "\(m) 分鐘"
         }
     }
 

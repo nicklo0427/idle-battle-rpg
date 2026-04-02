@@ -41,7 +41,7 @@ extension CraftRecipeDef {
             name:              "鑄造普通武器",
             slot:              .weapon,
             rarity:            .common,
-            durationSeconds:   600,     // 10 分鐘
+            durationSeconds:   60,      // 1 分鐘
             requiredMaterials: [
                 MaterialRequirement(material: .wood, amount: 3),
                 MaterialRequirement(material: .ore,  amount: 2),
@@ -54,7 +54,7 @@ extension CraftRecipeDef {
             name:              "鑄造普通防具",
             slot:              .armor,
             rarity:            .common,
-            durationSeconds:   900,     // 15 分鐘（首次特快 → 30 秒）
+            durationSeconds:   60,      // 1 分鐘（首次特快 → 30 秒）
             requiredMaterials: [
                 MaterialRequirement(material: .wood, amount: 4),
                 MaterialRequirement(material: .ore,  amount: 3),
@@ -67,7 +67,7 @@ extension CraftRecipeDef {
             name:              "鑄造普通飾品",
             slot:              .accessory,
             rarity:            .common,
-            durationSeconds:   1200,    // 20 分鐘
+            durationSeconds:   90,      // 1.5 分鐘
             requiredMaterials: [
                 MaterialRequirement(material: .wood, amount: 2),
                 MaterialRequirement(material: .ore,  amount: 2),
@@ -82,7 +82,7 @@ extension CraftRecipeDef {
             name:              "鑄造精良武器",
             slot:              .weapon,
             rarity:            .refined,
-            durationSeconds:   1800,    // 30 分鐘
+            durationSeconds:   120,     // 2 分鐘
             requiredMaterials: [
                 MaterialRequirement(material: .wood, amount: 3),
                 MaterialRequirement(material: .ore,  amount: 3),
@@ -96,7 +96,7 @@ extension CraftRecipeDef {
             name:              "鑄造精良防具",
             slot:              .armor,
             rarity:            .refined,
-            durationSeconds:   2400,    // 40 分鐘
+            durationSeconds:   180,     // 3 分鐘
             requiredMaterials: [
                 MaterialRequirement(material: .wood, amount: 4),
                 MaterialRequirement(material: .ore,  amount: 4),
@@ -110,7 +110,7 @@ extension CraftRecipeDef {
             name:              "鑄造精良飾品",
             slot:              .accessory,
             rarity:            .refined,
-            durationSeconds:   2700,    // 45 分鐘
+            durationSeconds:   240,     // 4 分鐘
             requiredMaterials: [
                 MaterialRequirement(material: .ore,          amount: 2),
                 MaterialRequirement(material: .crystalShard, amount: 2),

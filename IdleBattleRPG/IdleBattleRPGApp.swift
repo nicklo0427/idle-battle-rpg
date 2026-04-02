@@ -27,8 +27,8 @@ struct IdleBattleRPGApp: App {
         WindowGroup {
             ContentView()
                 .task {
-                    // 首次啟動 seeding（MainActor 確保安全）
-                    await DatabaseSeeder.seedIfNeeded(
+                    // 首次啟動 seeding（@MainActor，非 async，不需 await）
+                    DatabaseSeeder.seedIfNeeded(
                         context: container.mainContext
                     )
                 }
