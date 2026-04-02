@@ -10,12 +10,14 @@ enum EquipmentSlot: String, CaseIterable, Codable {
     case weapon    = "weapon"
     case armor     = "armor"
     case accessory = "accessory"
+    case offhand   = "offhand"   // V2-1：副手（通用 slot，不做職業分化）
 
     var displayName: String {
         switch self {
         case .weapon:    return "武器"
         case .armor:     return "防具"
         case .accessory: return "飾品"
+        case .offhand:   return "副手"
         }
     }
 
@@ -24,6 +26,7 @@ enum EquipmentSlot: String, CaseIterable, Codable {
         case .weapon:    return "🗡️"
         case .armor:     return "🛡️"
         case .accessory: return "💍"
+        case .offhand:   return "🔰"
         }
     }
 }
@@ -130,6 +133,121 @@ extension EquipmentDef {
             atkBonus: 8,
             defBonus: 8,
             hpBonus:  20
+        ),
+
+        // ── V2-1 荒野邊境套裝：邊境生存者套裝 ────────────────────────
+        // TODO: 數值待平衡工單調整，目前為設計佔位值
+        EquipmentDef(
+            key:      "wildland_accessory",
+            name:     "前哨護符",
+            slot:     .accessory,
+            rarity:   .refined,
+            atkBonus: 5,
+            defBonus: 2,
+            hpBonus:  12
+        ),
+        EquipmentDef(
+            key:      "wildland_armor",
+            name:     "荒徑皮甲",
+            slot:     .armor,
+            rarity:   .refined,
+            atkBonus: 0,
+            defBonus: 12,
+            hpBonus:  28
+        ),
+        EquipmentDef(
+            key:      "wildland_offhand",
+            name:     "裂角臂扣",
+            slot:     .offhand,
+            rarity:   .refined,
+            atkBonus: 0,
+            defBonus: 8,
+            hpBonus:  18
+        ),
+        EquipmentDef(
+            key:      "wildland_weapon",
+            name:     "裂牙獵刃",
+            slot:     .weapon,
+            rarity:   .refined,
+            atkBonus: 24,
+            defBonus: 0,
+            hpBonus:  0
+        ),
+
+        // ── V2-1 廢棄礦坑套裝：礦脈工匠套裝 ─────────────────────────
+        EquipmentDef(
+            key:      "mine_accessory",
+            name:     "礦燈墜飾",
+            slot:     .accessory,
+            rarity:   .refined,
+            atkBonus: 9,
+            defBonus: 4,
+            hpBonus:  18
+        ),
+        EquipmentDef(
+            key:      "mine_armor",
+            name:     "脈鐵工作甲",
+            slot:     .armor,
+            rarity:   .refined,
+            atkBonus: 0,
+            defBonus: 20,
+            hpBonus:  46
+        ),
+        EquipmentDef(
+            key:      "mine_offhand",
+            name:     "承脈護架",
+            slot:     .offhand,
+            rarity:   .refined,
+            atkBonus: 0,
+            defBonus: 14,
+            hpBonus:  28
+        ),
+        EquipmentDef(
+            key:      "mine_weapon",
+            name:     "吞岩重鑿",
+            slot:     .weapon,
+            rarity:   .refined,
+            atkBonus: 40,
+            defBonus: 0,
+            hpBonus:  0
+        ),
+
+        // ── V2-1 古代遺跡套裝：遺跡守誓套裝 ─────────────────────────
+        EquipmentDef(
+            key:      "ruins_accessory",
+            name:     "守誓印環",
+            slot:     .accessory,
+            rarity:   .refined,
+            atkBonus: 13,
+            defBonus: 6,
+            hpBonus:  25
+        ),
+        EquipmentDef(
+            key:      "ruins_armor",
+            name:     "碑紋誓甲",
+            slot:     .armor,
+            rarity:   .refined,
+            atkBonus: 0,
+            defBonus: 30,
+            hpBonus:  68
+        ),
+        EquipmentDef(
+            key:      "ruins_offhand",
+            name:     "前殿聖徽",
+            slot:     .offhand,
+            rarity:   .refined,
+            atkBonus: 0,
+            defBonus: 20,
+            hpBonus:  40
+        ),
+        EquipmentDef(
+            key:      "ruins_weapon",
+            name:     "王誓聖刃",
+            slot:     .weapon,
+            rarity:   .refined,
+            atkBonus: 58,
+            defBonus: 0,
+            hpBonus:  0
         ),
     ]
 

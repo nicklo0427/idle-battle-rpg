@@ -36,6 +36,11 @@ final class MaterialInventoryModel {
         case .hide:            return hide
         case .crystalShard:    return crystalShard
         case .ancientFragment: return ancientFragment
+        // V2-1 區域素材：Ticket 02 新增 SwiftData 欄位前，暫回傳 0
+        case .oldPostBadge, .driedHideBundle, .splitHornBone, .riftFangRoyalBadge,
+             .mineLampCopperClip, .tunnelIronClip, .veinStoneSlab, .stoneSwallowCore,
+             .relicSealRing, .oathInscriptionShard, .foreShrineClip, .ancientKingCore:
+            return 0
         }
     }
 
@@ -46,6 +51,11 @@ final class MaterialInventoryModel {
         case .hide:            hide            += amount
         case .crystalShard:    crystalShard    += amount
         case .ancientFragment: ancientFragment += amount
+        // V2-1 區域素材：Ticket 02 新增 SwiftData 欄位前，暫為 no-op
+        case .oldPostBadge, .driedHideBundle, .splitHornBone, .riftFangRoyalBadge,
+             .mineLampCopperClip, .tunnelIronClip, .veinStoneSlab, .stoneSwallowCore,
+             .relicSealRing, .oathInscriptionShard, .foreShrineClip, .ancientKingCore:
+            break
         }
     }
 
@@ -60,6 +70,11 @@ final class MaterialInventoryModel {
         case .hide:            hide            -= amount
         case .crystalShard:    crystalShard    -= amount
         case .ancientFragment: ancientFragment -= amount
+        // V2-1 區域素材：Ticket 02 新增 SwiftData 欄位前，暫為 no-op（amount 已驗為 0，guard 會攔截）
+        case .oldPostBadge, .driedHideBundle, .splitHornBone, .riftFangRoyalBadge,
+             .mineLampCopperClip, .tunnelIronClip, .veinStoneSlab, .stoneSwallowCore,
+             .relicSealRing, .oathInscriptionShard, .foreShrineClip, .ancientKingCore:
+            break
         }
         return true
     }

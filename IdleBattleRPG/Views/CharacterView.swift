@@ -404,6 +404,8 @@ private extension MaterialInventoryModel {
         case .hide:            return hide
         case .crystalShard:    return crystalShard
         case .ancientFragment: return ancientFragment
+        // V2-1 區域素材：Ticket 02 擴充 SwiftData 欄位前委派回 amount(of:)（回傳 0）
+        default:               return amount(of: mat)
         }
     }
 }
