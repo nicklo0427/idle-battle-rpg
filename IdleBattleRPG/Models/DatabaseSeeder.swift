@@ -1,6 +1,6 @@
 // DatabaseSeeder.swift
 // 首次啟動時建立初始資料
-// 負責：PlayerStateModel、MaterialInventoryModel、初始裝備（破舊短劍）
+// 負責：PlayerStateModel、MaterialInventoryModel、初始裝備（破舊短劍）、DungeonProgressionModel
 // 之後每次啟動只驗證是否已存在，不重複建立
 
 import Foundation
@@ -15,6 +15,7 @@ struct DatabaseSeeder {
         seedPlayerState(context: context)
         seedMaterialInventory(context: context)
         seedStartingEquipment(context: context)
+        seedDungeonProgression(context: context)
 
         do {
             try context.save()
@@ -60,6 +61,20 @@ struct DatabaseSeeder {
             ancientFragment: 0
         )
         context.insert(inventory)
+    }
+
+    @MainActor
+    private static func seedDungeonProgression(context: ModelContext) {
+        let descriptor = FetchDescriptor<DungeonProgressionModel>()
+        let existing = (try? context.fetch(descriptor)) ?? []
+        guard existing.isEmpty else { return }
+
+        // 初始狀態：第一區（wildland）預設解鎖，無任何首通紀錄
+        let progression = DungeonProgressionModel(
+            clearedFloorKeysJSON:   "[]",
+            unlockedRegionKeysJSON: "[\"wildland\"]"
+        )
+        context.insert(progression)
     }
 
     @MainActor

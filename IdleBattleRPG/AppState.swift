@@ -10,6 +10,7 @@
 //   6. tick — 每秒更新一次，供 View 層驅動即時倒數顯示
 //      同時在 tick 時自動呼叫 scanAndSettle()，補抓前台到期任務
 //   7. startForegroundTimer() / stopForegroundTimer() — 由 ContentView 管理生命週期
+//   8. progressionService — 公開供 ViewModel 查詢地下城推進狀態（V2-1 Ticket 03）
 //
 // 注意：AppState 本身不存任何遊戲狀態（金幣、素材、戰力等），
 //       這些資料從 SwiftData 即時查詢。
@@ -24,6 +25,9 @@ final class AppState {
 
     private let settlementService: SettlementService
     private let claimService: TaskClaimService
+    /// 地下城推進狀態查詢服務（V2-1 Ticket 03）。
+    /// 公開讓 ViewModel 直接呼叫 isRegionUnlocked / isFloorCleared 等方法。
+    let progressionService: DungeonProgressionService
 
     // MARK: - UI 狀態
 
@@ -47,8 +51,9 @@ final class AppState {
     // MARK: - Init
 
     init(context: ModelContext) {
-        self.settlementService = SettlementService(context: context)
-        self.claimService      = TaskClaimService(context: context)
+        self.settlementService  = SettlementService(context: context)
+        self.claimService       = TaskClaimService(context: context)
+        self.progressionService = DungeonProgressionService(context: context)
     }
 
     // MARK: - Timer 生命週期（由 ContentView 管理）

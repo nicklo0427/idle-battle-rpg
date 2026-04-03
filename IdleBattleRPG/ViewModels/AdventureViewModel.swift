@@ -8,6 +8,7 @@
 //   - 不查詢 SwiftData，不寫入，純粹做資料轉換與業務協調。
 //
 // Phase 6 補充：dungeonTask 查詢、startDungeon 建立入口
+// V2-1 Ticket 03 補充：progression 查詢方法（isRegionUnlocked / isFloorUnlocked 等）
 
 import Foundation
 import SwiftData
@@ -15,7 +16,7 @@ import SwiftData
 @Observable
 final class AdventureViewModel {
 
-    // MARK: - 地下城解鎖判斷
+    // MARK: - V1：地下城解鎖判斷（DungeonAreaDef，供現有 AdventureView 使用）
 
     /// 返回所有地下城區域
     func allAreas() -> [DungeonAreaDef] {
@@ -32,6 +33,41 @@ final class AdventureViewModel {
     /// 解鎖門檻文字（顯示用）
     func lockLabel(for area: DungeonAreaDef) -> String {
         area.requiredPower == 0 ? "初始解鎖" : "需戰力 \(area.requiredPower)"
+    }
+
+    // MARK: - V2-1：區域推進查詢（DungeonRegionDef，接收 progressionService）
+    //
+    // 設計原則：ViewModel 不持有 Service，由 View 從 AppState 取得 progressionService 後
+    // 以參數形式傳入，保持 ViewModel 輕薄且可測試。
+
+    /// 所有 V2-1 區域定義（永遠可見，但不一定可挑戰）
+    func allRegions() -> [DungeonRegionDef] {
+        DungeonRegionDef.all
+    }
+
+    /// 指定區域是否已解鎖（可挑戰）
+    func isRegionUnlocked(_ regionKey: String, service: DungeonProgressionService) -> Bool {
+        service.isRegionUnlocked(regionKey)
+    }
+
+    /// 指定區域是否已完成（Boss 層首通）
+    func isRegionCompleted(_ regionKey: String, service: DungeonProgressionService) -> Bool {
+        service.isRegionCompleted(regionKey)
+    }
+
+    /// 指定樓層是否可挑戰
+    func isFloorUnlocked(regionKey: String, floorIndex: Int, service: DungeonProgressionService) -> Bool {
+        service.isFloorUnlocked(regionKey: regionKey, floorIndex: floorIndex)
+    }
+
+    /// 指定樓層是否已首通
+    func isFloorCleared(regionKey: String, floorIndex: Int, service: DungeonProgressionService) -> Bool {
+        service.isFloorCleared(regionKey: regionKey, floorIndex: floorIndex)
+    }
+
+    /// Boss 材料是否已見過（等同 Boss 層首通）
+    func hasSeenBossMaterial(_ regionKey: String, service: DungeonProgressionService) -> Bool {
+        service.hasSeenBossMaterial(regionKey)
     }
 
     // MARK: - 地下城任務狀態

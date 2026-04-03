@@ -8,12 +8,9 @@
 //   4. 將已處理的任務全部刪除
 //   5. 統一一次 save()
 //
-// Phase 5 範圍：
-//   ✅ gather 任務 — 素材 / 金幣入帳
-//   ✅ craft 任務  — 裝備進背包（resultCraftedEquipKey 已在建立時填入）
-//   ✅ dungeon 任務 — 金幣入帳（resultGold；Phase 5 RNG 尚未實作故值為 0）
-//   ❌ 不做完整掉落 RNG（Phase 6+）
-//   ❌ 不做裝備強化（V2）
+// V2-1 Ticket 02：
+//   ✅ 12 個區域素材 result 欄位已納入 accumulateMaterials()
+//   ✅ MaterialInventoryModel.add() 支援全部 17 種素材，直接統一呼叫
 
 import Foundation
 import SwiftData
@@ -64,7 +61,6 @@ struct TaskClaimService {
             return ClaimResult(goldGained: 0, materialsGained: [:], equipmentsAdded: 0, tasksDeleted: 0)
         }
 
-        // 聚合所有獎勵
         var totalGold      = 0
         var materials      = [MaterialType: Int]()
         var equipmentCount = 0
@@ -85,13 +81,9 @@ struct TaskClaimService {
             }
         }
 
-        // 寫入 PlayerState（金幣）
         creditGold(totalGold)
-
-        // 寫入 MaterialInventory（素材）
         creditMaterials(materials)
 
-        // 刪除所有已收下任務
         for task in completed {
             context.delete(task)
         }
@@ -100,25 +92,22 @@ struct TaskClaimService {
 
         print("[TaskClaimService] 收下 \(completed.count) 筆，金幣 +\(totalGold)，素材 \(materials)")
         return ClaimResult(
-            goldGained:       totalGold,
-            materialsGained:  materials,
-            equipmentsAdded:  equipmentCount,
-            tasksDeleted:     completed.count
+            goldGained:      totalGold,
+            materialsGained: materials,
+            equipmentsAdded: equipmentCount,
+            tasksDeleted:    completed.count
         )
     }
 
     // MARK: - Private helpers
 
+    /// 從任務 result* 欄位彙整所有素材（V1 + V2-1 全 17 種）
     private func accumulateMaterials(from task: TaskModel, into materials: inout [MaterialType: Int]) {
-        func add(_ value: Int, _ type: MaterialType) {
-            guard value > 0 else { return }
-            materials[type, default: 0] += value
+        for mat in MaterialType.allCases {
+            let amount = task.resultAmount(of: mat)
+            guard amount > 0 else { continue }
+            materials[mat, default: 0] += amount
         }
-        add(task.resultWood,            .wood)
-        add(task.resultOre,             .ore)
-        add(task.resultHide,            .hide)
-        add(task.resultCrystalShard,    .crystalShard)
-        add(task.resultAncientFragment, .ancientFragment)
     }
 
     private func creditGold(_ amount: Int) {

@@ -10,6 +10,13 @@
 //   ✅ craft   — resultCraftedEquipKey 在任務建立時已填入，此處不再更動
 //   ✅ dungeon — 委派 DungeonSettlementEngine（確定性 RNG，勝率公式正式接入）
 //
+// V2-1 Ticket 02 新增：
+//   ✅ dungeon V2-1 路徑 — 若 definitionKey 對應 DungeonFloorDef，
+//                          使用 settle(task:floor:) 並寫入 12 個區域素材 result 欄位
+//
+// V2-1 Ticket 03 新增：
+//   ✅ dungeon — 若為 V2-1 floor 任務，結算後標記樓層首通（DungeonProgressionService）
+//
 // 注意：獎勵「入帳」（寫入玩家資料）由 TaskClaimService 負責，
 //       SettlementService 只負責「計算結果並標記 completed」。
 
@@ -20,10 +27,12 @@ struct SettlementService {
 
     let context: ModelContext
     private let repository: TaskRepository
+    private let progressionService: DungeonProgressionService
 
     init(context: ModelContext) {
-        self.context    = context
-        self.repository = TaskRepository(context: context)
+        self.context            = context
+        self.repository         = TaskRepository(context: context)
+        self.progressionService = DungeonProgressionService(context: context)
     }
 
     // MARK: - 掃描並結算
@@ -46,11 +55,12 @@ struct SettlementService {
     // MARK: - Private
 
     private func markCompleted(_ task: TaskModel) {
-        // 先填入結果再改狀態，確保資料一致
         switch task.kind {
         case .gather:  fillGatherResults(task)
         case .craft:   break   // resultCraftedEquipKey 在建立時已填入
-        case .dungeon: fillDungeonResults(task)
+        case .dungeon:
+            fillDungeonResults(task)
+            markDungeonProgression(task)
         }
         task.status = .completed
     }
@@ -72,7 +82,7 @@ struct SettlementService {
         case .hide:            task.resultHide            = amount
         case .crystalShard:    task.resultCrystalShard    = amount
         case .ancientFragment: task.resultAncientFragment = amount
-        // V2-1 區域素材：Ticket 02 擴充 TaskModel 結果欄位前，採集地點不會使用這些素材，此 case 不會觸發
+        // V2-1 區域素材：採集地點不會輸出這些素材，此 case 不會觸發
         case .oldPostBadge, .driedHideBundle, .splitHornBone, .riftFangRoyalBadge,
              .mineLampCopperClip, .tunnelIronClip, .veinStoneSlab, .stoneSwallowCore,
              .relicSealRing, .oathInscriptionShard, .foreShrineClip, .ancientKingCore:
@@ -80,21 +90,48 @@ struct SettlementService {
         }
     }
 
-    // MARK: - Dungeon 結算（委派 DungeonSettlementEngine）
+    // MARK: - Dungeon 結算（V1 + V2-1 雙路徑）
 
     private func fillDungeonResults(_ task: TaskModel) {
-        guard let area = DungeonAreaDef.find(key: task.definitionKey) else {
-            print("[SettlementService] 找不到地下城定義: \(task.definitionKey)")
+        // V1 路徑：definitionKey = DungeonAreaDef.key（e.g. "wildland"）
+        if let area = DungeonAreaDef.find(key: task.definitionKey) {
+            let result = DungeonSettlementEngine.settle(task: task, area: area)
+            task.resultGold            = result.gold
+            task.resultHide            = result.hide
+            task.resultCrystalShard    = result.crystalShard
+            task.resultAncientFragment = result.ancientFragment
+            task.resultBattlesWon      = result.battlesWon
+            task.resultBattlesLost     = result.battlesLost
             return
         }
 
-        let result = DungeonSettlementEngine.settle(task: task, area: area)
+        // V2-1 路徑：definitionKey = DungeonFloorDef.key（e.g. "wildland_floor_1"）
+        let allFloors = DungeonRegionDef.all.flatMap { $0.floors }
+        if let floor = allFloors.first(where: { $0.key == task.definitionKey }) {
+            let result = DungeonSettlementEngine.settle(task: task, floor: floor)
+            task.resultGold        = result.gold
+            task.resultBattlesWon  = result.battlesWon
+            task.resultBattlesLost = result.battlesLost
+            // 寫入區域素材（利用 TaskModel 的泛型 setter）
+            for (material, amount) in result.materials {
+                task.setResult(amount, of: material)
+            }
+            return
+        }
 
-        task.resultGold            = result.gold
-        task.resultHide            = result.hide
-        task.resultCrystalShard    = result.crystalShard
-        task.resultAncientFragment = result.ancientFragment
-        task.resultBattlesWon      = result.battlesWon
-        task.resultBattlesLost     = result.battlesLost
+        print("[SettlementService] 找不到地下城定義: \(task.definitionKey)")
+    }
+
+    // MARK: - V2-1 推進標記（Ticket 03）
+
+    /// 若任務的 definitionKey 對應到 V2-1 DungeonFloorDef，則標記該樓層首通。
+    /// V1 任務（DungeonAreaDef key）自動略過，冪等。
+    private func markDungeonProgression(_ task: TaskModel) {
+        let allFloors = DungeonRegionDef.all.flatMap { $0.floors }
+        guard let floor = allFloors.first(where: { $0.key == task.definitionKey }) else { return }
+        progressionService.markFloorCleared(
+            regionKey:  floor.regionKey,
+            floorIndex: floor.floorIndex
+        )
     }
 }

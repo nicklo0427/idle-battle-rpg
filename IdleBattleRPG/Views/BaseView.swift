@@ -132,6 +132,23 @@ struct BaseView: View {
                             Text("\(appState.lastSettledCount) 筆").fontWeight(.medium)
                         }
                     }
+                    Button("DEBUG: 印出 Progression 狀態") {
+                            let svc = appState.progressionService
+                            print("wildland 解鎖：", svc.isRegionUnlocked("wildland"))
+                            print("mine 解鎖：", svc.isRegionUnlocked("abandoned_mine"))
+                            print("ruins 解鎖：", svc.isRegionUnlocked("ancient_ruins"))
+                            print("wildland floor1 可挑：", svc.isFloorUnlocked(regionKey: "wildland", floorIndex: 1))
+                            print("wildland floor2 可挑：", svc.isFloorUnlocked(regionKey: "wildland", floorIndex: 2))
+                            print("wildland 已完成：", svc.isRegionCompleted("wildland"))
+                        }
+
+                        Button("DEBUG: 標記 wildland floor1 首通") {
+                            appState.progressionService.markFloorCleared(regionKey: "wildland", floorIndex: 1)
+                        }
+
+                        Button("DEBUG: 標記 wildland Boss 首通") {
+                            appState.progressionService.markFloorCleared(regionKey: "wildland", floorIndex: 4)
+                        }
                 } header: {
                     Text("⚙️ 開發模式（Debug Only）")
                 } footer: {
@@ -340,6 +357,7 @@ struct BaseView: View {
         player.availableStatPoints = 0
         try? context.save()
     }
+    
     #endif
 }
 

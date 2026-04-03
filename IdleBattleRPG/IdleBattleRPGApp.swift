@@ -16,7 +16,8 @@ struct IdleBattleRPGApp: App {
                     PlayerStateModel.self,
                     MaterialInventoryModel.self,
                     EquipmentModel.self,
-                    TaskModel.self
+                    TaskModel.self,
+                    DungeonProgressionModel.self
             )
         } catch {
             fatalError("Failed to create ModelContainer: \(error)")

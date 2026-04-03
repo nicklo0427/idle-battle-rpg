@@ -7,7 +7,10 @@
 //   - makeRewardLines() 只讀任務既有欄位，不做入帳、不做 RNG
 //
 // Phase 5 範圍：金幣 / 素材獎勵行顯示、裝備新增提示
-// Phase 6+ 補充：地下城勝場 / 敗場統計、裝備掉落明細
+// Phase 6+ 補充：地下城勝場 / 敗場統計
+// V2-1 Ticket 02：全部 17 種素材（V1 + V2-1 區域素材）皆可在結算摘要顯示
+//   - 使用 TaskModel.resultAmount(of:) 讀取所有素材欄位
+//   - 迭代 MaterialType.allCases 顯示，新素材自動涵蓋，無需手動新增顯示行
 
 import Foundation
 
@@ -44,21 +47,24 @@ final class SettlementViewModel {
     // MARK: - Private
 
     /// 從任務 result* 欄位彙整成顯示行（不做計算，只做格式化）
+    /// V1 + V2-1 全部 17 種素材皆透過 TaskModel.resultAmount(of:) 讀取，
+    /// 並利用 MaterialType.allCases 迭代輸出，結構統一。
     private func makeRewardLines(from tasks: [TaskModel]) -> [String] {
-        var goldTotal    = 0
-        var materials    = [MaterialType: Int]()
-        var craftCount   = 0
-        var totalWon     = 0
-        var totalLost    = 0
+        var goldTotal  = 0
+        var materials  = [MaterialType: Int]()
+        var craftCount = 0
+        var totalWon   = 0
+        var totalLost  = 0
 
         for task in tasks {
             goldTotal += task.resultGold
 
-            accumulate(task.resultWood,            .wood,            into: &materials)
-            accumulate(task.resultOre,             .ore,             into: &materials)
-            accumulate(task.resultHide,            .hide,            into: &materials)
-            accumulate(task.resultCrystalShard,    .crystalShard,    into: &materials)
-            accumulate(task.resultAncientFragment, .ancientFragment, into: &materials)
+            // 統一使用 resultAmount(of:) 讀取所有 17 種素材
+            for mat in MaterialType.allCases {
+                let amount = task.resultAmount(of: mat)
+                guard amount > 0 else { continue }
+                materials[mat, default: 0] += amount
+            }
 
             if task.kind == .craft && task.resultCraftedEquipKey != nil {
                 craftCount += 1
@@ -80,10 +86,5 @@ final class SettlementViewModel {
         if totalWon + totalLost > 0 { lines.append("⚔️ 戰鬥 \(totalWon) 勝 \(totalLost) 敗") }
 
         return lines
-    }
-
-    private func accumulate(_ value: Int, _ type: MaterialType, into dict: inout [MaterialType: Int]) {
-        guard value > 0 else { return }
-        dict[type, default: 0] += value
     }
 }
