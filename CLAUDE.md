@@ -1,20 +1,36 @@
 # CLAUDE.md — AI 協作說明文件
 
-> 生活空檔放置 RPG，MVP 是純本地單機。嚴守規格，不擴充，先讓核心循環跑通。
+> 生活空檔放置 RPG，本地單機 iOS App。MVP 核心循環已完成（V1–V3），目前進入 V4 新玩法規劃階段。
 
 ---
 
 ## 這份文件的用途
 
-這份文件是給 Claude / Claude Code 的專案協作說明。每次開啟新對話時，Claude 應先讀完這份文件，確保對 MVP 邊界有清楚認識，不自行擴展功能需求。
+這份文件是給 Claude / Claude Code 的專案協作說明。每次開啟新對話時，Claude 應先讀完這份文件，確保對目前開發階段有清楚認識。
 
-**完整規格請見：** `MVP_SPEC_FINAL.md`（本文件為濃縮版 + 約束清單）
+**開發進度請見：** `PROGRESS.md`
+**歷史 MVP 規格：** `MVP_SPEC_FINAL.md`（已完成，僅供參考）
 
 ---
 
 ## 專案一句話說明
 
-玩家生活空檔（上班前 / 午休 / 睡前）派英雄去地下城 AFK，NPC 採集素材、打造裝備，純本地單機 iOS App，MVP 無後端無社交。
+玩家生活空檔（上班前 / 午休 / 睡前）派英雄去地下城 AFK，NPC 採集素材、打造裝備，純本地單機 iOS App，無後端無社交（後端為長期目標）。
+
+## 目前開發狀態
+
+| 版本 | 狀態 | 內容 |
+|---|---|---|
+| V1 MVP | ✅ 完成 | 核心循環：採集 / 鑄造 / 出征 / 結算 / 英雄成長 |
+| V2-1 | ✅ 完成 | 地下城推進（3 區域 × 4 樓層 × Boss）|
+| V2-2 | ✅ 完成 | 裝備強化系統 |
+| V2-3 | ✅ 完成 | NPC 效率升級 |
+| V2-4 | ✅ 完成 | 商人 V2-1 素材、任務進度條、配方預覽 |
+| V2-5 | ✅ 完成 | EXP 升級系統、採集者專精、UI 清理 |
+| V3-1 | ✅ 完成 | 玩家累計統計 |
+| V3-3 | ✅ 完成 | 裝備比較 Diff |
+| V3-4 | ✅ 完成 | Dev 工具修正、採集時長縮放 |
+| V4 | 🔲 規劃中 | 見下方「V4 計劃方向」|
 
 ---
 
@@ -214,49 +230,59 @@ rng  = SeededRNG(seed: seed)  // LCG 演算法
 
 ---
 
-## 實作優先順序（20 步）
+## V4 計劃方向
 
-**Phase 1 — 計算核心（可先寫單元測試）**
-1. StaticData 全部定義
-2. 四個 SwiftData @Model
-3. HeroStatsService（純計算）
-4. DungeonSettlementEngine（確定性 RNG + 單元測試）
+以下是確認納入 V4 的功能，按優先順序排列。詳細 tickets 待規劃。
 
-**Phase 2 — 任務生命週期**
-5. TaskRepository（薄層 CRUD）
-6. TaskCreationService（建立三種任務）
-7. SettlementService（scanAndSettle + commitResults）
-8. EquipmentService（薄版）
+### 優先 1 — 戰鬥文字記錄（A2a）
+結算時用相同 deterministic seed 重新生成每場戰鬥的事件描述：
+> 「進入廢棄礦坑第三層 → 遭遇礦穴巨魔 → 發動斬擊 → 造成 42 傷害 → 受到 18 傷害 → 勝利」
 
-**Phase 3 — 全域協調**
-9. AppState（ScenePhase + Timer + Settlement 觸發）
-10. SettlementViewModel（只做 UI 轉換）
+- 只在玩家點「查看過程」時生成，不持久儲存
+- 新增 `BattleLogGenerator`（純計算，無副作用）
+- UI：任務完成後可展開「戰鬥記錄」Sheet
 
-**Phase 4 — ViewModels + Views**
-11. 總結算 Modal（優先完成，驗證結算流程）
-12. BaseViewModel + 基地 Tab + 採集 Sheet + 鑄造 Sheet
-13. AdventureViewModel + 冒險 Tab
-14. CharacterViewModel + 角色 Tab（裝備 + 背包 Segment）
+### 優先 2 — 採集文字記錄（A3）
+採集結算時依地點、素材類型生成探索描述：
+> 「進入森林深處 → 發現古老橡樹叢 → 費力砍伐 → 獲得 6 木材」
 
-**Phase 5 — P0.5（first-session 收尾）**
-15. Onboarding highlight（3 步驟）
-16. 首次加速說明文字（鑄造 + 出征）
-17. 採集 / 鑄造完成小通知
+- 同樣只在查看時生成
+- 新增 `GatherLogGenerator`
 
-**Phase 6 — P1**
-18. MerchantService + 商店 Sheet
-19. 數值平衡調整（靜態資料微調）
-20. 整體測試與 TestFlight 準備
+### 優先 3 — 解鎖門檻強化（A1）
+目前靠機率即可堆量通關。改為「首通需達到最低戰力門檻」：
+- `TaskCreationService` 新增戰力驗證
+- `FloorDetailSheet` 顯示「戰力不足，無法首通」提示
+
+### 優先 4 — 更多等級 / 地下城（A5）
+- 英雄等級上限：10 → 20
+- 增加地下城區域或樓層深度
+
+### 優先 5 — 成就系統（C）
+給玩家明確的長期目標：
+- 靜態定義成就列表（`AchievementDef`）
+- `AchievementService` 在各結算點檢查觸發
+- 角色頁新增「成就」Tab segment
+
+### 優先 6 — 視覺強化（D）
+- 各地下城區域差異化色調（荒野橙 / 礦坑藍灰 / 遺跡紫）
+- SF Symbols 動畫（進行中任務呼吸效果）
+- 精良裝備金色邊框
+
+### 後排 — 技能 / 天賦系統（A2b）
+大型系統，需獨立規劃，影響戰鬥計算全面重構。
+
+### 後排 — 社交功能（B）
+組隊 / 工會 / 聊天 / 季節活動，全部需要後端，另立版本規劃。
 
 ---
 
-## 絕對不做的事（V2 以後再說）
+## 絕對不做的事（後端版本再說）
 
-- ❌ 後端 API / 伺服器
+- ❌ 後端 API / 伺服器（長期目標，先做好本地版）
 - ❌ Apple Sign In / 帳號系統
-- ❌ 好友 / 非同步組隊
-- ❌ 裝備強化系統
-- ❌ NPC 升級 / 招募更多 NPC
+- ❌ 組隊 / 工會 / 聊天（需後端）
+- ❌ 季節性 / 節日活動（需後端）
 - ❌ 第二貨幣（鑽石 / 寶石）
 - ❌ 推播通知
 - ❌ 商人每日刷新
@@ -264,8 +290,7 @@ rng  = SeededRNG(seed: seed)  // LCG 演算法
 - ❌ 提早從地下城召回（含懲罰機制）
 - ❌ 超過 3 個 Tab
 - ❌ 任何需要 Internet 的功能
-- ❌ 第二種主要貨幣
-- ❌ Claude AI 文字生成（舊設計殘留，本版本不使用）
+- ❌ Claude AI 文字生成
 
 ---
 
@@ -317,11 +342,11 @@ if forcedBattles == 5（首次出征）：
 
 ## 給 Claude 的行為原則
 
-1. **嚴守規格**：有疑問時先查 `MVP_SPEC_FINAL.md`，不自行擴充功能
-2. **先做 Phase 1 再做 Phase 4**：不要跳過 Service 層直接寫 View
-3. **計算核心最優先**：`HeroStatsService` 和 `DungeonSettlementEngine` 是最容易測試的，先寫好
-4. **優先用確定性**：任何涉及結算的計算必須用確定性 RNG
-5. **不要動 AppState 邊界**：AppState 不存遊戲狀態，有疑問就從 SwiftData 查
-6. **SettlementViewModel 保持最薄**：只做 UI 轉換，計算邏輯一律在 Service 層
-7. **靜態資料用 Swift struct**：不要把 StaticData 放進 SwiftData
-8. **看到「加後端」就停下來**：MVP 是純本地，後端是 V2 的事
+1. **先查 PROGRESS.md**：了解目前完成了什麼，避免重複實作
+2. **遵守分層架構**：不要跳過 Service 層直接在 View 寫邏輯
+3. **計算核心純化**：任何涉及結算的計算必須用確定性 RNG，不預存結果
+4. **不要動 AppState 邊界**：AppState 不存遊戲狀態，有疑問就從 SwiftData 查
+5. **SettlementViewModel 保持最薄**：只做 UI 轉換，計算邏輯一律在 Service 層
+6. **靜態資料用 Swift struct**：不要把 StaticData 放進 SwiftData
+7. **看到「加後端 / 網路」就停下來**：目前版本純本地，後端是獨立版本的事
+8. **新功能先寫 ticket 再實作**：見 `tickets/` 目錄格式

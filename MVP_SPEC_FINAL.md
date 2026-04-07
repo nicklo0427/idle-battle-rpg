@@ -1,8 +1,8 @@
 # MVP_SPEC_FINAL.md
 
 > 版本：1.0
-> 狀態：設計定案，可開始實作
-> 性質：本文件為此專案的唯一設計事實來源（Single Source of Truth）
+> 狀態：⚠️ 歷史文件 — V1 MVP 已完成，目前進入 V4 規劃。此文件僅供參考。
+> 現行開發狀態請見：`PROGRESS.md` 與 `CLAUDE.md`
 
 ---
 
