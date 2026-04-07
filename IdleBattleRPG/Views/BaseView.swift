@@ -4,7 +4,7 @@
 // 顯示內容：
 //   - 玩家金幣、等級（收下後即時更新）
 //   - 素材庫存（收下後即時更新）
-//   - NPC 列表：採集者 ×2（點閒置 → GatherSheet）、鑄造師（點閒置 → CraftSheet）
+//   - NPC 列表：採集者 ×2（點擊 → GathererDetailSheet）、鑄造師（點閒置 → CraftSheet）
 //   - 開發模式（標示清楚，置底）
 
 import SwiftUI
@@ -23,10 +23,12 @@ struct BaseView: View {
     @State private var viewModel = BaseViewModel()
 
     // Sheet 狀態
-    @State private var showGatherSheet1  = false
-    @State private var showGatherSheet2  = false
+    @State private var selectedGathererDef: GathererNpcDef?
     @State private var showCraftSheet    = false
     @State private var showMerchantSheet = false
+
+    // NPC 升級確認 Alert
+    @State private var pendingUpgradeInfo: NpcUpgradeRequest?
 
     var body: some View {
         NavigationStack {
@@ -66,91 +68,72 @@ struct BaseView: View {
                     }
                 }
 
-                // ── 素材庫存 ─────────────────────────────────────────
-                Section("素材庫存") {
-                    if let inv = inventories.first {
-                        ForEach(MaterialType.allCases, id: \.self) { mat in
-                            let amount = inv.amount(of: mat)
-                            HStack {
-                                Text("\(mat.icon) \(mat.displayName)")
-                                    .foregroundStyle(amount > 0 ? .primary : .secondary)
-                                Spacer()
-                                Text("\(amount)")
-                                    .fontWeight(amount > 0 ? .semibold : .regular)
-                                    .foregroundStyle(amount > 0 ? .primary : .secondary)
-                                    .monospacedDigit()
-                            }
-                        }
-                    } else {
-                        Text("⚠️ 尚無素材資料").foregroundStyle(.red)
-                    }
-                }
-
                 // ── NPC 列表 ─────────────────────────────────────────
                 Section("NPC") {
-                    npcGathererRow(
-                        actorKey: AppConstants.Actor.gatherer1,
-                        name: "採集者 1",
-                        onTap: { showGatherSheet1 = true }
-                    )
-                    npcGathererRow(
-                        actorKey: AppConstants.Actor.gatherer2,
-                        name: "採集者 2",
-                        onTap: { showGatherSheet2 = true }
-                    )
-                    npcBlacksmithRow()
+                    ForEach(GathererNpcDef.all) { npc in
+                        npcGathererRow(def: npc, player: players.first)
+                    }
+                    npcBlacksmithRow(player: players.first)
                     npcMerchantRow()
                 }
 
                 // ── 開發模式（Debug build 限定）────────────────────────
                 #if DEBUG
                 Section {
-                    Button {
-                        addShortTestTask()
-                    } label: {
-                        Label("新增短時採集任務（5 秒）", systemImage: "plus.circle")
+                    // 金幣
+                    Button { devAddGold(500) } label: {
+                        Label("金幣 +500", systemImage: "dollarsign.circle")
                     }
-                    Button {
-                        appState.scanAndSettle()
-                    } label: {
-                        Label("手動觸發結算掃描", systemImage: "arrow.clockwise")
+                    Button { devAddGold(5000) } label: {
+                        Label("金幣 +5,000", systemImage: "dollarsign.circle.fill")
                     }
-                    Button {
-                        devUnequipAll()
-                    } label: {
-                        Label("卸除所有裝備（測試低戰力）", systemImage: "shield.slash")
-                    }
-                    Button {
-                        devSetMaxLevel()
-                    } label: {
-                        Label("升至最高等級 Lv.\(AppConstants.Game.heroMaxLevel)", systemImage: "arrow.up.forward.circle")
-                    }
-                    if appState.lastSettledCount > 0 {
-                        HStack {
-                            Text("最近結算").foregroundStyle(.secondary)
-                            Spacer()
-                            Text("\(appState.lastSettledCount) 筆").fontWeight(.medium)
-                        }
-                    }
-                    Button("DEBUG: 印出 Progression 狀態") {
-                            let svc = appState.progressionService
-                            print("wildland 解鎖：", svc.isRegionUnlocked("wildland"))
-                            print("mine 解鎖：", svc.isRegionUnlocked("abandoned_mine"))
-                            print("ruins 解鎖：", svc.isRegionUnlocked("ancient_ruins"))
-                            print("wildland floor1 可挑：", svc.isFloorUnlocked(regionKey: "wildland", floorIndex: 1))
-                            print("wildland floor2 可挑：", svc.isFloorUnlocked(regionKey: "wildland", floorIndex: 2))
-                            print("wildland 已完成：", svc.isRegionCompleted("wildland"))
-                        }
-
-                        Button("DEBUG: 標記 wildland floor1 首通") {
-                            appState.progressionService.markFloorCleared(regionKey: "wildland", floorIndex: 1)
-                        }
-
-                        Button("DEBUG: 標記 wildland Boss 首通") {
-                            appState.progressionService.markFloorCleared(regionKey: "wildland", floorIndex: 4)
-                        }
                 } header: {
                     Text("⚙️ 開發模式（Debug Only）")
+                }
+
+                Section("任務") {
+                    Button { devExpireAllTasks() } label: {
+                        Label("快速完成所有進行中任務", systemImage: "bolt.fill")
+                    }
+                    .tint(.orange)
+                    Button { appState.scanAndSettle() } label: {
+                        Label("手動觸發結算掃描", systemImage: "arrow.clockwise")
+                    }
+                }
+
+                Section("素材") {
+                    Button { devAddMaterials(10) } label: {
+                        Label("各素材 +10", systemImage: "shippingbox.fill")
+                    }
+                }
+
+                Section("角色") {
+                    Button { devSetMaxLevel() } label: {
+                        Label("升至最高等級 Lv.\(AppConstants.Game.heroMaxLevel)", systemImage: "arrow.up.forward.circle")
+                    }
+                    Button { devUnequipAll() } label: {
+                        Label("卸除所有裝備（測試低戰力）", systemImage: "shield.slash")
+                    }
+                    .tint(.red)
+                }
+
+                Section("NPC 升級") {
+                    Button { devResetNpcTiers() } label: {
+                        Label("重置所有 NPC Tier 至 0", systemImage: "arrow.uturn.backward.circle")
+                    }
+                    .tint(.red)
+                    Button { devResetFirstBoosts() } label: {
+                        Label("重置首次加速 Flag（鑄造 / 出征）", systemImage: "flag.slash")
+                    }
+                    .tint(.red)
+                }
+
+                Section {
+                    Button { devUnlockAllRegions() } label: {
+                        Label("解鎖所有區域（標記所有 Boss 首通）", systemImage: "lock.open.fill")
+                    }
+                } header: {
+                    Text("地下城")
                 } footer: {
                     Text("此區塊僅在 Debug build 顯示，Release / TestFlight 不可見。")
                         .font(.caption)
@@ -159,20 +142,11 @@ struct BaseView: View {
                 #endif
             }
             .navigationTitle("基地")
-            .sheet(isPresented: $showGatherSheet1) {
-                GatherSheet(
-                    actorKey: AppConstants.Actor.gatherer1,
-                    actorName: "採集者 1",
-                    viewModel: viewModel,
-                    isPresented: $showGatherSheet1
-                )
-            }
-            .sheet(isPresented: $showGatherSheet2) {
-                GatherSheet(
-                    actorKey: AppConstants.Actor.gatherer2,
-                    actorName: "採集者 2",
-                    viewModel: viewModel,
-                    isPresented: $showGatherSheet2
+            .sheet(item: $selectedGathererDef) { npc in
+                GathererDetailSheet(
+                    npcDef:   npc,
+                    appState: appState,
+                    viewModel: viewModel
                 )
             }
             .sheet(isPresented: $showCraftSheet) {
@@ -180,11 +154,36 @@ struct BaseView: View {
                     viewModel: viewModel,
                     player: players.first,
                     inventory: inventories.first,
+                    progressionService: appState.progressionService,
                     isPresented: $showCraftSheet
                 )
             }
             .sheet(isPresented: $showMerchantSheet) {
                 MerchantSheet(isPresented: $showMerchantSheet)
+            }
+            .alert(item: $pendingUpgradeInfo) { info in
+                let player = players.first
+                let inventory = inventories.first
+                let matDesc = info.cost.materialCosts
+                    .map { "\($0.0.displayName) ×\($0.1)（持有：\(inventory?.amount(of: $0.0) ?? 0)）" }
+                    .joined(separator: "\n")
+                let expLine  = "EXP：\(info.cost.expCost)（持有：\(player?.heroExp ?? 0)）"
+                let goldLine = "金幣：\(info.cost.goldCost)（持有：\(player?.gold ?? 0)）"
+                let message  = [expLine, matDesc, goldLine].filter { !$0.isEmpty }.joined(separator: "\n")
+                return Alert(
+                    title: Text("升級 \(info.label)？"),
+                    message: Text(message),
+                    primaryButton: .default(Text("確認升級")) {
+                        if let player {
+                            appState.npcUpgradeService.upgrade(
+                                npcKind: info.npcKind,
+                                actorKey: info.actorKey,
+                                player: player
+                            )
+                        }
+                    },
+                    secondaryButton: .cancel(Text("取消"))
+                )
             }
         }
     }
@@ -192,36 +191,44 @@ struct BaseView: View {
     // MARK: - NPC Row: 採集者
 
     @ViewBuilder
-    private func npcGathererRow(actorKey: String, name: String, onTap: @escaping () -> Void) -> some View {
-        let activeTask = viewModel.gatherTaskForActor(actorKey, from: tasks)
+    private func npcGathererRow(def: GathererNpcDef, player: PlayerStateModel?) -> some View {
+        let activeTask = viewModel.gatherTaskForActor(def.actorKey, from: tasks)
         let isBusy = activeTask != nil
+        let tier = player?.tier(for: def.actorKey) ?? 0
 
-        Button(action: { if !isBusy { onTap() } }) {
+        Button(action: { selectedGathererDef = def }) {
             HStack(spacing: 12) {
-                Image(systemName: "leaf.fill")
+                Image(systemName: def.icon)
                     .foregroundStyle(Color.green.opacity(isBusy ? 0.4 : 1.0))
                     .frame(width: 24)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(name)
+                    Text(def.name)
                         .fontWeight(.medium)
                         .foregroundStyle(.primary)
 
-                    if let task = activeTask, let def = GatherLocationDef.find(key: task.definitionKey) {
-                        Text("採集中：\(def.name)")
+                    if let task = activeTask, let locDef = GatherLocationDef.find(key: task.definitionKey) {
+                        Text("採集中：\(locDef.name)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         Text(TaskCountdown.remaining(for: task, relativeTo: appState.tick))
                             .font(.caption)
                             .foregroundStyle(.green)
+                        let progress = taskProgress(task)
+                        ProgressView(value: progress)
+                            .tint(.green)
+                            .scaleEffect(y: 0.7)
+                            .padding(.top, 1)
                     } else {
-                        Text("閒置中，點擊派遣")
+                        Text("閒置中，點擊查看")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
 
                 Spacer()
+
+                tierBadge(tier: tier)
 
                 if isBusy {
                     Text("採集中")
@@ -239,15 +246,16 @@ struct BaseView: View {
             .padding(.vertical, 2)
             .contentShape(Rectangle())
         }
-        .buttonStyle(NPCRowButtonStyle(enabled: !isBusy))
+        .buttonStyle(NPCRowButtonStyle(enabled: true))
     }
 
     // MARK: - NPC Row: 鑄造師
 
     @ViewBuilder
-    private func npcBlacksmithRow() -> some View {
+    private func npcBlacksmithRow(player: PlayerStateModel?) -> some View {
         let activeTask = viewModel.craftTask(from: tasks)
         let isBusy = activeTask != nil
+        let tier = player?.tier(for: AppConstants.Actor.blacksmith) ?? 0
 
         Button(action: { if !isBusy { showCraftSheet = true } }) {
             HStack(spacing: 12) {
@@ -267,6 +275,11 @@ struct BaseView: View {
                         Text(TaskCountdown.remaining(for: task, relativeTo: appState.tick))
                             .font(.caption)
                             .foregroundStyle(.orange)
+                        let progress = taskProgress(task)
+                        ProgressView(value: progress)
+                            .tint(.orange)
+                            .scaleEffect(y: 0.7)
+                            .padding(.top, 1)
                     } else {
                         Text("閒置中，點擊委派")
                             .font(.caption)
@@ -275,6 +288,8 @@ struct BaseView: View {
                 }
 
                 Spacer()
+
+                tierBadge(tier: tier)
 
                 if isBusy {
                     Text("鑄造中")
@@ -293,6 +308,26 @@ struct BaseView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(NPCRowButtonStyle(enabled: !isBusy))
+        .contextMenu {
+            if let player,
+               let cost = appState.npcUpgradeService.nextUpgradeCost(
+                   npcKind: .blacksmith, actorKey: AppConstants.Actor.blacksmith, player: player) {
+                let inventory   = inventories.first
+                let canExp      = player.heroExp >= cost.expCost
+                let canMat      = cost.materialCosts.allSatisfy { (mat, req) in (inventory?.amount(of: mat) ?? 0) >= req }
+                let canGold     = player.gold >= cost.goldCost
+                let canUpgrade  = canExp && canMat && canGold
+                let matDesc     = cost.materialCosts.map { "\($0.0.icon)×\($0.1)" }.joined(separator: " ")
+                let label       = "升級到 T\(tier + 1)（EXP \(cost.expCost) · \(matDesc) · \(cost.goldCost)金）"
+                Button(canUpgrade ? label : label + "（資源不足）") {
+                    pendingUpgradeInfo = NpcUpgradeRequest(
+                        npcKind: .blacksmith, actorKey: AppConstants.Actor.blacksmith, label: "鑄造師", cost: cost)
+                }
+                .disabled(!canUpgrade)
+            } else {
+                Text("已達升級上限").foregroundStyle(.secondary)
+            }
+        }
     }
 
     // MARK: - NPC Row: 商人
@@ -326,39 +361,107 @@ struct BaseView: View {
         .buttonStyle(NPCRowButtonStyle(enabled: true))
     }
 
+    // MARK: - Tier Badge
+
+    @ViewBuilder
+    private func tierBadge(tier: Int) -> some View {
+        if tier > 0 {
+            Text("T\(tier)")
+                .font(.caption2.bold())
+                .padding(.horizontal, 5)
+                .padding(.vertical, 2)
+                .background(Color.accentColor.opacity(0.15))
+                .foregroundStyle(Color.accentColor)
+                .clipShape(Capsule())
+        }
+    }
+
     // MARK: - Private Helpers
 
+    private func taskProgress(_ task: TaskModel) -> Double {
+        let total   = task.endsAt.timeIntervalSince(task.startedAt)
+        let elapsed = appState.tick.timeIntervalSince(task.startedAt)
+        guard total > 0 else { return 1.0 }
+        return min(1.0, max(0.0, elapsed / total))
+    }
+
     #if DEBUG
-    /// 插入 5 秒後到期的採集任務（開發模式驗證用，Debug build 限定）
-    private func addShortTestTask() {
-        let now = Date.now
-        let task = TaskModel(
-            kind:          .gather,
-            actorKey:      AppConstants.Actor.gatherer1,
-            definitionKey: GatherLocationDef.all[0].key,
-            startedAt:     now,
-            endsAt:        now.addingTimeInterval(5)
-        )
-        context.insert(task)
+    private func devAddGold(_ amount: Int) {
+        guard let player = players.first else { return }
+        player.gold += amount
         try? context.save()
     }
 
-    /// 卸除所有裝備，讓戰力降至基礎值（測試低勝率用）
+    private func devAddMaterials(_ amount: Int) {
+        guard let inv = inventories.first else { return }
+        inv.wood             += amount
+        inv.ore              += amount
+        inv.hide             += amount
+        inv.crystalShard     += amount
+        inv.ancientFragment  += amount
+        try? context.save()
+    }
+
+    /// 把所有進行中任務的 endsAt 改為過去，讓 scanAndSettle 立即結算
+    private func devExpireAllTasks() {
+        let now = Date.now
+        tasks.filter { $0.status == .inProgress }.forEach { task in
+            let duration = task.endsAt.timeIntervalSince(task.startedAt)
+            task.startedAt = now.addingTimeInterval(-duration - 2)
+            task.endsAt    = now.addingTimeInterval(-2)
+        }
+        try? context.save()
+        appState.scanAndSettle()
+    }
+
     private func devUnequipAll() {
         let all = (try? context.fetch(FetchDescriptor<EquipmentModel>())) ?? []
         all.forEach { $0.isEquipped = false }
         try? context.save()
     }
 
-    /// 直接升至最高等級，屬性點清零（測試 Lv.10 上限用）
     private func devSetMaxLevel() {
         guard let player = players.first else { return }
-        player.heroLevel          = AppConstants.Game.heroMaxLevel
+        player.heroLevel           = AppConstants.Game.heroMaxLevel
         player.availableStatPoints = 0
         try? context.save()
     }
-    
+
+    private func devResetNpcTiers() {
+        guard let player = players.first else { return }
+        player.gatherer1Tier  = 0
+        player.gatherer2Tier  = 0
+        player.blacksmithTier = 0
+        try? context.save()
+    }
+
+    private func devResetFirstBoosts() {
+        guard let player = players.first else { return }
+        player.hasUsedFirstCraftBoost   = false
+        player.hasUsedFirstDungeonBoost = false
+        try? context.save()
+    }
+
+    /// 標記所有地區所有樓層首通，解鎖全部區域
+    private func devUnlockAllRegions() {
+        let svc = appState.progressionService
+        for region in DungeonRegionDef.all {
+            for floor in region.floors {
+                svc.markFloorCleared(regionKey: floor.regionKey, floorIndex: floor.floorIndex)
+            }
+        }
+    }
     #endif
+}
+
+// MARK: - NPC 升級請求（Alert Identifiable）
+
+private struct NpcUpgradeRequest: Identifiable {
+    let id = UUID()
+    let npcKind: NpcKind
+    let actorKey: String
+    let label: String
+    let cost: NpcUpgradeCostDef
 }
 
 // MARK: - Button Style

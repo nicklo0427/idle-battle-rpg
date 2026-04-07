@@ -7,9 +7,23 @@
 //   - 升級 / 屬性點 → CharacterProgressionService
 //   - 裝備切換     → EquipmentService
 //   - 戰力計算     → HeroStatsService
+//   - 強化 / 拆解  → EnhancementService（V2-2）
 
 import Foundation
 import SwiftData
+
+// MARK: - StatDiff
+
+struct StatDiff {
+    let atk: Int
+    let def: Int
+    let hp:  Int
+    /// 戰力差（使用標準公式）
+    var power: Int { atk * 2 + Int(Double(def) * 1.5) + hp }
+    var hasAnyChange: Bool { atk != 0 || def != 0 || hp != 0 }
+}
+
+// MARK: - CharacterViewModel
 
 @Observable
 final class CharacterViewModel {
@@ -42,11 +56,11 @@ final class CharacterViewModel {
 
     // MARK: - 升級輔助
 
-    /// 下一級費用（若已滿級回傳 nil）
-    func nextLevelCost(player: PlayerStateModel?) -> Int? {
+    /// 升至下一級所需 EXP（若已滿級回傳 nil）
+    func nextLevelExpRequired(player: PlayerStateModel?) -> Int? {
         guard let player,
               player.heroLevel < AppConstants.Game.heroMaxLevel else { return nil }
-        return AppConstants.UpgradeCost.gold(toLevel: player.heroLevel + 1)
+        return AppConstants.ExpThreshold.required(toLevel: player.heroLevel + 1)
     }
 
     func isMaxLevel(player: PlayerStateModel?) -> Bool {
@@ -79,5 +93,38 @@ final class CharacterViewModel {
 
     func unequip(_ item: EquipmentModel, context: ModelContext) {
         EquipmentService(context: context).unequip(item)
+    }
+
+    // MARK: - 換裝差值
+
+    /// 換上 candidate 後相對於同部位已裝備裝備的屬性差值（正 = 提升，負 = 下降）
+    func equipDiff(
+        candidate: EquipmentModel,
+        equipped: [EquipmentModel]
+    ) -> StatDiff {
+        let current = equipped.first { $0.slot == candidate.slot && $0.isEquipped }
+        return StatDiff(
+            atk: candidate.totalAtk - (current?.totalAtk ?? 0),
+            def: candidate.totalDef - (current?.totalDef ?? 0),
+            hp:  candidate.totalHp  - (current?.totalHp  ?? 0)
+        )
+    }
+
+    // MARK: - 強化 / 拆解（委派 EnhancementService，V2-2）
+
+    /// 強化裝備；回傳 nil = 成功，非 nil = 失敗訊息
+    func enhance(equipment: EquipmentModel, player: PlayerStateModel, context: ModelContext) -> String? {
+        switch EnhancementService(context: context).enhance(equipment: equipment, player: player) {
+        case .success:            return nil
+        case .failure(let error): return error.message
+        }
+    }
+
+    /// 拆解裝備；回傳 nil = 成功，非 nil = 失敗訊息
+    func disassemble(equipment: EquipmentModel, player: PlayerStateModel, context: ModelContext) -> String? {
+        switch EnhancementService(context: context).disassemble(equipment: equipment, player: player) {
+        case .success:            return nil
+        case .failure(let error): return error.message
+        }
     }
 }

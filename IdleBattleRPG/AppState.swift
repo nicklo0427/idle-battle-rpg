@@ -11,6 +11,7 @@
 //      同時在 tick 時自動呼叫 scanAndSettle()，補抓前台到期任務
 //   7. startForegroundTimer() / stopForegroundTimer() — 由 ContentView 管理生命週期
 //   8. progressionService — 公開供 ViewModel 查詢地下城推進狀態（V2-1 Ticket 03）
+//   9. enhancementService — 公開供 ViewModel 執行強化 / 拆解操作（V2-2 Ticket 03）
 //
 // 注意：AppState 本身不存任何遊戲狀態（金幣、素材、戰力等），
 //       這些資料從 SwiftData 即時查詢。
@@ -21,6 +22,10 @@ import SwiftData
 @Observable
 final class AppState {
 
+    // MARK: - ModelContext
+
+    private let modelContext: ModelContext
+
     // MARK: - Services
 
     private let settlementService: SettlementService
@@ -28,6 +33,14 @@ final class AppState {
     /// 地下城推進狀態查詢服務（V2-1 Ticket 03）。
     /// 公開讓 ViewModel 直接呼叫 isRegionUnlocked / isFloorCleared 等方法。
     let progressionService: DungeonProgressionService
+
+    /// 裝備強化 / 拆解服務（V2-2 Ticket 03）。
+    /// 公開讓 ViewModel 呼叫 enhance / disassemble。
+    let enhancementService: EnhancementService
+
+    /// NPC 效率升級服務（V2-3 Ticket 03）。
+    /// 公開讓 ViewModel 呼叫 upgrade / nextUpgradeCost。
+    let npcUpgradeService: NpcUpgradeService
 
     // MARK: - UI 狀態
 
@@ -51,9 +64,12 @@ final class AppState {
     // MARK: - Init
 
     init(context: ModelContext) {
-        self.settlementService  = SettlementService(context: context)
-        self.claimService       = TaskClaimService(context: context)
-        self.progressionService = DungeonProgressionService(context: context)
+        self.modelContext        = context
+        self.settlementService   = SettlementService(context: context)
+        self.claimService        = TaskClaimService(context: context)
+        self.progressionService  = DungeonProgressionService(context: context)
+        self.enhancementService  = EnhancementService(context: context)
+        self.npcUpgradeService   = NpcUpgradeService(context: context)
     }
 
     // MARK: - Timer 生命週期（由 ContentView 管理）
@@ -66,6 +82,7 @@ final class AppState {
             guard let self else { return }
             self.tick = .now
             self.scanAndSettle()
+            self.updateHighestPower()
         }
     }
 
@@ -108,5 +125,18 @@ final class AppState {
     /// 僅關閉 Sheet，不觸發 claim（edge case 備用）
     func dismissSettlement() {
         shouldShowSettlement = false
+    }
+
+    // MARK: - Private
+
+    /// 每秒比對當前戰力，若超過歷史最高則更新。
+    private func updateHighestPower() {
+        let stats  = HeroStatsService.fetchAndCompute(context: modelContext)
+        let descriptor = FetchDescriptor<PlayerStateModel>()
+        guard let player = (try? modelContext.fetch(descriptor))?.first else { return }
+        if stats.power > player.highestPowerReached {
+            player.highestPowerReached = stats.power
+            try? modelContext.save()
+        }
     }
 }

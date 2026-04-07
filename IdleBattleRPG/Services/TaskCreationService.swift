@@ -126,7 +126,13 @@ struct TaskCreationService {
             player.hasUsedFirstCraftBoost = true
         }
 
-        let duration = durationOverride ?? def.durationSeconds
+        let duration: Int
+        if let override = durationOverride {
+            duration = override
+        } else {
+            let multiplier = NpcUpgradeDef.craftDurationMultiplier(tier: player.blacksmithTier)
+            duration = max(30, Int(Double(def.durationSeconds) * multiplier))
+        }
         let now = Date.now
         let task = TaskModel(
             kind:          .craft,
@@ -143,7 +149,48 @@ struct TaskCreationService {
 
     // MARK: - 地下城任務
 
-    /// 建立地下城任務。
+    /// 建立 V2-1 地下城（樓層）任務。
+    /// 驗證：樓層存在、玩家目前沒有進行中地下城任務。
+    /// 首次出征（選 15 分鐘）：30 秒完成，固定 5 場戰鬥。
+    func createDungeonFloorTask(floorKey: String, durationSeconds: Int, heroStats: HeroStats) throws {
+        guard DungeonFloorDef.find(key: floorKey) != nil else {
+            throw TaskCreationError.areaNotFound(floorKey)
+        }
+
+        let inProgress = repository.fetchInProgress()
+        if inProgress.contains(where: { $0.kind == .dungeon && $0.actorKey == AppConstants.Actor.player }) {
+            throw TaskCreationError.playerAlreadyInDungeon
+        }
+
+        let playerDesc = FetchDescriptor<PlayerStateModel>()
+        guard let player = (try? context.fetch(playerDesc))?.first else {
+            throw TaskCreationError.noPlayerState
+        }
+
+        var durationOverride: Int? = nil
+        var forcedBattles: Int? = nil
+        if !player.hasUsedFirstDungeonBoost && durationSeconds == AppConstants.DungeonDuration.short {
+            durationOverride = AppConstants.Game.firstBoostSeconds
+            forcedBattles    = AppConstants.Game.forcedBattlesFirstRun
+            player.hasUsedFirstDungeonBoost = true
+        }
+
+        let duration = durationOverride ?? durationSeconds
+        let now = Date.now
+        let task = TaskModel(
+            kind:          .dungeon,
+            actorKey:      AppConstants.Actor.player,
+            definitionKey: floorKey,
+            startedAt:     now,
+            endsAt:        now.addingTimeInterval(TimeInterval(duration)),
+            durationOverride: durationOverride,
+            forcedBattles:    forcedBattles,
+            snapshotPower:    heroStats.power
+        )
+        repository.insert(task)
+    }
+
+    /// 建立地下城任務（V1 路徑，以 DungeonAreaDef key 為 definitionKey）。
     /// 驗證：區域存在、玩家目前沒有進行中地下城任務。
     /// 首次出征（選 15 分鐘）：30 秒完成，固定 5 場戰鬥。
     func createDungeonTask(areaKey: String, durationSeconds: Int, heroStats: HeroStats) throws {

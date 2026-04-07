@@ -1,12 +1,12 @@
 // CharacterView.swift
-// 角色 Tab — Phase 8
+// 角色 Tab — V2-2 Ticket 04 更新（加入強化 / 拆解 SwipeActions）
 //
 // Segment Control：裝備 / 背包
 //
 // 裝備 Segment：
 //   - 英雄狀態（等級、金幣、戰力、ATK/DEF/HP + 屬性點分配按鈕）
 //   - 升級區塊（費用、升級按鈕）
-//   - 已裝備欄位（3 部位，點擊 → 裝備選擇 Sheet）
+//   - 已裝備欄位（4 部位：武器 / 副手 / 防具 / 飾品，點擊 → 裝備選擇 Sheet）
 //
 // 背包 Segment：
 //   - 素材庫存（5 種）
@@ -22,6 +22,12 @@ private enum CharacterSegment: String, CaseIterable {
     case backpack = "背包"
 }
 
+private enum BackpackTab: String, CaseIterable {
+    case equipment    = "裝備"
+    case basicMat     = "通用素材"
+    case areaMat      = "區域素材"
+}
+
 // MARK: - CharacterView
 
 struct CharacterView: View {
@@ -32,12 +38,20 @@ struct CharacterView: View {
     @Query private var equipments:  [EquipmentModel]
     @Query private var inventories: [MaterialInventoryModel]
 
-    @State private var viewModel   = CharacterViewModel()
-    @State private var segment     = CharacterSegment.gear
+    @State private var viewModel    = CharacterViewModel()
+    @State private var segment      = CharacterSegment.gear
+    @State private var backpackTab  = BackpackTab.equipment
     @State private var alertMsg: String?
+
+    /// 裝備槽顯示順序（武器→副手→防具→飾品）
+    private let slotDisplayOrder: [EquipmentSlot] = [.weapon, .offhand, .armor, .accessory]
 
     // 裝備選擇 Sheet：記錄要切換的部位
     @State private var equipSheetSlot: EquipmentSlot?
+
+    // 強化 / 拆解確認 Alert（V2-2）
+    @State private var pendingEnhanceItem:     EquipmentModel?
+    @State private var pendingDisassembleItem: EquipmentModel?
 
     // MARK: - 計算屬性
 
@@ -81,11 +95,57 @@ struct CharacterView: View {
             } message: {
                 Text(alertMsg ?? "")
             }
+            // 強化確認 Alert（V2-2）
+            .alert(
+                "強化確認",
+                isPresented: Binding(
+                    get: { pendingEnhanceItem != nil },
+                    set: { if !$0 { pendingEnhanceItem = nil } }
+                ),
+                presenting: pendingEnhanceItem
+            ) { item in
+                Button("確認") {
+                    if let p = player {
+                        if let msg = viewModel.enhance(equipment: item, player: p, context: context) {
+                            alertMsg = msg
+                        }
+                    }
+                    pendingEnhanceItem = nil
+                }
+                Button("取消", role: .cancel) { pendingEnhanceItem = nil }
+            } message: { item in
+                let cost = EnhancementDef.goldCost(fromLevel: item.enhancementLevel) ?? 0
+                Text("將 \(item.displayName) 強化至 +\(item.enhancementLevel + 1)\n消耗：\(cost) 金幣\n目前金幣：\(player?.gold ?? 0)")
+            }
+            // 拆解確認 Alert（V2-2）
+            .alert(
+                "確認拆解",
+                isPresented: Binding(
+                    get: { pendingDisassembleItem != nil },
+                    set: { if !$0 { pendingDisassembleItem = nil } }
+                ),
+                presenting: pendingDisassembleItem
+            ) { item in
+                Button("確認拆解", role: .destructive) {
+                    if let p = player {
+                        if let msg = viewModel.disassemble(equipment: item, player: p, context: context) {
+                            alertMsg = msg
+                        }
+                    }
+                    pendingDisassembleItem = nil
+                }
+                Button("取消", role: .cancel) { pendingDisassembleItem = nil }
+            } message: { item in
+                let refund = EnhancementDef.disassembleRefund(defKey: item.defKey) ?? 0
+                Text("拆解 \(item.displayName)？\n退還：\(refund) 金幣（強化費用不退）\n此操作不可復原。")
+            }
             // 裝備選擇 Sheet
             .sheet(item: $equipSheetSlot) { slot in
                 EquipSelectSheet(
                     slot: slot,
-                    candidates: viewModel.unequippedItems(slot: slot, from: equipments)
+                    candidates: viewModel.unequippedItems(slot: slot, from: equipments),
+                    allEquipped: equippedItems,
+                    viewModel: viewModel
                 ) { chosen in
                     if let item = chosen {
                         viewModel.equip(item, context: context)
@@ -108,9 +168,7 @@ struct CharacterView: View {
                 infoRow(label: "金幣", value: "\(player.gold) 💰")
             }
             if let stats = heroStats {
-                Divider()
                 powerRow(stats.power)
-                Divider()
                 if let player {
                     statAllocRow(label: "⚔️ ATK", value: stats.totalATK, stat: .atk, player: player)
                     statAllocRow(label: "🛡 DEF",  value: stats.totalDEF, stat: .def, player: player)
@@ -140,30 +198,27 @@ struct CharacterView: View {
                         Text("已達最高等級 Lv.\(AppConstants.Game.heroMaxLevel)")
                             .foregroundStyle(.secondary)
                     }
-                } else if let cost = viewModel.nextLevelCost(player: player) {
-                    let canAfford = player.gold >= cost
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
+                } else if let required = viewModel.nextLevelExpRequired(player: player) {
+                    let canLevel = player.heroExp >= required
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
                             Text("升至 Lv.\(player.heroLevel + 1)")
                                 .fontWeight(.medium)
-                            if canAfford {
-                                Text("費用：\(cost) 金幣 · 獲得 \(AppConstants.Game.statPointsPerLevel) 屬性點")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            } else {
-                                Text("需要 \(cost) 金幣・還差 \(cost - player.gold) 枚")
-                                    .font(.caption)
-                                    .foregroundStyle(.orange)
+                            Spacer()
+                            Button("升級") {
+                                if let msg = viewModel.levelUp(player: player, context: context) {
+                                    alertMsg = msg
+                                }
                             }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(!canLevel)
                         }
-                        Spacer()
-                        Button("升級") {
-                            if let msg = viewModel.levelUp(player: player, context: context) {
-                                alertMsg = msg
-                            }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(!canAfford)
+                        ProgressView(value: min(1.0, Double(player.heroExp) / Double(required)))
+                            .tint(.purple)
+                        Text("EXP \(player.heroExp) / \(required) · 升級獲得 \(AppConstants.Game.statPointsPerLevel) 屬性點")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
                     }
                 }
             } header: {
@@ -173,15 +228,26 @@ struct CharacterView: View {
 
         // ── 已裝備欄位 ──────────────────────────────────────────────
         Section {
-            ForEach(EquipmentSlot.allCases, id: \.self) { slot in
+            ForEach(slotDisplayOrder, id: \.self) { slot in
                 let item = equippedItems.first { $0.slot == slot }
                 equippedSlotRow(slot: slot, item: item)
             }
         } header: {
-            Text("已裝備（\(viewModel.equippedCount(from: equipments)) / 3）")
+            Text("已裝備（\(viewModel.equippedCount(from: equipments)) / 4）")
         } footer: {
             Text("點擊裝備欄位可切換，點擊已裝備圖示可卸除")
                 .font(.caption)
+        }
+
+        // ── 累計統計 ────────────────────────────────────────────────
+        if let player {
+            Section("累計統計") {
+                statRow(icon: "💰", label: "累計金幣收入", value: "\(player.totalGoldEarned)")
+                statRow(icon: "⚔️", label: "地下城勝場",   value: "\(player.totalBattlesWon)")
+                statRow(icon: "🛡",  label: "地下城敗場",   value: "\(player.totalBattlesLost)")
+                statRow(icon: "🔨", label: "裝備獲得件數", value: "\(player.totalItemsCrafted)")
+                statRow(icon: "⚡", label: "歷史最高戰力", value: "\(player.highestPowerReached)")
+            }
         }
     }
 
@@ -190,24 +256,27 @@ struct CharacterView: View {
     @ViewBuilder
     private var backpackSegment: some View {
 
-        // ── 素材庫存 ────────────────────────────────────────────────
-        Section("素材庫存") {
-            if let inv = inventory {
-                ForEach(MaterialType.allCases, id: \.self) { mat in
-                    HStack {
-                        Text("\(mat.icon) \(mat.displayName)")
-                        Spacer()
-                        Text("\(inv.amount(for: mat))")
-                            .fontWeight(.medium)
-                            .monospacedDigit()
-                    }
-                }
-            } else {
-                Text("—").foregroundStyle(.secondary)
+        // ── 分類 Tab ────────────────────────────────────────────────
+        Picker("", selection: $backpackTab) {
+            ForEach(BackpackTab.allCases, id: \.self) { tab in
+                Text(tab.rawValue).tag(tab)
             }
         }
+        .pickerStyle(.segmented)
+        .listRowBackground(Color.clear)
+        .listRowInsets(.init(top: 4, leading: 0, bottom: 4, trailing: 0))
 
-        // ── 未裝備裝備 ──────────────────────────────────────────────
+        switch backpackTab {
+        case .equipment:  backpackEquipmentTab
+        case .basicMat:   backpackBasicMaterialTab
+        case .areaMat:    backpackAreaMaterialTab
+        }
+    }
+
+    // ── 裝備 Tab ────────────────────────────────────────────────────
+
+    @ViewBuilder
+    private var backpackEquipmentTab: some View {
         let unequipped = viewModel.unequippedItems(from: equipments)
         Section {
             if unequipped.isEmpty {
@@ -222,17 +291,128 @@ struct CharacterView: View {
                         backpackItemRow(item)
                     }
                     .buttonStyle(.plain)
+                    // 右滑 → 強化（滿強化時不顯示）
+                    .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                        if item.enhancementLevel < EnhancementDef.maxLevel {
+                            Button {
+                                pendingEnhanceItem = item
+                            } label: {
+                                Label("強化", systemImage: "hammer.fill")
+                            }
+                            .tint(.orange)
+                        }
+                    }
+                    // 左滑 → 拆解（不可拆解的裝備不顯示）
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        if EnhancementDef.disassembleRefund(defKey: item.defKey) != nil {
+                            Button(role: .destructive) {
+                                pendingDisassembleItem = item
+                            } label: {
+                                Label("拆解", systemImage: "trash.fill")
+                            }
+                        }
+                    }
                 }
             }
         } header: {
             Text("裝備（\(unequipped.count) 件未裝備）")
         } footer: {
-            Text("點擊裝備可直接穿上")
+            Text("點擊穿上 · 右滑強化 · 左滑拆解")
                 .font(.caption)
         }
     }
 
+    // ── 通用素材 Tab ────────────────────────────────────────────────
+
+    @ViewBuilder
+    private var backpackBasicMaterialTab: some View {
+        let basicMats = MaterialType.allCases.filter { !$0.isRegionMaterial }
+        let hasAny    = inventory.map { inv in basicMats.contains { inv.amount(of: $0) > 0 } } ?? false
+
+        Section("通用素材") {
+            if let inv = inventory, hasAny {
+                ForEach(basicMats, id: \.self) { mat in
+                    materialRow(mat, inventory: inv)
+                }
+            } else {
+                Text("尚無通用素材")
+                    .foregroundStyle(.secondary)
+                    .font(.callout)
+            }
+        }
+    }
+
+    // ── 區域素材 Tab ────────────────────────────────────────────────
+
+    @ViewBuilder
+    private var backpackAreaMaterialTab: some View {
+        let wildland: [MaterialType] = [.oldPostBadge, .driedHideBundle, .splitHornBone, .riftFangRoyalBadge]
+        let mine:     [MaterialType] = [.mineLampCopperClip, .tunnelIronClip, .veinStoneSlab, .stoneSwallowCore]
+        let ruins:    [MaterialType] = [.relicSealRing, .oathInscriptionShard, .foreShrineClip, .ancientKingCore]
+
+        if let inv = inventory {
+            let hasAny = (wildland + mine + ruins).contains { inv.amount(of: $0) > 0 }
+            if hasAny {
+                let hasWildland = wildland.contains { inv.amount(of: $0) > 0 }
+                let hasMine     = mine.contains     { inv.amount(of: $0) > 0 }
+                let hasRuins    = ruins.contains    { inv.amount(of: $0) > 0 }
+
+                if hasWildland {
+                    Section("荒野邊境") {
+                        ForEach(wildland, id: \.self) { mat in materialRow(mat, inventory: inv) }
+                    }
+                }
+                if hasMine {
+                    Section("廢棄礦坑") {
+                        ForEach(mine, id: \.self) { mat in materialRow(mat, inventory: inv) }
+                    }
+                }
+                if hasRuins {
+                    Section("深淵遺跡") {
+                        ForEach(ruins, id: \.self) { mat in materialRow(mat, inventory: inv) }
+                    }
+                }
+            } else {
+                Section {
+                    Text("尚無區域素材")
+                        .foregroundStyle(.secondary)
+                        .font(.callout)
+                }
+            }
+        } else {
+            Section { Text("—").foregroundStyle(.secondary) }
+        }
+    }
+
+    // ── 素材列 helper ────────────────────────────────────────────────
+
+    @ViewBuilder
+    private func materialRow(_ mat: MaterialType, inventory inv: MaterialInventoryModel) -> some View {
+        let amount = inv.amount(of: mat)
+        if amount > 0 {
+            HStack {
+                Text("\(mat.icon) \(mat.displayName)")
+                Spacer()
+                Text("\(amount)")
+                    .fontWeight(.medium)
+                    .monospacedDigit()
+            }
+        }
+    }
+
     // MARK: - Row Helpers
+
+    @ViewBuilder
+    private func statRow(icon: String, label: String, value: String) -> some View {
+        HStack {
+            Text("\(icon) \(label)")
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text(value)
+                .fontWeight(.medium)
+                .monospacedDigit()
+        }
+    }
 
     @ViewBuilder
     private func infoRow(label: String, value: String) -> some View {
@@ -289,10 +469,34 @@ struct CharacterView: View {
             Spacer()
             if let item {
                 VStack(alignment: .trailing, spacing: 1) {
-                    Text(item.displayName).fontWeight(.medium)
-                    Text(item.rarity.displayName)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                    // Boss 武器加 ✦ 表示浮動值
+                    HStack(spacing: 2) {
+                        if item.isRolledBossWeapon {
+                            Text("✦").font(.caption2).foregroundStyle(.yellow)
+                        }
+                        Text(item.displayName).fontWeight(.medium)
+                    }
+                    HStack(spacing: 4) {
+                        Text(item.rarity.displayName)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        if item.atkBonus > 0 {
+                            Text("ATK +\(item.atkBonus)")
+                                .font(.caption2)
+                                .foregroundStyle(item.isRolledBossWeapon ? .yellow : .red)
+                        }
+                    }
+                }
+                // 強化按鈕（滿強化 +5 時不顯示）
+                if item.enhancementLevel < EnhancementDef.maxLevel {
+                    Button {
+                        pendingEnhanceItem = item
+                    } label: {
+                        Image(systemName: "hammer")
+                            .foregroundStyle(.orange)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.leading, 8)
                 }
                 // 卸除按鈕
                 Button {
@@ -320,21 +524,60 @@ struct CharacterView: View {
         HStack {
             Text(item.slot.icon).frame(width: 28)
             VStack(alignment: .leading, spacing: 1) {
-                Text(item.displayName).fontWeight(.medium)
+                HStack(spacing: 2) {
+                    if item.isRolledBossWeapon {
+                        Text("✦").font(.caption2).foregroundStyle(.yellow)
+                    }
+                    Text(item.displayName).fontWeight(.medium)
+                }
                 Text(item.rarity.displayName)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 1) {
-                if item.atkBonus > 0 { Text("ATK +\(item.atkBonus)").font(.caption).foregroundStyle(.red) }
+                if item.atkBonus > 0 {
+                    Text("ATK +\(item.atkBonus)")
+                        .font(.caption)
+                        .foregroundStyle(item.isRolledBossWeapon ? .yellow : .red)
+                }
                 if item.defBonus > 0 { Text("DEF +\(item.defBonus)").font(.caption).foregroundStyle(.blue) }
                 if item.hpBonus  > 0 { Text("HP +\(item.hpBonus)").font(.caption).foregroundStyle(.pink) }
+            }
+            let diff = viewModel.equipDiff(
+                candidate: item,
+                equipped: equipments.filter { $0.isEquipped }
+            )
+            if diff.hasAnyChange {
+                diffBadge(diff)
             }
             Image(systemName: "arrow.up.circle")
                 .foregroundStyle(.green)
                 .padding(.leading, 4)
         }
+    }
+
+    @ViewBuilder
+    private func diffBadge(_ diff: StatDiff) -> some View {
+        HStack(spacing: 3) {
+            if diff.atk != 0 {
+                Text(diffText("⚔", diff.atk))
+                    .foregroundStyle(diff.atk > 0 ? Color.green : Color.red)
+            }
+            if diff.def != 0 {
+                Text(diffText("🛡", diff.def))
+                    .foregroundStyle(diff.def > 0 ? Color.green : Color.red)
+            }
+            if diff.hp != 0 {
+                Text(diffText("❤", diff.hp))
+                    .foregroundStyle(diff.hp > 0 ? Color.green : Color.red)
+            }
+        }
+        .font(.caption2)
+    }
+
+    private func diffText(_ icon: String, _ value: Int) -> String {
+        value > 0 ? "\(icon)+\(value)" : "\(icon)\(value)"
     }
 }
 
@@ -343,9 +586,11 @@ struct CharacterView: View {
 /// 裝備選擇 Sheet：選擇同部位未裝備裝備，或直接關閉（維持現狀）
 private struct EquipSelectSheet: View {
 
-    let slot:       EquipmentSlot
-    let candidates: [EquipmentModel]
-    let onSelect:   (EquipmentModel?) -> Void
+    let slot:        EquipmentSlot
+    let candidates:  [EquipmentModel]
+    let allEquipped: [EquipmentModel]
+    let viewModel:   CharacterViewModel
+    let onSelect:    (EquipmentModel?) -> Void
 
     var body: some View {
         NavigationStack {
@@ -358,17 +603,39 @@ private struct EquipSelectSheet: View {
                         Button {
                             onSelect(item)
                         } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(item.displayName).fontWeight(.medium)
+                            VStack(alignment: .leading, spacing: 2) {
+                                // 行 1：名稱 + 稀有度
+                                HStack {
+                                    if item.isRolledBossWeapon {
+                                        Text("✦").font(.caption2).foregroundStyle(.yellow)
+                                    }
+                                    Text(item.displayName)
+                                        .fontWeight(.medium)
+                                    Spacer()
                                     Text(item.rarity.displayName)
-                                        .font(.caption2).foregroundStyle(.secondary)
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
                                 }
-                                Spacer()
-                                VStack(alignment: .trailing, spacing: 1) {
-                                    if item.atkBonus > 0 { Text("ATK +\(item.atkBonus)").font(.caption).foregroundStyle(.red) }
-                                    if item.defBonus > 0 { Text("DEF +\(item.defBonus)").font(.caption).foregroundStyle(.blue) }
-                                    if item.hpBonus  > 0 { Text("HP +\(item.hpBonus)").font(.caption).foregroundStyle(.pink) }
+
+                                // 行 2：完整屬性數值
+                                HStack(spacing: 8) {
+                                    if item.totalAtk > 0 {
+                                        Text("⚔ \(item.totalAtk)")
+                                            .font(.caption2)
+                                            .foregroundStyle(item.isRolledBossWeapon ? .yellow : .secondary)
+                                    }
+                                    if item.totalDef > 0 {
+                                        Text("🛡 \(item.totalDef)").font(.caption2).foregroundStyle(.secondary)
+                                    }
+                                    if item.totalHp > 0 {
+                                        Text("❤ \(item.totalHp)").font(.caption2).foregroundStyle(.secondary)
+                                    }
+                                }
+
+                                // 行 3：換裝差值
+                                let diff = viewModel.equipDiff(candidate: item, equipped: allEquipped)
+                                if diff.hasAnyChange {
+                                    diffBadge(diff)
                                 }
                             }
                         }
@@ -386,6 +653,25 @@ private struct EquipSelectSheet: View {
         }
         .presentationDetents([.medium])
     }
+
+    @ViewBuilder
+    private func diffBadge(_ diff: StatDiff) -> some View {
+        HStack(spacing: 3) {
+            if diff.atk != 0 {
+                Text(diff.atk > 0 ? "⚔+\(diff.atk)" : "⚔\(diff.atk)")
+                    .foregroundStyle(diff.atk > 0 ? Color.green : Color.red)
+            }
+            if diff.def != 0 {
+                Text(diff.def > 0 ? "🛡+\(diff.def)" : "🛡\(diff.def)")
+                    .foregroundStyle(diff.def > 0 ? Color.green : Color.red)
+            }
+            if diff.hp != 0 {
+                Text(diff.hp > 0 ? "❤+\(diff.hp)" : "❤\(diff.hp)")
+                    .foregroundStyle(diff.hp > 0 ? Color.green : Color.red)
+            }
+        }
+        .font(.caption2)
+    }
 }
 
 // MARK: - EquipmentSlot: Identifiable for sheet(item:)
@@ -394,21 +680,6 @@ extension EquipmentSlot: Identifiable {
     public var id: String { rawValue }
 }
 
-// MARK: - MaterialInventoryModel helper
-
-private extension MaterialInventoryModel {
-    func amount(for mat: MaterialType) -> Int {
-        switch mat {
-        case .wood:            return wood
-        case .ore:             return ore
-        case .hide:            return hide
-        case .crystalShard:    return crystalShard
-        case .ancientFragment: return ancientFragment
-        // V2-1 區域素材：Ticket 02 擴充 SwiftData 欄位前委派回 amount(of:)（回傳 0）
-        default:               return amount(of: mat)
-        }
-    }
-}
 
 // MARK: - Preview
 

@@ -17,6 +17,12 @@
 // V2-1 Ticket 03 新增：
 //   ✅ dungeon — 若為 V2-1 floor 任務，結算後標記樓層首通（DungeonProgressionService）
 //
+// V2-1 Ticket 07 新增：
+//   ✅ dungeon — 首通時將 floor.key 寫入 task.resultFirstClearedFloorKey（SettlementSheet 解鎖提示用）
+//
+// V2-1 Ticket 08 新增：
+//   ✅ dungeon Boss 層 — battlesWon >= 1 時寫入 resultCraftedEquipKey + resultRolledAtk（浮動 ATK）
+//
 // 注意：獎勵「入帳」（寫入玩家資料）由 TaskClaimService 負責，
 //       SettlementService 只負責「計算結果並標記 completed」。
 
@@ -73,8 +79,14 @@ struct SettlementService {
             return
         }
 
+        let actualDuration = task.endsAt.timeIntervalSince(task.startedAt)
+        let cycles = max(1, Int(actualDuration) / def.shortestDuration)
+
         var rng    = DeterministicRNG(task: task)
-        let amount = rng.nextInt(in: def.outputRange)
+        var amount = 0
+        for _ in 0..<cycles {
+            amount += rng.nextInt(in: def.outputRange)
+        }
 
         switch def.outputMaterial {
         case .wood:            task.resultWood            = amount
@@ -116,22 +128,42 @@ struct SettlementService {
             for (material, amount) in result.materials {
                 task.setResult(amount, of: material)
             }
+            task.resultExp         = result.exp
+            // Boss 武器掉落（Ticket 08）
+            if let bossWeapon = result.rolledBossWeapon {
+                task.resultCraftedEquipKey = bossWeapon.equipKey
+                task.resultRolledAtk       = bossWeapon.atk
+            }
             return
         }
 
         print("[SettlementService] 找不到地下城定義: \(task.definitionKey)")
     }
 
-    // MARK: - V2-1 推進標記（Ticket 03）
+    // MARK: - V2-1 推進標記（Ticket 03 / Ticket 07）
 
     /// 若任務的 definitionKey 對應到 V2-1 DungeonFloorDef，則標記該樓層首通。
     /// V1 任務（DungeonAreaDef key）自動略過，冪等。
+    /// Ticket 07：若本次為首通，將 floor.key 寫入 task.resultFirstClearedFloorKey，
+    ///            供 SettlementViewModel 在結算 Sheet 顯示解鎖提示。
     private func markDungeonProgression(_ task: TaskModel) {
         let allFloors = DungeonRegionDef.all.flatMap { $0.floors }
         guard let floor = allFloors.first(where: { $0.key == task.definitionKey }) else { return }
+
+        // 首通前快照：若已是首通，標記後不重複顯示解鎖提示
+        let wasCleared = progressionService.isFloorCleared(
+            regionKey:  floor.regionKey,
+            floorIndex: floor.floorIndex
+        )
+
         progressionService.markFloorCleared(
             regionKey:  floor.regionKey,
             floorIndex: floor.floorIndex
         )
+
+        // 本次才是首通 → 記錄 floor key 以觸發結算 Sheet 解鎖行
+        if !wasCleared {
+            task.resultFirstClearedFloorKey = floor.key
+        }
     }
 }

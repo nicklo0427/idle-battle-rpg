@@ -61,46 +61,27 @@ struct MerchantSheet: View {
                     }
                 }
 
-                // ── 出售（素材 → 金幣）──────────────────────────────
+                // ── 基礎素材出售（素材 → 金幣）──────────────────────
                 Section {
-                    ForEach(MerchantTradeDef.all, id: \.key) { trade in
-                        if case .gold(let goldAmt) = trade.receive {
-                            let have      = inventory?.amount(of: trade.giveMaterial) ?? 0
-                            let canAfford = have >= trade.giveAmount
-
-                            HStack(spacing: 10) {
-                                // 給出
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("\(trade.giveMaterial.icon) \(trade.giveMaterial.displayName) ×\(trade.giveAmount)")
-                                        .fontWeight(.medium)
-                                        .foregroundStyle(canAfford ? .primary : .secondary)
-                                    Text("持有 \(have)")
-                                        .font(.caption2)
-                                        .foregroundStyle(canAfford ? Color.secondary : Color.red)
-                                }
-
-                                Spacer()
-
-                                // 獲得
-                                Text("💰 +\(goldAmt)")
-                                    .fontWeight(.semibold)
-                                    .foregroundStyle(canAfford ? .yellow : .secondary)
-
-                                // 執行按鈕
-                                Button("出售") {
-                                    execute { MerchantService(context: context).executeSellTrade(tradeKey: trade.key) }
-                                }
-                                .buttonStyle(.borderedProminent)
-                                .tint(.green)
-                                .disabled(!canAfford)
-                            }
-                            .padding(.vertical, 2)
-                        }
+                    ForEach(MerchantTradeDef.all.filter { $0.category == .basicMaterial }, id: \.key) { trade in
+                        tradeRow(trade)
                     }
                 } header: {
-                    Text("出售素材")
+                    Text("基礎素材出售")
                 } footer: {
                     Text("將多餘素材換成金幣。")
+                        .font(.caption)
+                }
+
+                // ── 區域素材出售（V2-1 區域素材 → 金幣）────────────────
+                Section {
+                    ForEach(MerchantTradeDef.all.filter { $0.category == .areaMaterial }, id: \.key) { trade in
+                        tradeRow(trade)
+                    }
+                } header: {
+                    Text("區域素材出售")
+                } footer: {
+                    Text("地下城掉落的區域素材，可出售換取金幣。")
                         .font(.caption)
                 }
 
@@ -166,6 +147,39 @@ struct MerchantSheet: View {
     }
 
     // MARK: - Private
+
+    @ViewBuilder
+    private func tradeRow(_ trade: MerchantTradeDef) -> some View {
+        if case .gold(let goldAmt) = trade.receive {
+            let have      = inventory?.amount(of: trade.giveMaterial) ?? 0
+            let canAfford = have >= trade.giveAmount
+
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(trade.giveMaterial.icon) \(trade.giveMaterial.displayName) ×\(trade.giveAmount)")
+                        .fontWeight(.medium)
+                        .foregroundStyle(canAfford ? .primary : .secondary)
+                    Text("持有 \(have)")
+                        .font(.caption2)
+                        .foregroundStyle(canAfford ? Color.secondary : Color.red)
+                }
+
+                Spacer()
+
+                Text("💰 +\(goldAmt)")
+                    .fontWeight(.semibold)
+                    .foregroundStyle(canAfford ? .yellow : .secondary)
+
+                Button("出售") {
+                    execute { MerchantService(context: context).executeSellTrade(tradeKey: trade.key) }
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.green)
+                .disabled(!canAfford)
+            }
+            .padding(.vertical, 2)
+        }
+    }
 
     /// 執行交易，失敗時設置 alert 訊息（成功時 @Query 自動刷新）
     private func execute(_ trade: () -> Result<Void, MerchantTradeError>) {

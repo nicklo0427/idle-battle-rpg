@@ -11,6 +11,9 @@
 // V2-1 Ticket 02：
 //   ✅ 12 個區域素材 result 欄位已納入 accumulateMaterials()
 //   ✅ MaterialInventoryModel.add() 支援全部 17 種素材，直接統一呼叫
+//
+// V2-1 Ticket 08：
+//   ✅ dungeon Boss 武器掉落（resultCraftedEquipKey + resultRolledAtk）→ EquipmentModel 插入背包
 
 import Foundation
 import SwiftData
@@ -61,13 +64,16 @@ struct TaskClaimService {
             return ClaimResult(goldGained: 0, materialsGained: [:], equipmentsAdded: 0, tasksDeleted: 0)
         }
 
+        let playerDesc = FetchDescriptor<PlayerStateModel>()
+        let player = (try? context.fetch(playerDesc))?.first
+
         var totalGold      = 0
         var materials      = [MaterialType: Int]()
         var equipmentCount = 0
 
         for task in completed {
             totalGold += task.resultGold
-            accumulateMaterials(from: task, into: &materials)
+            accumulateMaterials(from: task, player: player, into: &materials)
 
             // craft 任務：建立裝備並插入背包
             if task.kind == .craft, let key = task.resultCraftedEquipKey,
@@ -79,10 +85,40 @@ struct TaskClaimService {
                 context.insert(newEquip)
                 equipmentCount += 1
             }
+
+            // dungeon Boss 武器掉落（Ticket 08）：建立浮動 ATK 版本裝備
+            if task.kind == .dungeon, let key = task.resultCraftedEquipKey,
+               let def = EquipmentDef.find(key: key) {
+                let rolledAtk = task.resultRolledAtk
+                let newEquip = EquipmentModel(
+                    defKey: def.key, slot: def.slot,
+                    rarity: def.rarity, isEquipped: false,
+                    rolledAtk: rolledAtk
+                )
+                context.insert(newEquip)
+                equipmentCount += 1
+            }
         }
+
+        let totalExp = completed.reduce(0) { $0 + $1.resultExp }
+        if totalExp > 0 { creditExp(totalExp) }
 
         creditGold(totalGold)
         creditMaterials(materials)
+
+        // 統計追蹤
+        if let player {
+            player.totalGoldEarned += totalGold
+            for task in completed {
+                if task.kind == .dungeon {
+                    player.totalBattlesWon  += task.resultBattlesWon  ?? 0
+                    player.totalBattlesLost += task.resultBattlesLost ?? 0
+                }
+                if task.resultCraftedEquipKey != nil {
+                    player.totalItemsCrafted += 1
+                }
+            }
+        }
 
         for task in completed {
             context.delete(task)
@@ -101,13 +137,28 @@ struct TaskClaimService {
 
     // MARK: - Private helpers
 
-    /// 從任務 result* 欄位彙整所有素材（V1 + V2-1 全 17 種）
-    private func accumulateMaterials(from task: TaskModel, into materials: inout [MaterialType: Int]) {
+    /// 從任務 result* 欄位彙整所有素材（V1 + V2-1 全 17 種）。
+    /// 採集任務依採集者 tier 對每種有產出的素材加 bonus（不修改 result* 欄位）。
+    private func accumulateMaterials(from task: TaskModel, player: PlayerStateModel?, into materials: inout [MaterialType: Int]) {
+        let bonus: Int
+        if task.kind == .gather, let player {
+            bonus = NpcUpgradeDef.gatherBonus(tier: player.tier(for: task.actorKey))
+        } else {
+            bonus = 0
+        }
+
         for mat in MaterialType.allCases {
             let amount = task.resultAmount(of: mat)
             guard amount > 0 else { continue }
-            materials[mat, default: 0] += amount
+            materials[mat, default: 0] += amount + bonus
         }
+    }
+
+    private func creditExp(_ amount: Int) {
+        guard amount > 0 else { return }
+        let descriptor = FetchDescriptor<PlayerStateModel>()
+        guard let player = (try? context.fetch(descriptor))?.first else { return }
+        player.heroExp += amount
     }
 
     private func creditGold(_ amount: Int) {

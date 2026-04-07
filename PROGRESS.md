@@ -491,219 +491,153 @@ winRate = 0.50 + 0.40 × tanh(2×0.16) ≈ 0.62 → 約 62%
 
 ---
 
+## V2-1 進度總覽
+
+> 詳細工單內容見 [`tickets/V2-1/`](tickets/V2-1/)
+
+| Ticket | 標題 | 狀態 | commit |
+|---|---|---|---|
+| 01 | 地下城靜態資料正式化 | ✅ 完成 | `c8ab784` |
+| 02 | 區域素材 SwiftData 正式化 | ✅ 完成 | `a7da9df` |
+| 03 | 地下城推進狀態模型 | ✅ 完成 | `a7da9df` |
+| 04 | AdventureView 重構 | ✅ 完成 | — |
+| 05 | CharacterView 4 部位裝備槽 | ✅ 完成 | — |
+| 06 | V2-1 鑄造配方與 CraftSheet 擴充 | ✅ 完成 | — |
+| 07 | 首通裝備解鎖邏輯 | ✅ 完成 | — |
+| 08 | Boss 武器浮動數值 Farming | ✅ 完成 | — |
+| 09 | 數值平衡 | ✅ 完成（數學分析版）| — |
+
+---
+
 ## V2-1 — Ticket 01：地下城靜態資料正式化（已完成）
+
+> 詳細內容見 [tickets/V2-1/ticket-01-dungeon-static-data.md](tickets/V2-1/ticket-01-dungeon-static-data.md)
 
 **目標：** 依照 `V2_1_DUNGEON_PROGRESSION_SPEC.md` 正式定義 3 區域 × 4 樓層的靜態資料、12 種區域素材、新 `offhand` 裝備部位、12 件套裝裝備。
 
-### 新增 / 修改檔案
+### 完成項目摘要
 
-| 檔案 | 異動類型 | 說明 |
-|---|---|---|
-| `StaticData/DungeonRegionDef.swift` | 🆕 新增 | `DungeonFloorDef` + `DungeonRegionDef` struct；3 區域 × 4 樓層完整靜態資料 |
-| `StaticData/MaterialType.swift` | ✏️ 修改 | 新增 12 個區域素材 enum case；`displayName` / `icon` / `isRegionMaterial` / `isBossMaterial` |
-| `StaticData/EquipmentDef.swift` | ✏️ 修改 | `EquipmentSlot` 新增 `.offhand`；12 件 V2-1 套裝裝備定義（3 區 × 4 部位） |
-| `Models/MaterialInventoryModel.swift` | ✏️ 修改 | Bridge no-op：3 個 switch 皆加入 12 個新素材 grouped case（Ticket 02 前暫回傳 0 / no-op） |
-| `Services/SettlementService.swift` | ✏️ 修改 | Bridge case：`fillGatherResults` switch 新增 12 個新素材的 `break` case |
-| `Views/CharacterView.swift` | ✏️ 修改 | `amount(for:)` private extension 改為 `default: return amount(of: mat)` 以保持 exhaustiveness |
-
-### StaticData 結構說明
-
-```
-DungeonRegionDef（3 個）
-  └── DungeonFloorDef（每區 4 層）
-        ├── floorIndex: 1–4（第 4 層為 isBossFloor）
-        ├── recommendedPower（佔位值，待數值平衡工單調整）
-        ├── goldPerBattleRange: ClosedRange<Int>
-        ├── dropTable: [DropTableEntry]（複用自 DungeonAreaDef）
-        ├── unlocksEquipmentKey / unlocksSlot（首通解鎖裝備）
-        └── bossName: String?（一般層為 nil）
+- `DungeonRegionDef` / `DungeonFloorDef` 靜態資料（3 區域 × 4 樓層）
+- `MaterialType` 新增 12 個區域素材 enum case
+- `EquipmentDef` 新增 `.offhand` 部位；12 件套裝裝備
+- V1 `DungeonAreaDef` 維持不動，bridge no-op 確保現有功能不受影響
 ```
 
 區域與樓層對應：
 
 | 區域 | 樓層 | 解鎖部位 | 建議戰力 |
 |---|---|---|---|
-| 荒野邊境 | F1 殘木前哨 | 飾品 | 40 |
-| 荒野邊境 | F2 獸痕荒徑 | 防具 | 60 |
-| 荒野邊境 | F3 掠影交界 | 副手 | 80 |
-| 荒野邊境 | F4 裂牙王庭（Boss） | 武器 | 110 |
-| 廢棄礦坑 | F1 殘軌礦道 | 飾品 | 140 |
-| 廢棄礦坑 | F2 支架裂層 | 防具 | 175 |
-| 廢棄礦坑 | F3 沉脈深坑 | 副手 | 210 |
-| 廢棄礦坑 | F4 吞岩巢庭（Boss） | 武器 | 260 |
-| 古代遺跡 | F1 破階外庭 | 飾品 | 330 |
-| 古代遺跡 | F2 斷碑迴廊 | 防具 | 400 |
-| 古代遺跡 | F3 守誓前殿 | 副手 | 470 |
-| 古代遺跡 | F4 王印聖所（Boss） | 武器 | 550 |
-
-### 刻意先不做的事
-
-- **`MaterialInventoryModel` SwiftData 欄位**：12 個新素材的持久化欄位留待 Ticket 02 新增，目前以 bridge no-op 維持 V1 功能完整性
-- **`TaskModel` 結果欄位**：區域素材的結算欄位（`resultOldPostBadge` 等）留待 Ticket 02
-- **`AdventureView` 樓層選擇 UI**：V2-1 UI 介面改版留待 Ticket 03+
-- **首通解鎖邏輯（Progression）**：裝備解鎖判斷與 PlayerProgressModel 留待 Ticket 03
-- **數值平衡**：`recommendedPower` 與 `goldPerBattleRange` 為佔位值，待獨立數值平衡工單調整
-
-### 關鍵決策
-
-**V1 DungeonAreaDef.swift 維持不動：**
-舊的 `DungeonAreaDef`（3 區域，扁平結構）與新的 `DungeonRegionDef`（樓層結構）並存。
-現有的 `SettlementService` / `DungeonSettlementEngine` 仍使用舊資料，確保 MVP 功能不受影響。
-
-**Bridge no-op 模式：**
-所有 V2-1 新素材在 `MaterialInventoryModel` 內以 grouped case 回傳 0 / no-op，搭配 TODO 註解標記 Ticket 02 補齊時機。這讓 Ticket 01 可以安全合入 main 而不破壞任何現有功能。
-
-**`DropTableEntry` 複用：**
-`DungeonRegionDef` 的掉落表直接複用 `DungeonAreaDef.swift` 中已定義的 `DropTableEntry` struct，不重複定義。
-
-### 下一張工單
-
-**Ticket 02**：為 `MaterialInventoryModel` 新增 12 個 SwiftData 欄位，並讓 `SettlementService` / `TaskClaimService` 可正確結算 / 入帳區域素材。
-
 ---
 
 ## V2-1 — Ticket 02：區域素材 SwiftData 正式化（已完成）
 
-**目標：** 為 `MaterialInventoryModel` 新增 12 個 V2-1 區域素材 SwiftData 欄位，並讓結算 / 入帳流程能正確處理區域素材。
+> 詳細內容見 [tickets/V2-1/ticket-02-material-inventory.md](tickets/V2-1/ticket-02-material-inventory.md)
 
-> 依專案紀錄，Ticket 02 已實作（bridge no-op 已升級為完整欄位），見 commit `c8ab784`。
+**目標：** 打通 12 種區域素材的完整資料鏈（可存 / 可結算 / 可入帳 / 可顯示）。
+
+### 完成項目摘要
+
+- `MaterialInventoryModel` 新增 12 個 SwiftData 欄位，移除 bridge no-op
+- `TaskModel` 新增 12 個 `result*` 欄位；`resultAmount(of:)` / `setResult(_:of:)` 統一操作
+- `DungeonSettlementEngine` 新增 `settle(task:floor:)` V2-1 路徑（V1 路徑保留）
+- `TaskClaimService` / `SettlementViewModel` 改為迭代 `MaterialType.allCases`
 
 ---
 
 ## V2-1 — Ticket 03：地下城推進狀態模型（已完成）
 
-**目標：** 建立 V2-1 的 progression 資料層，讓地下城具備「首通 / 解鎖 / 推進 / 區域完成 / 可見但未解鎖」等中期可玩性所需的長期狀態記錄。
+> 詳細內容見 [tickets/V2-1/ticket-03-dungeon-progression-model.md](tickets/V2-1/ticket-03-dungeon-progression-model.md)
 
-### 新增 / 修改檔案
+**目標：** 建立地下城首通 / 解鎖 / 推進的長期狀態資料層。
 
-| 檔案 | 異動類型 | 說明 |
-|---|---|---|
-| `Models/DungeonProgressionModel.swift` | 🆕 新增 | SwiftData @Model 單例；兩個 JSON-encoded String 欄位（`clearedFloorKeysJSON` / `unlockedRegionKeysJSON`）|
-| `Services/DungeonProgressionRepository.swift` | 🆕 新增 | 薄層 CRUD；`fetch()` / `fetchOrCreate()` / `save()`；不含業務邏輯 |
-| `Services/DungeonProgressionService.swift` | 🆕 新增 | 推進規則引擎；查詢（5 個方法）+ 變更（1 個方法）；JSON 編解碼輔助；完全無副作用可單元測試 |
-| `IdleBattleRPGApp.swift` | ✏️ 修改 | ModelContainer schema 加入 `DungeonProgressionModel.self` |
-| `Models/DatabaseSeeder.swift` | ✏️ 修改 | 新增 `seedDungeonProgression()`；初始狀態：`wildland` 已解鎖，無首通紀錄 |
-| `Services/SettlementService.swift` | ✏️ 修改 | init 加入 `DungeonProgressionService`；`markCompleted` dungeon case 新增 `markDungeonProgression()`；V2-1 floor 任務結算後自動標記首通 |
-| `AppState.swift` | ✏️ 修改 | 持有並公開 `progressionService: DungeonProgressionService`，供 ViewModel 查詢 |
-| `ViewModels/AdventureViewModel.swift` | ✏️ 修改 | 新增 5 個 V2-1 progression 查詢方法（接受 `service: DungeonProgressionService` 參數） |
+### 完成項目摘要
 
-### 資料模型設計
-
-```
-DungeonProgressionModel（SwiftData 單例）
-  ├── clearedFloorKeysJSON: String    // JSON [String]，已首通樓層 keys
-  └── unlockedRegionKeysJSON: String  // JSON [String]，已解鎖區域 keys（初始含 "wildland"）
-```
-
-儲存格式選用 JSON-encoded String（基本型別）而非 `[String]`，確保 SwiftData iOS 17 相容性。
-
-### 解鎖規則實作
-
-```
-區域解鎖：
-  wildland        → 預設解鎖（DatabaseSeeder 初始值）
-  abandoned_mine  → wildland Boss 層（floor_4）首通後自動解鎖
-  ancient_ruins   → abandoned_mine Boss 層首通後自動解鎖
-
-樓層解鎖（within 已解鎖區域）：
-  floor_1 → 區域解鎖即可挑戰
-  floor_N → floor_(N-1) 已首通才可挑戰
-
-首通定義：任務完成一次即記錄，不論勝負場次（idle game 語義）
-冪等保證：markFloorCleared() 重複呼叫不累積，不影響已首通記錄
-```
-
-### 各查詢能力
-
-| 方法 | 說明 |
-|---|---|
-| `isRegionUnlocked(_:)` | 區域是否已解鎖（可挑戰） |
-| `isRegionCompleted(_:)` | 區域是否已完成（Boss 層首通） |
-| `isFloorUnlocked(regionKey:floorIndex:)` | 樓層是否可挑戰 |
-| `isFloorCleared(regionKey:floorIndex:)` | 樓層是否已首通 |
-| `hasSeenBossMaterial(_:)` | Boss 材料是否已見過（等同 Boss 層首通） |
-
-### 刻意先不做的事
-
-- **AdventureView 樓層選擇 UI**：UI 改版留待 Ticket 04（V2-1 冒險頁重構）
-- **首通動畫 / Toast**：視覺回饋留待 UI 工單
-- **詳細 sheet / panel**：Boss 材料詳情頁留待後續工單
-- **每日任務 / 成就系統**：V3 以後
-- **複雜條件樹**：超過 3 區域的解鎖條件留待擴充
-
-### 關鍵決策
-
-**JSON-encoded String 而非 [String] 陣列：**
-iOS 17 SwiftData `@Model` 對 `[String]` 的支援有版本差異，使用 JSON String 確保相容性，且方便 debug（直接讀取 SQLite 欄位即可驗證）。
-
-**progression 責任與 TaskModel 完全分離：**
-`TaskModel` 只負責任務的「建立→執行→結算→claim→刪除」生命週期；首通狀態由 `DungeonProgressionModel` 持有，兩者透過 `SettlementService` 中的 `markDungeonProgression()` 銜接，不互相耦合。
-
-**冪等設計：**
-`markFloorCleared()` 在寫入前先檢查 `!cleared.contains(floor.key)`，重刷同一樓層不會觸發任何副作用，確保結算邏輯安全。
-
-**V1 / V2-1 雙軌並存：**
-`SettlementService.markDungeonProgression()` 只在 `definitionKey` 對應到 V2-1 `DungeonFloorDef` 時才觸發，V1 `DungeonAreaDef` 任務自動略過，不破壞現有功能。
-
-**AdventureViewModel 保持薄：**
-新增的 5 個查詢方法皆接受 `service: DungeonProgressionService` 參數，由 View 從 `AppState.progressionService` 傳入。ViewModel 不持有 Service，保持可獨立測試的純計算特性。
-
-### 下一張工單
-
-**Ticket 04**：V2-1 冒險頁（AdventureView）重構，使用 DungeonProgressionService 驅動區域 / 樓層的可見性、可挑戰狀態、首通標記顯示，正式接入本工單建立的推進資料層。
+- `DungeonProgressionModel`（SwiftData 單例）+ Repository + Service 三層建立
+- 解鎖規則：wildland 預設解鎖 → Boss 首通解鎖下一區 → 前一層首通解鎖下一層
+- `SettlementService` 結算後自動呼叫 `markDungeonProgression()`
+- `AppState` 公開 `progressionService`；`AdventureViewModel` 新增 5 個查詢方法
 
 ---
 
-## V2-1 — Ticket 02（補齊）：區域素材資料鏈打通（已完成）
+## V2-1 — Ticket 04：AdventureView 重構（已完成）
 
-**目標：** 將 V2-1 新增的 12 個區域素材，完整打通「可存 / 可結算 / 可入帳 / 可顯示」的正式資料鏈。
+> 詳細內容見 [tickets/V2-1/ticket-04-adventure-view-refactor.md](tickets/V2-1/ticket-04-adventure-view-refactor.md)
 
-### 新增 / 修改檔案
+**目標：** 將冒險頁改為 V2-1 樓層結構，接入 DungeonProgressionService，顯示區域 / 樓層推進狀態。
 
-| 檔案 | 異動類型 | 說明 |
-|---|---|---|
-| `Models/MaterialInventoryModel.swift` | ✏️ 修改 | 新增 12 個 SwiftData 欄位；`amount()` / `add()` / `deduct()` 全部展開為 exhaustive switch，移除 bridge no-op |
-| `Models/TaskModel.swift` | ✏️ 修改 | 新增 12 個 `result*` Int 欄位（預設 0）；新增 `resultAmount(of:)` 便利讀取 + `setResult(_:of:)` 便利寫入，供 SettlementService / TaskClaimService 統一操作 |
-| `Services/DungeonSettlementEngine.swift` | ✏️ 修改 | 新增 `FloorDungeonResult` 結構（泛型 `[MaterialType:Int]`）；新增 `settle(task:floor:)` V2-1 路徑；V1 `settle(task:area:)` 完整保留不動 |
-| `Services/SettlementService.swift` | ✏️ 修改 | `fillDungeonResults()` 改為雙路徑：V1 先試 `DungeonAreaDef.find()`，miss 再試 `DungeonFloorDef`，命中則呼叫 `settle(task:floor:)` 並以 `setResult()` 寫入 |
-| `Services/TaskClaimService.swift` | ✏️ 修改 | `accumulateMaterials()` 改為迭代 `MaterialType.allCases` + `task.resultAmount(of:)`，一次涵蓋全部 17 種素材，移除舊的手動 5 欄位版本 |
-| `ViewModels/SettlementViewModel.swift` | ✏️ 修改 | `makeRewardLines()` 改為迭代 `MaterialType.allCases` + `task.resultAmount(of:)`，12 個區域素材自動顯示，移除手動列舉的 5 欄位版本 |
+### 完成項目摘要
 
-### 資料鏈流程
+- `DungeonFloorDef: Identifiable` + `DungeonFloorDef.find(key:)` 靜態方法（DungeonRegionDef.swift）
+- `TaskCreationService.createDungeonFloorTask()`：V2-1 floor key 任務建立入口
+- `AdventureViewModel.startDungeonFloor()` + `activeDungeonName()`：支援 V1/V2-1 雙路徑
+- `AdventureView` 全面重構：3 個區域卡片（展開/收合）× 4 層樓，未解鎖灰化並顯示條件
+- `FloorDetailSheet`（private struct）：掉落表、戰力評估、首通解鎖預覽、時長 Picker、出發按鈕
 
-```
-地下城任務（V2-1 floor key）
-  ↓ SettlementService.fillDungeonResults（V2-1 路徑）
-  ↓ DungeonSettlementEngine.settle(task:floor:) → FloorDungeonResult
-  ↓ task.setResult(_:of:) 寫入 12 個 result 欄位
-  ↓ 結算 Sheet 顯示（SettlementViewModel.makeRewardLines）
-  ↓ 玩家點「收下」→ TaskClaimService.claimAllCompleted()
-  ↓ task.resultAmount(of:) 讀取 → inventory.add(_:of:)
-  ↓ MaterialInventoryModel 12 個欄位更新
-  ↓ SwiftData 持久化
-```
+---
 
-### 關鍵決策
+## V3-1 — 玩家累計統計（已完成）
 
-**`resultAmount(of:)` / `setResult(_:of:)` 集中在 TaskModel：**
-讓 Service 層不需要 17 個 switch case，只需呼叫一個方法。符合「不過度抽象，但也不重複 switch」的原則。CLAUDE.md 規範 Model 不含業務邏輯，此兩方法為純資料存取（getter/setter），不含任何業務判斷。
+**目標：** 記錄玩家的長期累計數據，顯示在角色頁。
 
-**迭代 `MaterialType.allCases` 替代手動列舉：**
-`TaskClaimService` 和 `SettlementViewModel` 皆改為 `for mat in MaterialType.allCases`，未來新增素材時不需修改這兩個檔案。
+### 完成項目
 
-**V1 / V2-1 雙路徑完全隔離：**
-`SettlementService` 先試 V1 路徑，miss 再試 V2-1 路徑，確保現有 MVP 任務（V1）完全不受影響，`DungeonSettlementResult` 維持不變。
+- `PlayerStateModel` 新增 5 個統計欄位：`totalGoldEarned`、`totalBattlesWon`、`totalBattlesLost`、`totalItemsCrafted`、`highestPowerReached`
+- `TaskClaimService.claimAllCompleted()` 收下任務時同步累計金幣 / 勝敗場 / 鑄造件數
+- `AppState.updateHighestPower()` 每秒 timer tick 時更新歷史最高戰力
+- `CharacterView` 角色頁底部新增「累計統計」Section（5 行數據）
 
-**`FloorDungeonResult` 使用泛型 `[MaterialType: Int]`：**
-引擎不硬編碼素材欄位，任何 `DungeonFloorDef.dropTable` 的 `MaterialType` 皆可直接傳出，未來新增素材不需修改引擎。
+---
 
-### 刻意先不做
+## V3-2 — 移除連續出征功能（已完成）
 
-- `AdventureView` 樓層選擇 UI（Ticket 04）
-- `CharacterView` 背包顯示 V2-1 素材（Ticket 04+）
-- 數值平衡調整（獨立工單）
-- V2-1 任務建立（Ticket 04 才正式接入 floor key 到 TaskCreationService）
+**目標：** 移除自動出征（auto-dispatch）機制，永久不保留。
 
-### 下一張工單
+### 完成項目
 
-**Ticket 04**：V2-1 冒險頁（AdventureView）重構 — 使用 DungeonProgressionService 驅動區域 / 樓層顯示，並在 TaskCreationService 加入以 floor key 為 definitionKey 的 V2-1 地下城任務建立路徑。
+- 移除 `PlayerStateModel` 中 `autoDispatchEnabled`、`autoDispatchFloorKey`、`autoDispatchDuration` 欄位
+- 移除 `AppState.tryAutoDispatch()` 方法
+- 移除 `AdventureView` 中 auto-dispatch Banner UI
+- 移除 contextMenu `.repeatDispatch` 選項
+
+---
+
+## V3-3 — 裝備比較 Diff（已完成）
+
+**目標：** 背包列表與裝備選擇 Sheet 顯示「換裝後屬性差異」。
+
+### 完成項目
+
+- `StatDiff` struct（top-level）：atk / def / hp 差值 + power 差值計算
+- `CharacterViewModel.equipDiff(candidate:equipped:)` 純計算方法
+- `EquipmentModel` 新增 `totalAtk` / `totalDef` / `totalHp` 別名
+- `CharacterView` 背包列表每行顯示 diff badge（綠色 ▲ / 紅色 ▼）
+- `EquipSelectSheet` 每行顯示完整屬性 + diff badge
+
+---
+
+## V3-4 — Dev 工具修正 + 採集時長縮放（已完成）
+
+**目標：** 修正 Dev 快速完成任務的行為，並讓採集輸出隨時長等比縮放。
+
+### 完成項目
+
+- `BaseView.devExpireAllTasks()` 修正：同時將 `startedAt` 和 `endsAt` 往前平移，保留原始 duration，確保採集 / 地下城結算得到正確的回合數與戰鬥場數
+- `SettlementService.fillGatherResults()` 改為 cycle-based 縮放：`cycles = floor(actualDuration / shortestDuration)`，每回合獨立 RNG 後加總
+- `GatherLocationDef.shortestDuration` 改為獨立欄位（900s = 15 分鐘），與 `durationOptions[0]` 解耦
+- `GatherLocationDef.durationOptions` 同步冒險選項（15分 / 1小時 / 12小時）
+
+---
+
+## 正式數值調整（已完成）
+
+- `AppConstants.DungeonDuration.all` 移除 1 分鐘測試選項，正式為 `[15分, 1小時, 12小時]`
+- V1 鑄造時間更新為正式值：普通飾品 5分 / 武器 8分 / 防具 10分；精良飾品 12分 / 武器 15分 / 防具 20分
+- `NpcUpgradeService` bug 修正：素材扣除改用 `deduct()` 而非 `add(-n)`
+- 實機測試全部通過（34 項，E1 因改為 EXP 升級系統而 N/A）
+
+---
+
+## 目前狀態
+
+全部 46 張 ticket ✅ 完成，實機測試通過。
+下一步：討論新玩法方向，確認後規劃 V4 tickets。

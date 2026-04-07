@@ -77,25 +77,27 @@ final class AdventureViewModel {
         tasks.first { $0.kind == .dungeon && $0.actorKey == AppConstants.Actor.player && $0.status == .inProgress }
     }
 
-    /// 玩家目前進行的地下城任務對應的區域定義
-    func currentArea(from tasks: [TaskModel]) -> DungeonAreaDef? {
+    /// 當前進行中地下城任務的名稱（支援 V1 area key 和 V2-1 floor key）
+    func activeDungeonName(from tasks: [TaskModel]) -> String? {
         guard let task = dungeonTask(from: tasks) else { return nil }
-        return DungeonAreaDef.find(key: task.definitionKey)
+        if let area  = DungeonAreaDef.find(key: task.definitionKey)  { return area.name }
+        if let floor = DungeonFloorDef.find(key: task.definitionKey) { return floor.name }
+        return nil
     }
 
     // MARK: - 任務建立委派（View 傳入 context，ViewModel 建 Service 執行）
 
-    /// 建立地下城任務
+    /// 建立 V2-1 地下城（樓層）任務
     @discardableResult
-    func startDungeon(
-        areaKey: String,
+    func startDungeonFloor(
+        floorKey: String,
         durationSeconds: Int,
         heroStats: HeroStats,
         context: ModelContext
     ) -> Result<Void, TaskCreationError> {
         do {
-            try TaskCreationService(context: context).createDungeonTask(
-                areaKey: areaKey,
+            try TaskCreationService(context: context).createDungeonFloorTask(
+                floorKey: floorKey,
                 durationSeconds: durationSeconds,
                 heroStats: heroStats
             )

@@ -34,12 +34,11 @@ enum AppConstants {
 
     // MARK: - 出征時長選項（秒）
     enum DungeonDuration {
-        static let quick:  Int = 60             // 1 分鐘（測試用）
         static let short:  Int = 15 * 60        // 15 分鐘
         static let medium: Int = 60 * 60        // 1 小時
         static let long:   Int = 12 * 3600      // 12 小時
 
-        static let all: [Int] = [quick, short, medium, long]
+        static let all: [Int] = [short, medium, long]
 
         static func displayName(for seconds: Int) -> String {
             let h = seconds / 3600
@@ -50,11 +49,15 @@ enum AppConstants {
         }
     }
 
-    // MARK: - 英雄升級費用（純金幣）
-    enum UpgradeCost {
-        /// 升到指定等級所需的金幣（level: 目標等級，從 2 開始）
-        static func gold(toLevel level: Int) -> Int {
-            return 100 * level   // 升 Lv.2 = 200，升 Lv.3 = 300，以此類推
+    // MARK: - 英雄升級所需 EXP
+    enum ExpThreshold {
+        private static let table: [Int: Int] = [
+            2: 100, 3: 200, 4: 300, 5: 450,
+            6: 600, 7: 800, 8: 1000, 9: 1300, 10: 1600
+        ]
+        /// 升至目標等級所需 EXP；超出範圍回傳 nil
+        static func required(toLevel level: Int) -> Int? {
+            table[level]
         }
     }
 }

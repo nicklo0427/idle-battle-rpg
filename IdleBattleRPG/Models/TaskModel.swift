@@ -89,8 +89,19 @@ final class TaskModel {
     var resultBattlesWon:  Int?
     var resultBattlesLost: Int?
 
-    /// .craft 專用（建立任務時就填入，不需 RNG）
+    /// .craft 專用（建立任務時就填入，不需 RNG）；
+    /// .dungeon Boss 層也會寫入（Boss 武器掉落 key）
     var resultCraftedEquipKey: String?
+
+    /// V2-1 Boss 武器浮動 ATK（結算時 RNG 決定）；nil = 非 Boss 武器掉落
+    var resultRolledAtk: Int?
+
+    /// .dungeon 專用（V2-1）：本次任務發生首通時，記錄該樓層 key（用於結算 Sheet 顯示解鎖提示）
+    /// nil = 非首通 / V1 任務 / 尚未結算
+    var resultFirstClearedFloorKey: String?
+
+    /// .dungeon 專用：結算後獲得的 EXP（.gather / .craft 恆為 0）
+    var resultExp: Int = 0
 
     // MARK: - Init
 
@@ -128,9 +139,11 @@ final class TaskModel {
         resultForeShrineClip:       Int = 0,
         resultAncientKingCore:      Int = 0,
         // 特殊
-        resultBattlesWon:      Int?    = nil,
-        resultBattlesLost:     Int?    = nil,
-        resultCraftedEquipKey: String? = nil
+        resultBattlesWon:           Int?    = nil,
+        resultBattlesLost:          Int?    = nil,
+        resultCraftedEquipKey:      String? = nil,
+        resultRolledAtk:            Int?    = nil,
+        resultFirstClearedFloorKey: String? = nil
     ) {
         self.id               = id
         self.kind             = kind
@@ -165,9 +178,11 @@ final class TaskModel {
         self.resultForeShrineClip       = resultForeShrineClip
         self.resultAncientKingCore      = resultAncientKingCore
 
-        self.resultBattlesWon      = resultBattlesWon
-        self.resultBattlesLost     = resultBattlesLost
-        self.resultCraftedEquipKey = resultCraftedEquipKey
+        self.resultBattlesWon           = resultBattlesWon
+        self.resultBattlesLost          = resultBattlesLost
+        self.resultCraftedEquipKey      = resultCraftedEquipKey
+        self.resultRolledAtk            = resultRolledAtk
+        self.resultFirstClearedFloorKey = resultFirstClearedFloorKey
     }
 
     // MARK: - 便利計算屬性

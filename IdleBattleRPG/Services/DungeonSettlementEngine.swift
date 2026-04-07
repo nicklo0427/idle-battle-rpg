@@ -10,8 +10,9 @@
 //
 // V2-1 路徑：settle(task:floor:) → FloorDungeonResult（泛型素材字典）
 //   輸入：TaskModel + DungeonFloorDef
-//   輸出：gold / materials:[MaterialType:Int] / battlesWon / battlesLost
+//   輸出：gold / materials:[MaterialType:Int] / battlesWon / battlesLost / rolledBossWeapon
 //   說明：drop table 中任意 MaterialType 皆可掉落，支援全部 17 種素材
+//         Boss 層 + battlesWon >= 1 時額外產出浮動 ATK 武器掉落
 //
 // 規格對應（MVP_SPEC_FINAL.md §8）：
 //   totalBattles = forcedBattles ?? max(1, Int(actualDuration / 60))
@@ -40,6 +41,9 @@ struct FloorDungeonResult {
     let materials:  [MaterialType: Int]   // 掉落的所有區域素材
     let battlesWon:  Int
     let battlesLost: Int
+    let exp:         Int
+    /// Boss 武器掉落（isBossFloor && battlesWon >= 1 時有值）
+    let rolledBossWeapon: (equipKey: String, atk: Int)?
 }
 
 // MARK: - 結算引擎
@@ -149,11 +153,26 @@ struct DungeonSettlementEngine {
             gold = floor.goldPerBattleRange.lowerBound
         }
 
+        // 5. EXP 計算
+        let expPerWin = max(1, floor.recommendedPower / 10)
+        let totalExp  = won * expPerWin + lost * 1
+
+        // 6. Boss 武器掉落（isBossFloor && 至少 1 場勝利）
+        var rolledBossWeapon: (equipKey: String, atk: Int)?
+        if floor.isBossFloor && won >= 1,
+           let weaponDef = EquipmentDef.find(key: floor.unlocksEquipmentKey),
+           let range = weaponDef.atkRange {
+            let rolledAtk = rng.nextInt(in: range)
+            rolledBossWeapon = (floor.unlocksEquipmentKey, rolledAtk)
+        }
+
         return FloorDungeonResult(
-            gold:        gold,
-            materials:   materials,
-            battlesWon:  won,
-            battlesLost: lost
+            gold:             gold,
+            materials:        materials,
+            battlesWon:       won,
+            battlesLost:      lost,
+            exp:              totalExp,
+            rolledBossWeapon: rolledBossWeapon
         )
     }
 }

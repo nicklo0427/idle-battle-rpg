@@ -5,7 +5,8 @@
 // 功能：選擇鑄造配方 → 建立鑄造任務
 //
 // 設計：
-//   - 列出全部 6 個配方（普通 / 精良 分組）
+//   - V1 配方（普通 / 精良）永遠顯示，共 6 個
+//   - V2-1 配方（3 區域 × 4 部位）需首通對應樓層後顯示
 //   - 顯示所需素材、金幣、時長
 //   - 素材或金幣不足時 row disabled + 灰色提示
 //   - 首件鑄造（hasUsedFirstCraftBoost == false）顯示「⚡ 特快 30 秒！」提示
@@ -20,6 +21,7 @@ struct CraftSheet: View {
     let viewModel: BaseViewModel
     let player: PlayerStateModel?
     let inventory: MaterialInventoryModel?
+    let progressionService: DungeonProgressionService
     @Binding var isPresented: Bool
 
     @Environment(\.modelContext) private var context
@@ -30,6 +32,25 @@ struct CraftSheet: View {
     private var isFirstCraft: Bool {
         guard let player else { return false }
         return !player.hasUsedFirstCraftBoost
+    }
+
+    /// 已解鎖的所有配方（V1 全顯示；V2-1 需首通樓層）
+    private var availableRecipes: [CraftRecipeDef] {
+        CraftRecipeDef.available { floorKey in
+            // floorKey 格式："{prefix}_floor_{index}"
+            // prefix → regionKey 對照表
+            guard let sep = floorKey.range(of: "_floor_") else { return false }
+            let prefix    = String(floorKey[floorKey.startIndex..<sep.lowerBound])
+            let indexStr  = String(floorKey[sep.upperBound...])
+            guard let index = Int(indexStr) else { return false }
+            let regionKeyMap: [String: String] = [
+                "wildland": "wildland",
+                "mine":     "abandoned_mine",
+                "ruins":    "ancient_ruins",
+            ]
+            guard let regionKey = regionKeyMap[prefix] else { return false }
+            return progressionService.isFloorCleared(regionKey: regionKey, floorIndex: index)
+        }
     }
 
     var body: some View {
@@ -45,11 +66,11 @@ struct CraftSheet: View {
 
                 recipeSection(
                     title: "普通裝備",
-                    recipes: CraftRecipeDef.all.filter { $0.rarity == .common }
+                    recipes: availableRecipes.filter { $0.rarity == .common }
                 )
                 recipeSection(
                     title: "精良裝備",
-                    recipes: CraftRecipeDef.all.filter { $0.rarity == .refined }
+                    recipes: availableRecipes.filter { $0.rarity == .refined }
                 )
             }
             .navigationTitle("鑄造師")
@@ -102,6 +123,33 @@ struct CraftSheet: View {
                     .monospacedDigit()
             }
 
+            // 裝備屬性預覽
+            if let equip = EquipmentDef.find(key: recipe.outputEquipmentKey) {
+                HStack(spacing: 8) {
+                    if equip.isBossWeapon, let range = equip.atkRange {
+                        Text("⚔️ \(range.lowerBound)–\(range.upperBound)（浮動）")
+                            .font(.caption2)
+                            .foregroundStyle(Color.secondary)
+                    } else {
+                        if equip.atkBonus > 0 {
+                            Text("⚔️ +\(equip.atkBonus)")
+                                .font(.caption2)
+                                .foregroundStyle(Color.secondary)
+                        }
+                        if equip.defBonus > 0 {
+                            Text("🛡 +\(equip.defBonus)")
+                                .font(.caption2)
+                                .foregroundStyle(Color.secondary)
+                        }
+                        if equip.hpBonus > 0 {
+                            Text("❤️ +\(equip.hpBonus)")
+                                .font(.caption2)
+                                .foregroundStyle(Color.secondary)
+                        }
+                    }
+                }
+            }
+
             // 素材需求（range-based ForEach 避免 Binding<C> 推斷問題）
             HStack(spacing: 8) {
                 ForEach(0..<materials.count, id: \.self) { i in
@@ -147,14 +195,17 @@ struct CraftSheet: View {
 
 #Preview {
     @Previewable @State var isPresented = true
+    let container = try! ModelContainer(
+        for: PlayerStateModel.self, MaterialInventoryModel.self,
+             EquipmentModel.self, TaskModel.self, DungeonProgressionModel.self,
+        configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+    )
     CraftSheet(
         viewModel: BaseViewModel(),
         player: nil,
         inventory: nil,
+        progressionService: DungeonProgressionService(context: container.mainContext),
         isPresented: $isPresented
     )
-    .modelContainer(for: [
-        PlayerStateModel.self, MaterialInventoryModel.self,
-        EquipmentModel.self, TaskModel.self,
-    ], inMemory: true)
+    .modelContainer(container)
 }

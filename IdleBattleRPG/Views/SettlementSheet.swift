@@ -4,6 +4,7 @@
 // 顯示內容：
 //   - 完成筆數標題
 //   - 獎勵明細行（金幣 / 素材 / 新裝備），由 SettlementViewModel 從 result* 欄位轉換
+//   - V2-1 首通解鎖行（🔓 / 🗺），有首通時額外顯示
 //   - 「收下」按鈕 → 呼叫 AppState.claimAllCompleted()（入帳 + 刪除任務 + 關閉 Sheet）
 //
 // 架構守則：
@@ -64,14 +65,10 @@ struct SettlementSheet: View {
                     .padding(.bottom, 8)
 
                 if summary.hasRewards {
-                    ForEach(summary.rewardLines, id: \.self) { line in
-                        HStack {
-                            Text(line)
-                                .font(.body)
-                            Spacer()
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 6)
+                    ForEach(summary.rewardRows) { row in
+                        rewardRowView(row)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 6)
                     }
                 } else {
                     Text("（本次無額外獎勵）")
@@ -79,6 +76,19 @@ struct SettlementSheet: View {
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 20)
                         .padding(.vertical, 16)
+                }
+
+                // ── V2-1 首通解鎖提示 ─────────────────────────────
+                if summary.hasUnlocks {
+                    Divider()
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 4)
+
+                    ForEach(summary.unlockRows) { row in
+                        unlockRowView(row)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 6)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -100,6 +110,77 @@ struct SettlementSheet: View {
         }
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
+    }
+
+    // MARK: - Row Renderers
+
+    @ViewBuilder
+    private func rewardRowView(_ row: SettlementRow) -> some View {
+        switch row.kind {
+        case .gold(let amt):
+            HStack {
+                Text("💰 金幣 +\(amt)").font(.body)
+                Spacer()
+            }
+        case .exp(let amt):
+            HStack {
+                Text("✨ EXP +\(amt)").font(.body)
+                Spacer()
+            }
+        case .material(let mat, let amt):
+            HStack {
+                Text("\(mat.icon) \(mat.displayName) +\(amt)").font(.body)
+                Spacer()
+            }
+        case .equipment(let name, let stats, let isRolled):
+            HStack {
+                Text("🗡 \(name)")
+                    .font(.body)
+                    .fontWeight(.medium)
+                Spacer()
+                Text(stats)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if isRolled {
+                    Text("✦")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+            }
+        case .battle(let won, let lost):
+            HStack {
+                Text("⚔️ 戰鬥 \(won) 勝 \(lost) 敗").font(.body)
+                Spacer()
+            }
+        case .firstClear, .regionUnlock:
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private func unlockRowView(_ row: SettlementRow) -> some View {
+        switch row.kind {
+        case .firstClear(let floorName):
+            HStack {
+                Image(systemName: "lock.open.fill")
+                    .foregroundStyle(Color.accentColor)
+                Text("解鎖配方：\(floorName)")
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.accentColor)
+                Spacer()
+            }
+        case .regionUnlock(let regionName):
+            HStack {
+                Image(systemName: "map.fill")
+                    .foregroundStyle(.green)
+                Text("新區域開放：\(regionName)")
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.green)
+                Spacer()
+            }
+        default:
+            EmptyView()
+        }
     }
 }
 

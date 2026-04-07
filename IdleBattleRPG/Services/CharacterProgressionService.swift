@@ -2,13 +2,13 @@
 // 英雄升級與屬性點分配
 //
 // 責任：
-//   levelUp(player:)      — 驗證金幣 + 等級上限，扣除金幣，升等，發放屬性點
+//   levelUp(player:)      — 驗證 EXP + 等級上限，扣除 EXP，升等，發放屬性點
 //   allocatePoint(to:player:) — 消耗 1 可分配點，增加指定屬性
 //
 // 規則（AppConstants 為唯一數值來源）：
-//   升級費用    = AppConstants.UpgradeCost.gold(toLevel:)
-//   等級上限    = AppConstants.Game.heroMaxLevel（10）
-//   每升一級    = +AppConstants.Game.statPointsPerLevel（3）屬性點
+//   升級所需 EXP = AppConstants.ExpThreshold.required(toLevel:)
+//   等級上限     = AppConstants.Game.heroMaxLevel（10）
+//   每升一級     = +AppConstants.Game.statPointsPerLevel（3）屬性點
 
 import Foundation
 import SwiftData
@@ -23,14 +23,14 @@ enum StatType {
 
 enum LevelUpError: Error {
     case maxLevelReached
-    case insufficientGold(required: Int, have: Int)
+    case insufficientExp(required: Int, have: Int)
 
     var message: String {
         switch self {
         case .maxLevelReached:
             return "已達等級上限 Lv.\(AppConstants.Game.heroMaxLevel)"
-        case let .insufficientGold(required, have):
-            return "金幣不足（需要 \(required)，擁有 \(have)）"
+        case let .insufficientExp(required, have):
+            return "EXP 不足（需要 \(required)，擁有 \(have)）"
         }
     }
 }
@@ -52,17 +52,20 @@ struct CharacterProgressionService {
             return .failure(.maxLevelReached)
         }
 
-        let cost = AppConstants.UpgradeCost.gold(toLevel: nextLevel)
-        guard player.gold >= cost else {
-            return .failure(.insufficientGold(required: cost, have: player.gold))
+        guard let required = AppConstants.ExpThreshold.required(toLevel: nextLevel) else {
+            return .failure(.maxLevelReached)
         }
 
-        player.gold                -= cost
+        guard player.heroExp >= required else {
+            return .failure(.insufficientExp(required: required, have: player.heroExp))
+        }
+
+        player.heroExp             -= required
         player.heroLevel            = nextLevel
         player.availableStatPoints += AppConstants.Game.statPointsPerLevel
         save()
 
-        print("[CharacterProgressionService] 升級至 Lv.\(nextLevel)，扣除金幣 \(cost)")
+        print("[CharacterProgressionService] 升級至 Lv.\(nextLevel)，扣除 EXP \(required)")
         return .success(())
     }
 

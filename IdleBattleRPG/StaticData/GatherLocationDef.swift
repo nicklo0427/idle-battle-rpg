@@ -5,14 +5,15 @@
 import Foundation
 
 struct GatherLocationDef {
-    let key: String
-    let name: String
+    let key:             String
+    let name:            String
+    let role:            GathererRole
     /// 可選時長（秒），由短到長排列，UI 以此為選項
     let durationOptions: [Int]
-    let outputMaterial: MaterialType
-    let outputRange: ClosedRange<Int>
-
-    var shortestDuration: Int { durationOptions.first ?? 1800 }
+    let outputMaterial:  MaterialType
+    let outputRange:     ClosedRange<Int>
+    /// 每回合基礎時長（秒）；與 durationOptions[0] 無關，採集輸出縮放依此計算
+    let shortestDuration: Int
 }
 
 extension GatherLocationDef {
@@ -21,16 +22,20 @@ extension GatherLocationDef {
         GatherLocationDef(
             key:             "forest",
             name:            "森林",
-            durationOptions: [60, 300, 7200],          // 1分 / 5分 / 2小時
+            role:            .woodcutter,
+            durationOptions: AppConstants.DungeonDuration.all,  // 同冒險：1分/15分/1小時/12小時
             outputMaterial:  .wood,
-            outputRange:     3...6
+            outputRange:     3...6,
+            shortestDuration: AppConstants.DungeonDuration.short  // 每 15 分鐘一回合
         ),
         GatherLocationDef(
             key:             "mine_pit",
             name:            "礦坑",
-            durationOptions: [60, 300, 10800],         // 1分 / 5分 / 3小時
+            role:            .miner,
+            durationOptions: AppConstants.DungeonDuration.all,  // 同冒險：1分/15分/1小時/12小時
             outputMaterial:  .ore,
-            outputRange:     2...5
+            outputRange:     2...5,
+            shortestDuration: AppConstants.DungeonDuration.short  // 每 15 分鐘一回合
         ),
     ]
 

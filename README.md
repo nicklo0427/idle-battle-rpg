@@ -1,66 +1,38 @@
-# Idle Battle RPG
+# 放置英雄
 
-A minimalist AFK idle battle game for iOS, powered by Claude AI for generating hero lore, item descriptions, and battle narratives.
+iOS 放置 RPG。玩家利用生活空檔派英雄出征地下城、委託採集者蒐集素材、讓鑄造師打造裝備，讓自己越來越強。
 
----
-
-## 概覽 Overview
-
-玩家組建一支英雄隊伍，讓英雄自動在地圖區域戰鬥（AFK），離線時也持續累積金幣與裝備。
-Claude AI 負責生成每位英雄的背景故事、道具描述，以及回到遊戲時的「你不在時發生了什麼」敘事。
-
----
-
-## 核心玩法
-
-| 系統 | 說明 |
-|------|------|
-| AFK 戰鬥 | 英雄自動在選定區域戰鬥，離線最多累積 8 小時成果 |
-| 資源收集 | 戰鬥勝利獲得金幣與隨機裝備掉落 |
-| 英雄管理 | 最多 3 位英雄上場，可升級屬性（ATK / DEF / HP） |
-| Claude AI | 生成英雄名稱、背景故事、道具描述、離線摘要敘事 |
-| 裝備系統 | 20+ 件裝備，3 種稀有度（Common / Rare / Epic） |
+**MVP 純本地單機**，無後端、無帳號、無社交。
 
 ---
 
 ## Tech Stack
 
-- **Language**: Swift 5.9+
-- **UI**: SwiftUI
-- **Persistence**: SwiftData (iOS 17+)
-- **Networking**: URLSession + async/await
-- **AI**: Claude API (`claude-haiku-4-5-20251001`)
-- **Secret Storage**: iOS Keychain (API key)
-- **Minimum iOS**: 17.0
+| 項目 | 技術 |
+|---|---|
+| 語言 | Swift 5.9+ |
+| UI | SwiftUI |
+| 持久化 | SwiftData (iOS 17+) |
+| 最低系統 | iOS 17.0 |
+| 專案管理 | XcodeGen（`project.yml`） |
+
+> `.xcodeproj` 不進 git，由 XcodeGen 產生。
 
 ---
 
-## 快速開始 Quick Start
-
-### 前置需求
-
-- macOS 14+ (Sonoma)
-- Xcode 15+
-- [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
-- Anthropic API Key（[取得](https://console.anthropic.com/)）
-
-### 設定步驟
+## 快速開始
 
 ```bash
-# 1. Clone 專案
-git clone https://github.com/Nick-Wants-To-Be-A-Billionair/idle-battle-rpg.git
+# 1. Clone
+git clone https://github.com/nicklo0427/idle-battle-rpg.git
 cd idle-battle-rpg
 
 # 2. 產生 Xcode 專案
 xcodegen generate
 
-# 3. 用 Xcode 開啟
+# 3. 開啟
 open IdleBattleRPG.xcodeproj
 ```
-
-在 Xcode 中按 ▶ Run，第一次啟動時 App 會要求輸入你的 Anthropic API Key，存入 Keychain 後即可遊玩。
-
-> **注意**：API Key 只在第一次輸入時儲存到 Keychain，之後重開 App 不需要重新輸入。
 
 ---
 
@@ -68,63 +40,40 @@ open IdleBattleRPG.xcodeproj
 
 ```
 idle-battle-rpg/
-├── project.yml                    ← XcodeGen 設定（產生 .xcodeproj 用）
-├── README.md
-├── ARCHITECTURE.md                ← 架構與設計決策說明
+├── project.yml                        ← XcodeGen 設定
+├── CLAUDE.md                          ← AI 協作說明（給 Claude Code 讀）
+├── MVP_SPEC_FINAL.md                  ← MVP 規格（唯一設計事實來源）
+├── V2_1_DUNGEON_PROGRESSION_SPEC.md   ← V2-1 規格
+├── PROGRESS.md                        ← 開發進度紀錄
+├── CHECKLIST.md                       ← TestFlight 實機驗證清單
+├── tickets/
+│   └── V2-1/                         ← V2-1 工單（Ticket 01–）
 └── IdleBattleRPG/
-    ├── IdleBattleRPGApp.swift     ← @main 入口
-    ├── AppConstants.swift         ← 所有遊戲數值（集中管理）
-    ├── Models/                    ← SwiftData 資料模型
-    ├── StaticData/                ← 靜態遊戲資料（英雄職業、區域、裝備）
-    ├── Services/
-    │   ├── Game/                  ← 遊戲邏輯（離線計算、戰鬥、升級）
-    │   └── AI/                   ← Claude API 整合
-    ├── ViewModels/                ← @Observable ViewModels
-    ├── Views/                     ← SwiftUI 畫面
-    └── Tests/                     ← 離線計算單元測試
+    ├── IdleBattleRPGApp.swift
+    ├── AppState.swift
+    ├── AppConstants.swift
+    ├── Models/                        ← SwiftData @Model
+    ├── StaticData/                    ← 純 Swift struct（不進 DB）
+    ├── Services/                      ← 業務邏輯 + CRUD
+    ├── ViewModels/
+    └── Views/
 ```
 
-詳細架構說明請見 [ARCHITECTURE.md](ARCHITECTURE.md)。
-
 ---
 
-## Claude AI 在遊戲中的角色
+## 開發進度
 
-Claude 只在以下 5 種情況呼叫 API，所有結果**永久快取**，不重複生成：
+| 狀態 | 階段 |
+|---|---|
+| ✅ 完成 | MVP Phase 1–12（資料層、Service、全部 UI、商人、Onboarding）|
+| ✅ 完成 | V2-1 Ticket 01（地下城靜態資料正式化）|
+| ✅ 完成 | V2-1 Ticket 02（區域素材 SwiftData 正式化）|
+| ✅ 完成 | V2-1 Ticket 03（地下城推進狀態模型）|
+| 🔜 待實作 | V2-1 Ticket 04（AdventureView 重構）|
+| 🔜 待實作 | V2-1 Ticket 05（CharacterView 4 部位裝備槽）|
+| 🔜 待實作 | V2-1 Ticket 06（V2-1 鑄造配方與 CraftSheet 擴充）|
+| 🔜 待實作 | V2-1 Ticket 07（首通裝備解鎖邏輯）|
+| 🔜 待實作 | V2-1 Ticket 08（Boss 武器浮動數值 Farming）|
+| 🔜 待實作 | V2-1 Ticket 09（數值平衡）|
 
-| 時機 | 內容 | 快取 Key |
-|------|------|----------|
-| 獲得新英雄 | 生成英雄名稱 | `hero_name_<UUID>` |
-| 首次開啟英雄詳情 | 生成英雄背景故事 | `hero_lore_<UUID>` |
-| 首次開啟道具詳情 | 生成道具描述 | `item_flavor_<defKey>` |
-| 回到遊戲（離線 >5 分鐘） | 生成「你不在時...」摘要 | `offline_<dateStr>` |
-| 戰鬥中隨機觸發（15%） | 生成隨機事件 | 不快取（每次隨機） |
-
-### API 費用估算
-
-使用 `claude-haiku-4-5-20251001`，一般玩家每天預估呼叫 5–15 次，
-費用約 **$0.001–$0.005 USD/天**（極低成本）。
-
----
-
-## 遊戲平衡數值
-
-| 參數 | 數值 |
-|------|------|
-| 離線上限 | 8 小時 |
-| 勝率（等同區域推薦戰力）| 50% |
-| 勝率（2 倍推薦戰力）| ~95% |
-| 勝率下限（再弱也有）| 10% |
-| 升級費用倍率 | 1.18× per level |
-| 召喚新英雄費用 | 300 金幣 |
-
----
-
-## Roadmap
-
-- [x] Phase 1：專案架構 + 靜態資料
-- [x] Phase 2：離線計算引擎（確定性 RNG）
-- [x] Phase 3：Claude API 整合（懶載入 + 快取）
-- [ ] Phase 4：核心 SwiftUI 畫面
-- [ ] Phase 5：裝備系統 + 隨機事件
-- [ ] Phase 6：平衡測試 + 上架準備
+詳細進度見 [PROGRESS.md](PROGRESS.md)，工單內容見 [tickets/V2-1/](tickets/V2-1/)。
