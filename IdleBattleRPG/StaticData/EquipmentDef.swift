@@ -271,6 +271,47 @@ extension EquipmentDef {
             hpBonus:  0,
             atkRange: 54...72   // Boss 掉落浮動範圍；最高 144 power（Farming 最高目標）
         ),
+
+        // ── V4-3 沉落王城套裝：沉城深淵套裝 ──────────────────────────
+        // 設計目標：ruins ×1.28 比例。4 件全套鑄造版戰力約 +532。
+        // 全套 + Lv.20 全 ATK（+60）≈ 592，對應 F1 推薦戰力 530，勝率約 66%。
+        EquipmentDef(
+            key:      "sunken_city_accessory",
+            name:     "沉紋護符",
+            slot:     .accessory,
+            rarity:   .refined,
+            atkBonus: 20,   // power: 20×2 + 10×1.5 + 35 = 90
+            defBonus: 10,
+            hpBonus:  35
+        ),
+        EquipmentDef(
+            key:      "sunken_city_armor",
+            name:     "深淵溺甲",
+            slot:     .armor,
+            rarity:   .refined,
+            atkBonus: 0,    // power: 44×1.5 + 96 = 162
+            defBonus: 44,
+            hpBonus:  96
+        ),
+        EquipmentDef(
+            key:      "sunken_city_offhand",
+            name:     "沉冕王徽",
+            slot:     .offhand,
+            rarity:   .refined,
+            atkBonus: 0,    // power: 28×1.5 + 56 = 98
+            defBonus: 28,
+            hpBonus:  56
+        ),
+        EquipmentDef(
+            key:      "sunken_city_weapon",
+            name:     "沉王裂水刃",
+            slot:     .weapon,
+            rarity:   .refined,
+            atkBonus: 80,   // 鑄造固定值，power 160
+            defBonus: 0,
+            hpBonus:  0,
+            atkRange: 70...92   // Boss 掉落浮動範圍；最高 184 power
+        ),
     ]
 
     static func find(key: String) -> EquipmentDef? {

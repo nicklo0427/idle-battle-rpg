@@ -27,7 +27,8 @@ struct HeroStatsService {
             hp  += equip.hpBonus
         }
 
-        return HeroStats(totalATK: atk, totalDEF: def, totalHP: hp)
+        return HeroStats(totalATK: atk, totalDEF: def, totalHP: hp,
+                         totalAGI: player.agiPoints, totalDEX: player.dexPoints)
     }
 
     // MARK: - 從 ModelContext 讀取並計算

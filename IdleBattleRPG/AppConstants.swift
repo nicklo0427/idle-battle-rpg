@@ -26,7 +26,7 @@ enum AppConstants {
     enum Game {
         static let maxOfflineSeconds      = 12 * 3600  // 12 小時離線上限
         static let secondsPerBattle       = 60          // 每場戰鬥 60 秒
-        static let heroMaxLevel           = 10
+        static let heroMaxLevel           = 20
         static let statPointsPerLevel     = 3
         static let firstBoostSeconds      = 30          // 新手特快時長（秒）
         static let forcedBattlesFirstRun  = 5           // 首次出征固定場數
@@ -52,8 +52,12 @@ enum AppConstants {
     // MARK: - 英雄升級所需 EXP
     enum ExpThreshold {
         private static let table: [Int: Int] = [
-            2: 100, 3: 200, 4: 300, 5: 450,
-            6: 600, 7: 800, 8: 1000, 9: 1300, 10: 1600
+            // Lv.1 → 10
+            2: 100,  3: 200,  4: 300,  5: 450,
+            6: 600,  7: 800,  8: 1000, 9: 1300, 10: 1600,
+            // Lv.10 → 20
+            11: 2000,  12: 2500,  13: 3100,  14: 3800,  15: 4600,
+            16: 5600,  17: 6800,  18: 8200,  19: 9900,  20: 12000
         ]
         /// 升至目標等級所需 EXP；超出範圍回傳 nil
         static func required(toLevel level: Int) -> Int? {

@@ -16,7 +16,7 @@ import SwiftData
 // MARK: - StatType
 
 enum StatType {
-    case atk, def, hp
+    case atk, def, hp, agi, dex
 }
 
 // MARK: - LevelUpError
@@ -69,6 +69,26 @@ struct CharacterProgressionService {
         return .success(())
     }
 
+    // MARK: - 自動升級
+
+    /// EXP 足夠時自動連續升級（可一次跨多級）。
+    /// 在 TaskClaimService.creditExp() 入帳後呼叫。
+    func autoLevelIfPossible(player: PlayerStateModel) {
+        var leveled = false
+        while true {
+            let next = player.heroLevel + 1
+            guard next <= AppConstants.Game.heroMaxLevel,
+                  let required = AppConstants.ExpThreshold.required(toLevel: next),
+                  player.heroExp >= required else { break }
+            player.heroExp             -= required
+            player.heroLevel            = next
+            player.availableStatPoints += AppConstants.Game.statPointsPerLevel
+            leveled = true
+            print("[CharacterProgressionService] 自動升級至 Lv.\(next)，扣除 EXP \(required)")
+        }
+        if leveled { save() }
+    }
+
     // MARK: - 屬性點分配
 
     /// 消耗 1 可分配點，增加指定屬性。無可分配點時回傳 false（不寫入）。
@@ -81,9 +101,46 @@ struct CharacterProgressionService {
         case .atk: player.atkPoints += 1
         case .def: player.defPoints += 1
         case .hp:  player.hpPoints  += 1
+        case .agi: player.agiPoints += 1
+        case .dex: player.dexPoints += 1
         }
         save()
         return true
+    }
+
+    // MARK: - 確認加點（pending → 正式寫入）
+
+    /// 將 pending 點數批次寫入 PlayerStateModel。
+    /// 呼叫前需確認 total delta ≤ availableStatPoints。
+    func commitAllocations(
+        player: PlayerStateModel,
+        atkDelta: Int, defDelta: Int, hpDelta: Int,
+        agiDelta: Int, dexDelta: Int
+    ) {
+        let total = atkDelta + defDelta + hpDelta + agiDelta + dexDelta
+        guard total <= player.availableStatPoints else { return }
+        player.atkPoints           += atkDelta
+        player.defPoints           += defDelta
+        player.hpPoints            += hpDelta
+        player.agiPoints           += agiDelta
+        player.dexPoints           += dexDelta
+        player.availableStatPoints -= total
+        save()
+    }
+
+    // MARK: - 重置所有屬性點
+
+    /// 將 5 種屬性全部清零，所用點數退回 availableStatPoints。
+    func resetAllStats(player: PlayerStateModel) {
+        let used = player.atkPoints + player.defPoints + player.hpPoints
+                 + player.agiPoints + player.dexPoints
+        player.availableStatPoints += used
+        player.atkPoints = 0
+        player.defPoints = 0
+        player.hpPoints  = 0
+        player.agiPoints = 0
+        player.dexPoints = 0
+        save()
     }
 
     // MARK: - Private

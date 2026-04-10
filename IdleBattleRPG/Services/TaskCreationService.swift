@@ -185,7 +185,9 @@ struct TaskCreationService {
             endsAt:        now.addingTimeInterval(TimeInterval(duration)),
             durationOverride: durationOverride,
             forcedBattles:    forcedBattles,
-            snapshotPower:    heroStats.power
+            snapshotPower:    heroStats.power,
+            snapshotAgi:      heroStats.totalAGI,
+            snapshotDex:      heroStats.totalDEX
         )
         repository.insert(task)
     }
@@ -229,7 +231,9 @@ struct TaskCreationService {
             endsAt:        now.addingTimeInterval(TimeInterval(duration)),
             durationOverride: durationOverride,
             forcedBattles:    forcedBattles,
-            snapshotPower:    heroStats.power
+            snapshotPower:    heroStats.power,
+            snapshotAgi:      heroStats.totalAGI,
+            snapshotDex:      heroStats.totalDEX
         )
         repository.insert(task)
     }

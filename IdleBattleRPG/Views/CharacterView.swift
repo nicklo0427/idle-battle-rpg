@@ -18,8 +18,9 @@ import SwiftData
 // MARK: - Segment 定義
 
 private enum CharacterSegment: String, CaseIterable {
-    case gear     = "裝備"
-    case backpack = "背包"
+    case gear        = "裝備"
+    case backpack    = "背包"
+    case achievement = "成就"
 }
 
 private enum BackpackTab: String, CaseIterable {
@@ -34,9 +35,10 @@ struct CharacterView: View {
 
     @Environment(\.modelContext) private var context
 
-    @Query private var players:     [PlayerStateModel]
-    @Query private var equipments:  [EquipmentModel]
-    @Query private var inventories: [MaterialInventoryModel]
+    @Query private var players:            [PlayerStateModel]
+    @Query private var equipments:         [EquipmentModel]
+    @Query private var inventories:        [MaterialInventoryModel]
+    @Query private var achievementModels:  [AchievementProgressModel]
 
     @State private var viewModel    = CharacterViewModel()
     @State private var segment      = CharacterSegment.gear
@@ -52,6 +54,8 @@ struct CharacterView: View {
     // 強化 / 拆解確認 Alert（V2-2）
     @State private var pendingEnhanceItem:     EquipmentModel?
     @State private var pendingDisassembleItem: EquipmentModel?
+    // 屬性點重置確認
+    @State private var showResetAlert = false
 
     // MARK: - 計算屬性
 
@@ -82,8 +86,9 @@ struct CharacterView: View {
                 .listRowInsets(.init(top: 4, leading: 0, bottom: 4, trailing: 0))
 
                 switch segment {
-                case .gear:     gearSegment
-                case .backpack: backpackSegment
+                case .gear:        gearSegment
+                case .backpack:    backpackSegment
+                case .achievement: achievementSegment
                 }
             }
             .navigationTitle("角色")
@@ -139,6 +144,15 @@ struct CharacterView: View {
                 let refund = EnhancementDef.disassembleRefund(defKey: item.defKey) ?? 0
                 Text("拆解 \(item.displayName)？\n退還：\(refund) 金幣（強化費用不退）\n此操作不可復原。")
             }
+            // 重置屬性點確認
+            .alert("確認重置？", isPresented: $showResetAlert) {
+                Button("重置", role: .destructive) {
+                    if let p = player { viewModel.resetAllStats(player: p, context: context) }
+                }
+                Button("取消", role: .cancel) {}
+            } message: {
+                Text("所有已分配的屬性點將全部退回，可重新分配。此操作不可復原。")
+            }
             // 裝備選擇 Sheet
             .sheet(item: $equipSheetSlot) { slot in
                 EquipSelectSheet(
@@ -170,18 +184,42 @@ struct CharacterView: View {
             if let stats = heroStats {
                 powerRow(stats.power)
                 if let player {
-                    statAllocRow(label: "⚔️ ATK", value: stats.totalATK, stat: .atk, player: player)
-                    statAllocRow(label: "🛡 DEF",  value: stats.totalDEF, stat: .def, player: player)
-                    statAllocRow(label: "❤️ HP",   value: stats.totalHP,  stat: .hp,  player: player)
+                    statAllocRow(label: "⚔️ ATK", value: stats.totalATK, pending: viewModel.pendingAtk, stat: .atk, player: player)
+                    statAllocRow(label: "🛡 DEF",  value: stats.totalDEF, pending: viewModel.pendingDef, stat: .def, player: player)
+                    statAllocRow(label: "❤️ HP",   value: stats.totalHP,  pending: viewModel.pendingHp,  stat: .hp,  player: player)
+                    statAllocRow(label: "🏃 AGI",  value: stats.totalAGI, pending: viewModel.pendingAgi, stat: .agi, player: player)
+                    statAllocRow(label: "🎯 DEX",  value: stats.totalDEX, pending: viewModel.pendingDex, stat: .dex, player: player)
 
-                    if player.availableStatPoints > 0 {
+                    let remaining = viewModel.remainingPendingPoints(player: player)
+                    if remaining > 0 {
                         HStack {
-                            Image(systemName: "sparkles")
-                                .foregroundStyle(.orange)
-                            Text("可分配點數：\(player.availableStatPoints)")
+                            Image(systemName: "sparkles").foregroundStyle(.orange)
+                            Text("可分配點數：\(remaining)")
                                 .foregroundStyle(.orange)
                                 .fontWeight(.semibold)
                         }
+                    }
+
+                    if viewModel.hasPendingAllocations {
+                        HStack(spacing: 12) {
+                            Button("確認加點") {
+                                viewModel.commitAllocations(player: player, context: context)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.orange)
+
+                            Button("取消") { viewModel.cancelAllocations() }
+                                .buttonStyle(.bordered)
+                        }
+                    }
+
+                    let usedPoints = player.atkPoints + player.defPoints + player.hpPoints
+                                   + player.agiPoints + player.dexPoints
+                    if usedPoints > 0 {
+                        Button("重置所有屬性點") { showResetAlert = true }
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .center)
                     }
                 }
             }
@@ -199,19 +237,14 @@ struct CharacterView: View {
                             .foregroundStyle(.secondary)
                     }
                 } else if let required = viewModel.nextLevelExpRequired(player: player) {
-                    let canLevel = player.heroExp >= required
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
-                            Text("升至 Lv.\(player.heroLevel + 1)")
+                            Text("Lv.\(player.heroLevel) → Lv.\(player.heroLevel + 1)")
                                 .fontWeight(.medium)
                             Spacer()
-                            Button("升級") {
-                                if let msg = viewModel.levelUp(player: player, context: context) {
-                                    alertMsg = msg
-                                }
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .disabled(!canLevel)
+                            Text("自動升級")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
                         }
                         ProgressView(value: min(1.0, Double(player.heroExp) / Double(required)))
                             .tint(.purple)
@@ -346,16 +379,18 @@ struct CharacterView: View {
 
     @ViewBuilder
     private var backpackAreaMaterialTab: some View {
-        let wildland: [MaterialType] = [.oldPostBadge, .driedHideBundle, .splitHornBone, .riftFangRoyalBadge]
-        let mine:     [MaterialType] = [.mineLampCopperClip, .tunnelIronClip, .veinStoneSlab, .stoneSwallowCore]
-        let ruins:    [MaterialType] = [.relicSealRing, .oathInscriptionShard, .foreShrineClip, .ancientKingCore]
+        let wildland:   [MaterialType] = [.oldPostBadge, .driedHideBundle, .splitHornBone, .riftFangRoyalBadge]
+        let mine:       [MaterialType] = [.mineLampCopperClip, .tunnelIronClip, .veinStoneSlab, .stoneSwallowCore]
+        let ruins:      [MaterialType] = [.relicSealRing, .oathInscriptionShard, .foreShrineClip, .ancientKingCore]
+        let sunkenCity: [MaterialType] = [.sunkenRuneShard, .abyssalCrystalDrop, .drownedCrownFragment, .sunkenKingSeal]
 
         if let inv = inventory {
-            let hasAny = (wildland + mine + ruins).contains { inv.amount(of: $0) > 0 }
+            let hasAny = (wildland + mine + ruins + sunkenCity).contains { inv.amount(of: $0) > 0 }
             if hasAny {
-                let hasWildland = wildland.contains { inv.amount(of: $0) > 0 }
-                let hasMine     = mine.contains     { inv.amount(of: $0) > 0 }
-                let hasRuins    = ruins.contains    { inv.amount(of: $0) > 0 }
+                let hasWildland   = wildland.contains   { inv.amount(of: $0) > 0 }
+                let hasMine       = mine.contains       { inv.amount(of: $0) > 0 }
+                let hasRuins      = ruins.contains      { inv.amount(of: $0) > 0 }
+                let hasSunkenCity = sunkenCity.contains { inv.amount(of: $0) > 0 }
 
                 if hasWildland {
                     Section("荒野邊境") {
@@ -368,8 +403,13 @@ struct CharacterView: View {
                     }
                 }
                 if hasRuins {
-                    Section("深淵遺跡") {
+                    Section("古代遺跡") {
                         ForEach(ruins, id: \.self) { mat in materialRow(mat, inventory: inv) }
+                    }
+                }
+                if hasSunkenCity {
+                    Section("沉落王城") {
+                        ForEach(sunkenCity, id: \.self) { mat in materialRow(mat, inventory: inv) }
                     }
                 }
             } else {
@@ -382,6 +422,67 @@ struct CharacterView: View {
         } else {
             Section { Text("—").foregroundStyle(.secondary) }
         }
+    }
+
+    // MARK: - 成就 Segment
+
+    @ViewBuilder
+    private var achievementSegment: some View {
+        let progress       = achievementModels.first
+        let unlockedKeys   = progress?.unlockedKeys ?? []
+        let unlockedCount  = AchievementDef.all.filter { unlockedKeys.contains($0.key) }.count
+        let total          = AchievementDef.all.count
+
+        Section {
+            HStack {
+                Text("已解鎖成就")
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("\(unlockedCount) / \(total)")
+                    .fontWeight(.semibold)
+                    .monospacedDigit()
+            }
+            ProgressView(value: Double(unlockedCount), total: Double(total))
+                .tint(.yellow)
+        } header: {
+            Text("成就進度")
+        }
+
+        Section("成就列表") {
+            ForEach(AchievementDef.all) { achievement in
+                let unlocked = unlockedKeys.contains(achievement.key)
+                achievementRow(achievement, unlocked: unlocked)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func achievementRow(_ achievement: AchievementDef, unlocked: Bool) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            Text(achievement.icon)
+                .font(.title2)
+                .frame(width: 36, height: 36)
+                .opacity(unlocked ? 1.0 : 0.3)
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(achievement.title)
+                        .fontWeight(unlocked ? .semibold : .regular)
+                        .foregroundStyle(unlocked ? Color.primary : Color.secondary)
+                    if unlocked {
+                        Image(systemName: "checkmark.seal.fill")
+                            .font(.caption)
+                            .foregroundStyle(.yellow)
+                    }
+                }
+                Text(achievement.description)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+        }
+        .padding(.vertical, 2)
     }
 
     // ── 素材列 helper ────────────────────────────────────────────────
@@ -437,20 +538,35 @@ struct CharacterView: View {
     }
 
     /// 屬性行 + 右側 +1 分配按鈕（有可用點數時顯示）
+    /// pending > 0 時以橙色預覽 "value → +pending = total"
     @ViewBuilder
     private func statAllocRow(
-        label: String, value: Int,
+        label: String, value: Int, pending: Int,
         stat: StatType, player: PlayerStateModel
     ) -> some View {
         HStack {
             Text(label).foregroundStyle(.secondary)
             Spacer()
-            Text("\(value)")
-                .fontWeight(.semibold)
-                .monospacedDigit()
-            if player.availableStatPoints > 0 {
+            if pending > 0 {
+                Text("\(value)")
+                    .fontWeight(.semibold)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                Text("→")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("+\(pending) = \(value + pending)")
+                    .fontWeight(.semibold)
+                    .monospacedDigit()
+                    .foregroundStyle(.orange)
+            } else {
+                Text("\(value)")
+                    .fontWeight(.semibold)
+                    .monospacedDigit()
+            }
+            if viewModel.remainingPendingPoints(player: player) > 0 {
                 Button {
-                    viewModel.allocatePoint(to: stat, player: player, context: context)
+                    viewModel.addPendingPoint(to: stat, player: player)
                 } label: {
                     Image(systemName: "plus.circle.fill")
                         .foregroundStyle(.orange)
@@ -474,12 +590,14 @@ struct CharacterView: View {
                         if item.isRolledBossWeapon {
                             Text("✦").font(.caption2).foregroundStyle(.yellow)
                         }
-                        Text(item.displayName).fontWeight(.medium)
+                        Text(item.displayName)
+                            .fontWeight(.medium)
+                            .foregroundStyle(item.rarity == .refined ? Color(red: 1.0, green: 0.78, blue: 0.2) : Color.primary)  // T03 精良金色
                     }
                     HStack(spacing: 4) {
                         Text(item.rarity.displayName)
                             .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(item.rarity == .refined ? Color(red: 1.0, green: 0.78, blue: 0.2) : Color.secondary)  // T03 精良金色
                         if item.atkBonus > 0 {
                             Text("ATK +\(item.atkBonus)")
                                 .font(.caption2)
@@ -528,11 +646,13 @@ struct CharacterView: View {
                     if item.isRolledBossWeapon {
                         Text("✦").font(.caption2).foregroundStyle(.yellow)
                     }
-                    Text(item.displayName).fontWeight(.medium)
+                    Text(item.displayName)
+                        .fontWeight(.medium)
+                        .foregroundStyle(item.rarity == .refined ? Color(red: 1.0, green: 0.78, blue: 0.2) : Color.primary)  // T03 精良金色
                 }
                 Text(item.rarity.displayName)
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(item.rarity == .refined ? Color(red: 1.0, green: 0.78, blue: 0.2) : Color.secondary)   // T03 精良金色
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 1) {
@@ -611,10 +731,11 @@ private struct EquipSelectSheet: View {
                                     }
                                     Text(item.displayName)
                                         .fontWeight(.medium)
+                                        .foregroundStyle(item.rarity == .refined ? Color(red: 1.0, green: 0.78, blue: 0.2) : Color.primary)  // T03 精良金色
                                     Spacer()
                                     Text(item.rarity.displayName)
                                         .font(.caption2)
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(item.rarity == .refined ? Color(red: 1.0, green: 0.78, blue: 0.2) : Color.secondary)  // T03 精良金色
                                 }
 
                                 // 行 2：完整屬性數值

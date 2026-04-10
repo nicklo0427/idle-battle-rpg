@@ -42,6 +42,11 @@ final class AppState {
     /// 公開讓 ViewModel 呼叫 upgrade / nextUpgradeCost。
     let npcUpgradeService: NpcUpgradeService
 
+    // MARK: - 播放模型（背景持續播放，關閉 Sheet 不中斷）
+
+    /// 地下城戰鬥播放（全局共用一個，同時只有一個地下城任務）
+    let battleLogPlayback = BattleLogPlaybackModel()
+
     // MARK: - UI 狀態
 
     /// 是否顯示結算 Sheet

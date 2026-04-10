@@ -4,6 +4,7 @@
 //
 // V1 通用素材（5 種）：採集或地下城掉落，作為鑄造基礎用料
 // V2-1 區域素材（12 種）：各地下城樓層專屬掉落，對應區域裝備製作
+// V4-3 沉落王城素材（4 種）：第四區域專屬掉落
 
 import Foundation
 
@@ -38,6 +39,13 @@ enum MaterialType: String, CaseIterable, Codable {
     case foreShrineClip        = "fore_shrine_clip"         // 前殿儀扣（守誓前殿）
     case ancientKingCore       = "ancient_king_core"        // 古王儀核（Boss 特材）
 
+    // MARK: - V4-3 沉落王城素材
+
+    case sunkenRuneShard       = "sunken_rune_shard"        // 沉紋碎片（沉塔入口 F1）
+    case abyssalCrystalDrop    = "abyssal_crystal_drop"     // 深淵晶滴（溺殿迴廊 F2）
+    case drownedCrownFragment  = "drowned_crown_fragment"   // 溺冕殘片（王室深淵 F3）
+    case sunkenKingSeal        = "sunken_king_seal"         // 沉王印璽（Boss 特材 F4）
+
     // MARK: - 顯示名稱
 
     var displayName: String {
@@ -63,6 +71,11 @@ enum MaterialType: String, CaseIterable, Codable {
         case .oathInscriptionShard:  return "誓紋碑片"
         case .foreShrineClip:        return "前殿儀扣"
         case .ancientKingCore:       return "古王儀核"
+        // 沉落王城
+        case .sunkenRuneShard:       return "沉紋碎片"
+        case .abyssalCrystalDrop:    return "深淵晶滴"
+        case .drownedCrownFragment:  return "溺冕殘片"
+        case .sunkenKingSeal:        return "沉王印璽"
         }
     }
 
@@ -91,6 +104,11 @@ enum MaterialType: String, CaseIterable, Codable {
         case .oathInscriptionShard:  return "📜"
         case .foreShrineClip:        return "⚜️"
         case .ancientKingCore:       return "🌟"
+        // 沉落王城
+        case .sunkenRuneShard:       return "🪬"
+        case .abyssalCrystalDrop:    return "🔵"
+        case .drownedCrownFragment:  return "🫧"
+        case .sunkenKingSeal:        return "🔮"
         }
     }
 
@@ -109,7 +127,7 @@ enum MaterialType: String, CaseIterable, Codable {
     /// 是否為 Boss 特材
     var isBossMaterial: Bool {
         switch self {
-        case .riftFangRoyalBadge, .stoneSwallowCore, .ancientKingCore:
+        case .riftFangRoyalBadge, .stoneSwallowCore, .ancientKingCore, .sunkenKingSeal:
             return true
         default:
             return false

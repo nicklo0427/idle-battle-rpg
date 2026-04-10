@@ -338,5 +338,65 @@ private extension CraftRecipeDef {
             outputEquipmentKey: "ruins_weapon",
             unlockedByFloorKey: "ruins_floor_4"
         ),
+
+        // ── 沉落王城（45–90 分鐘）───────────────────────────────────────
+
+        CraftRecipeDef(
+            key:               "recipe_sunken_city_accessory",
+            name:              "鑄造沉紋護符",
+            slot:              .accessory,
+            rarity:            .refined,
+            durationSeconds:   45 * 60,
+            requiredMaterials: [
+                MaterialRequirement(material: .sunkenRuneShard,  amount: 3),
+                MaterialRequirement(material: .ancientFragment,   amount: 2),
+            ],
+            goldCost:          500,
+            outputEquipmentKey: "sunken_city_accessory",
+            unlockedByFloorKey: "sunken_floor_1"
+        ),
+        CraftRecipeDef(
+            key:               "recipe_sunken_city_armor",
+            name:              "鑄造深淵溺甲",
+            slot:              .armor,
+            rarity:            .refined,
+            durationSeconds:   60 * 60,
+            requiredMaterials: [
+                MaterialRequirement(material: .abyssalCrystalDrop, amount: 3),
+                MaterialRequirement(material: .ancientFragment,      amount: 2),
+            ],
+            goldCost:          700,
+            outputEquipmentKey: "sunken_city_armor",
+            unlockedByFloorKey: "sunken_floor_2"
+        ),
+        CraftRecipeDef(
+            key:               "recipe_sunken_city_offhand",
+            name:              "鑄造沉冕王徽",
+            slot:              .offhand,
+            rarity:            .refined,
+            durationSeconds:   75 * 60,
+            requiredMaterials: [
+                MaterialRequirement(material: .drownedCrownFragment, amount: 3),
+                MaterialRequirement(material: .ancientFragment,       amount: 2),
+            ],
+            goldCost:          900,
+            outputEquipmentKey: "sunken_city_offhand",
+            unlockedByFloorKey: "sunken_floor_3"
+        ),
+        CraftRecipeDef(
+            key:               "recipe_sunken_city_weapon",
+            name:              "鑄造沉王裂水刃",
+            slot:              .weapon,
+            rarity:            .refined,
+            durationSeconds:   90 * 60,
+            requiredMaterials: [
+                MaterialRequirement(material: .sunkenKingSeal,       amount: 1),
+                MaterialRequirement(material: .drownedCrownFragment, amount: 1),
+                MaterialRequirement(material: .ancientFragment,       amount: 3),
+            ],
+            goldCost:          1500,
+            outputEquipmentKey: "sunken_city_weapon",
+            unlockedByFloorKey: "sunken_floor_4"
+        ),
     ]
 }

@@ -28,6 +28,53 @@ struct StatDiff {
 @Observable
 final class CharacterViewModel {
 
+    // MARK: - Pending 屬性點（暫存，尚未寫入 SwiftData）
+
+    var pendingAtk: Int = 0
+    var pendingDef: Int = 0
+    var pendingHp:  Int = 0
+    var pendingAgi: Int = 0
+    var pendingDex: Int = 0
+
+    var hasPendingAllocations: Bool {
+        pendingAtk > 0 || pendingDef > 0 || pendingHp > 0 || pendingAgi > 0 || pendingDex > 0
+    }
+
+    func remainingPendingPoints(player: PlayerStateModel?) -> Int {
+        (player?.availableStatPoints ?? 0)
+            - pendingAtk - pendingDef - pendingHp - pendingAgi - pendingDex
+    }
+
+    func addPendingPoint(to stat: StatType, player: PlayerStateModel?) {
+        guard remainingPendingPoints(player: player) > 0 else { return }
+        switch stat {
+        case .atk: pendingAtk += 1
+        case .def: pendingDef += 1
+        case .hp:  pendingHp  += 1
+        case .agi: pendingAgi += 1
+        case .dex: pendingDex += 1
+        }
+    }
+
+    func commitAllocations(player: PlayerStateModel, context: ModelContext) {
+        CharacterProgressionService(context: context).commitAllocations(
+            player:   player,
+            atkDelta: pendingAtk, defDelta: pendingDef, hpDelta: pendingHp,
+            agiDelta: pendingAgi, dexDelta: pendingDex
+        )
+        cancelAllocations()
+    }
+
+    func cancelAllocations() {
+        pendingAtk = 0; pendingDef = 0; pendingHp = 0
+        pendingAgi = 0; pendingDex = 0
+    }
+
+    func resetAllStats(player: PlayerStateModel, context: ModelContext) {
+        CharacterProgressionService(context: context).resetAllStats(player: player)
+        cancelAllocations()
+    }
+
     // MARK: - 英雄屬性（計算）
 
     func heroStats(player: PlayerStateModel?, equipped: [EquipmentModel]) -> HeroStats? {

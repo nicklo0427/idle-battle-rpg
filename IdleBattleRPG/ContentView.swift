@@ -20,6 +20,7 @@ struct ContentView: View {
     @Environment(\.scenePhase)   private var scenePhase
 
     @State private var appState: AppState?
+    @Query private var players:  [PlayerStateModel]
 
     // MARK: - Body
 
@@ -81,6 +82,7 @@ struct ContentView: View {
                 .tabItem {
                     Label("角色", systemImage: "person.fill")
                 }
+                .badge(players.first.map { max(0, $0.availableStatPoints) } ?? 0)
         }
         // ── 輕量 Toast 覆蓋（非阻擋，結算 Sheet 開啟時也可見）─────
         .overlay(alignment: .top) {

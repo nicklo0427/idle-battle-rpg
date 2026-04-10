@@ -3,6 +3,7 @@
 //
 // V1 通用素材（5 種）：wood / ore / hide / crystalShard / ancientFragment
 // V2-1 區域素材（12 種）：3 區域 × 4 樓層，各樓層對應一種專屬素材
+// V4-3 沉落王城素材（4 種）：第四區域 4 樓層
 
 import Foundation
 import SwiftData
@@ -39,6 +40,13 @@ final class MaterialInventoryModel {
     var foreShrineClip:       Int   // 前殿儀扣（守誓前殿 F3）
     var ancientKingCore:      Int   // 古王儀核（Boss 特材 F4）
 
+    // MARK: - V4-3 沉落王城素材
+
+    var sunkenRuneShard:      Int   // 沉紋碎片（沉塔入口 F1）
+    var abyssalCrystalDrop:   Int   // 深淵晶滴（溺殿迴廊 F2）
+    var drownedCrownFragment: Int   // 溺冕殘片（王室深淵 F3）
+    var sunkenKingSeal:       Int   // 沉王印璽（Boss 特材 F4）
+
     // MARK: - Init
 
     init(
@@ -59,7 +67,12 @@ final class MaterialInventoryModel {
         relicSealRing:        Int = 0,
         oathInscriptionShard: Int = 0,
         foreShrineClip:       Int = 0,
-        ancientKingCore:      Int = 0
+        ancientKingCore:      Int = 0,
+        // V4-3 全部預設 0
+        sunkenRuneShard:      Int = 0,
+        abyssalCrystalDrop:   Int = 0,
+        drownedCrownFragment: Int = 0,
+        sunkenKingSeal:       Int = 0
     ) {
         self.wood            = wood
         self.ore             = ore
@@ -81,6 +94,11 @@ final class MaterialInventoryModel {
         self.oathInscriptionShard = oathInscriptionShard
         self.foreShrineClip       = foreShrineClip
         self.ancientKingCore      = ancientKingCore
+
+        self.sunkenRuneShard      = sunkenRuneShard
+        self.abyssalCrystalDrop   = abyssalCrystalDrop
+        self.drownedCrownFragment = drownedCrownFragment
+        self.sunkenKingSeal       = sunkenKingSeal
     }
 
     // MARK: - 便利存取（依 MaterialType 讀寫）
@@ -108,6 +126,11 @@ final class MaterialInventoryModel {
         case .oathInscriptionShard: return oathInscriptionShard
         case .foreShrineClip:       return foreShrineClip
         case .ancientKingCore:      return ancientKingCore
+        // 沉落王城
+        case .sunkenRuneShard:      return sunkenRuneShard
+        case .abyssalCrystalDrop:   return abyssalCrystalDrop
+        case .drownedCrownFragment: return drownedCrownFragment
+        case .sunkenKingSeal:       return sunkenKingSeal
         }
     }
 
@@ -134,6 +157,11 @@ final class MaterialInventoryModel {
         case .oathInscriptionShard: oathInscriptionShard += amount
         case .foreShrineClip:       foreShrineClip       += amount
         case .ancientKingCore:      ancientKingCore      += amount
+        // 沉落王城
+        case .sunkenRuneShard:      sunkenRuneShard      += amount
+        case .abyssalCrystalDrop:   abyssalCrystalDrop   += amount
+        case .drownedCrownFragment: drownedCrownFragment += amount
+        case .sunkenKingSeal:       sunkenKingSeal       += amount
         }
     }
 
@@ -164,6 +192,11 @@ final class MaterialInventoryModel {
         case .oathInscriptionShard: oathInscriptionShard -= amount
         case .foreShrineClip:       foreShrineClip       -= amount
         case .ancientKingCore:      ancientKingCore      -= amount
+        // 沉落王城
+        case .sunkenRuneShard:      sunkenRuneShard      -= amount
+        case .abyssalCrystalDrop:   abyssalCrystalDrop   -= amount
+        case .drownedCrownFragment: drownedCrownFragment -= amount
+        case .sunkenKingSeal:       sunkenKingSeal       -= amount
         }
         return true
     }

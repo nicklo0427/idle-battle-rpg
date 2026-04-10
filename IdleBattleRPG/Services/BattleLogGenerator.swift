@@ -1,0 +1,500 @@
+// BattleLogGenerator.swift
+// V4-1 重設計：AFK 地下城戰鬥敘事生成器（純計算層）
+//
+// 敘事循環（每場）：
+//   探索 → 遭遇怪物 → 戰鬥回合 → 勝利（+金幣） 或 失敗（+療傷）
+//   15 分鐘到 → 播放直接中斷（provider 回傳 nil）
+//
+// 設計原則：
+//   - 純計算層，無副作用，不引入 SwiftData / ModelContext
+//   - 相同輸入永遠回傳相同結果（確定性）
+
+import Foundation
+
+// MARK: - 戰鬥事件型別（V4-1 + V4-2 共用）
+
+struct BattleEvent {
+    enum EventType {
+        case explore    // 探索敘述（每個 regionKey 不同候選文字）
+        case encounter  // 遭遇怪物
+        case attack     // 英雄攻擊
+        case damage     // 英雄受傷
+        case victory    // 英雄勝利 + 本場金幣
+        case defeat     // 英雄落敗
+        case heal       // 療傷恢復（失敗後，chargeTime > 0）
+    }
+
+    let type:         EventType
+    let description:  String
+    let heroHpAfter:  Int
+    let enemyHpAfter: Int
+    let heroMaxHp:    Int
+    let enemyMaxHp:   Int
+    /// ATB / 療傷條填滿所需秒數（.attack / .damage / .heal 有值，其餘為 0）
+    let chargeTime:   Double
+    /// 英雄暴擊（DEX 驅動，僅 .attack 有效）
+    let isCrit:       Bool
+    /// heroATBProgress 的目標值（探索三階段用：0.33 / 0.67 / 1.0）
+    let chargeTarget: Double
+
+    init(type: EventType, description: String,
+         heroHpAfter: Int, enemyHpAfter: Int,
+         heroMaxHp: Int, enemyMaxHp: Int,
+         chargeTime: Double, isCrit: Bool,
+         chargeTarget: Double = 1.0) {
+        self.type         = type
+        self.description  = description
+        self.heroHpAfter  = heroHpAfter
+        self.enemyHpAfter = enemyHpAfter
+        self.heroMaxHp    = heroMaxHp
+        self.enemyMaxHp   = enemyMaxHp
+        self.chargeTime   = chargeTime
+        self.isCrit       = isCrit
+        self.chargeTarget = chargeTarget
+    }
+}
+
+// MARK: - 戰鬥記錄生成器
+
+struct BattleLogGenerator {
+
+    // MARK: - 當前場次計算
+
+    /// 回傳目前正在進行的場次 index（0-based）
+    static func currentBattleIndex(for task: TaskModel) -> Int {
+        let elapsed          = Date.now.timeIntervalSince(task.startedAt)
+        let totalDuration    = task.endsAt.timeIntervalSince(task.startedAt)
+        let secondsPerBattle = 60.0
+        let totalBattles     = task.forcedBattles ?? max(1, Int(totalDuration / secondsPerBattle))
+        return min(max(0, Int(elapsed / secondsPerBattle)), totalBattles - 1)
+    }
+
+    // MARK: - 事件生成
+
+    /// 從 fromBattleIndex 開始，生成該場及後續場次的戰鬥事件陣列
+    /// - Parameters:
+    ///   - task:            進行中的地下城任務
+    ///   - floor:           樓層靜態定義
+    ///   - fromBattleIndex: 起始場次（currentBattleIndex 的回傳值）
+    ///   - maxBattles:      最多生成幾場（供 nextBatchProvider 控制批次大小）
+    static func generate(
+        task: TaskModel,
+        floor: DungeonFloorDef,
+        fromBattleIndex: Int,
+        maxBattles: Int = Int.max
+    ) -> [BattleEvent] {
+
+        let totalDuration = task.endsAt.timeIntervalSince(task.startedAt)
+        let totalBattles  = task.forcedBattles ?? max(1, Int(totalDuration / 60))
+
+        let startIndex = max(0, fromBattleIndex)
+        guard startIndex < totalBattles else { return [] }
+
+        let snapshotPower = task.snapshotPower ?? 50
+        let snapshotAgi   = task.snapshotAgi   ?? 0
+        let snapshotDex   = task.snapshotDex   ?? 0
+
+        // 英雄戰鬥數值
+        let heroMaxHp = max(50, snapshotPower * 2)
+        let heroAtk   = max(10, snapshotPower / 4)
+        let heroDef   = max(5,  snapshotPower / 10)
+
+        // ATB 填充時間
+        let heroChargeTime  = max(0.6, 1.8 - Double(snapshotAgi) * 0.06)
+        let enemyChargeTime = max(0.8, 2.0 - Double(floor.recommendedPower) * 0.001)
+
+        // 暴擊率
+        let critRate = min(0.35, Double(snapshotDex) * 0.035)
+
+        // 敵方數值
+        let enemyMaxHp = max(30, floor.recommendedPower * 2)
+        let enemyAtk   = max(8,  floor.recommendedPower / 4)
+        let enemyDef   = max(3,  floor.recommendedPower / 10)
+
+        // 療傷時長：高 DEF 恢復更快
+        let healChargeTime = max(1.0, min(3.0, 3.0 / (1.0 + Double(heroDef) * 0.1)))
+
+        // 任務 seed
+        let tBits    = task.startedAt.timeIntervalSinceReferenceDate.bitPattern
+        let hBits    = UInt64(bitPattern: Int64(truncatingIfNeeded: task.id.hashValue))
+        let taskSeed = tBits ^ hBits
+
+        var allEvents: [BattleEvent] = []
+
+        let endIndex = min(totalBattles, startIndex + maxBattles)
+        for battleIndex in startIndex..<endIndex {
+            var rng = DeterministicRNG(seed: taskSeed ^ UInt64(battleIndex &+ 1))
+            allEvents += makeBattleEvents(
+                battleIndex:     battleIndex,
+                rng:             &rng,
+                floor:           floor,
+                heroMaxHp:       heroMaxHp,
+                heroAtk:         heroAtk,
+                heroDef:         heroDef,
+                heroChargeTime:  heroChargeTime,
+                critRate:        critRate,
+                healChargeTime:  healChargeTime,
+                enemyMaxHp:      enemyMaxHp,
+                enemyAtk:        enemyAtk,
+                enemyDef:        enemyDef,
+                enemyChargeTime: enemyChargeTime
+            )
+        }
+
+        return allEvents
+    }
+
+    // MARK: - 單場事件生成（private）
+
+    private static func makeBattleEvents(
+        battleIndex:     Int,
+        rng:             inout DeterministicRNG,
+        floor:           DungeonFloorDef,
+        heroMaxHp:       Int,
+        heroAtk:         Int,
+        heroDef:         Int,
+        heroChargeTime:  Double,
+        critRate:        Double,
+        healChargeTime:  Double,
+        enemyMaxHp:      Int,
+        enemyAtk:        Int,
+        enemyDef:        Int,
+        enemyChargeTime: Double
+    ) -> [BattleEvent] {
+
+        var events: [BattleEvent] = []
+
+        // 0. 敵人名稱：Boss 用 bossName，一般層從 commonEnemyNames 以 RNG 隨機選（確定性）
+        let enemyName: String
+        if let boss = floor.bossName {
+            enemyName = boss
+        } else {
+            let names = floor.commonEnemyNames
+            let idx   = Int(rng.nextUInt64() % UInt64(max(1, names.count)))
+            enemyName = names.isEmpty ? "未知敵人" : names[idx]
+        }
+
+        // 1. 探索事件（4 個：到達 + 三階段搜索）
+        let exploreLines = exploreDescriptions(for: floor.regionKey)
+        let exploreIdx   = Int(rng.nextUInt64() % UInt64(exploreLines.count))
+        // 1a. 到達文字（立即顯示，chargeTime = 0）
+        events.append(BattleEvent(
+            type:         .explore,
+            description:  exploreLines[exploreIdx],
+            heroHpAfter:  heroMaxHp,
+            enemyHpAfter: enemyMaxHp,
+            heroMaxHp:    heroMaxHp,
+            enemyMaxHp:   enemyMaxHp,
+            chargeTime:   0,
+            isCrit:       false
+        ))
+        // 1b–1d. 搜索三階段（輕鬆 → 警覺 → 緊張）
+        let totalChargeTime = exploreChargeTime(regionKey: floor.regionKey, floorIndex: floor.floorIndex)
+        let phaseTime       = (totalChargeTime / 3.0 * 10).rounded() / 10
+
+        let relaxedLines    = exploreRelaxedDescriptions(for: floor.regionKey)
+        let suspiciousLines = exploreSuspiciousDescriptions(for: floor.regionKey)
+        let tenseLines      = exploreTenseDescriptions(for: floor.regionKey)
+
+        let relaxedIdx    = Int(rng.nextUInt64() % UInt64(relaxedLines.count))
+        let suspiciousIdx = Int(rng.nextUInt64() % UInt64(suspiciousLines.count))
+        let tenseIdx      = Int(rng.nextUInt64() % UInt64(tenseLines.count))
+
+        events.append(BattleEvent(
+            type:         .explore,
+            description:  relaxedLines[relaxedIdx],
+            heroHpAfter:  heroMaxHp,
+            enemyHpAfter: enemyMaxHp,
+            heroMaxHp:    heroMaxHp,
+            enemyMaxHp:   enemyMaxHp,
+            chargeTime:   phaseTime,
+            isCrit:       false,
+            chargeTarget: 1.0 / 3.0
+        ))
+        events.append(BattleEvent(
+            type:         .explore,
+            description:  suspiciousLines[suspiciousIdx],
+            heroHpAfter:  heroMaxHp,
+            enemyHpAfter: enemyMaxHp,
+            heroMaxHp:    heroMaxHp,
+            enemyMaxHp:   enemyMaxHp,
+            chargeTime:   phaseTime,
+            isCrit:       false,
+            chargeTarget: 2.0 / 3.0
+        ))
+        events.append(BattleEvent(
+            type:         .explore,
+            description:  tenseLines[tenseIdx],
+            heroHpAfter:  heroMaxHp,
+            enemyHpAfter: enemyMaxHp,
+            heroMaxHp:    heroMaxHp,
+            enemyMaxHp:   enemyMaxHp,
+            chargeTime:   phaseTime,
+            isCrit:       false,
+            chargeTarget: 1.0
+        ))
+
+        // 2. 遭遇事件
+        events.append(BattleEvent(
+            type:         .encounter,
+            description:  "發現了 \(enemyName)！",
+            heroHpAfter:  heroMaxHp,
+            enemyHpAfter: enemyMaxHp,
+            heroMaxHp:    heroMaxHp,
+            enemyMaxHp:   enemyMaxHp,
+            chargeTime:   0,
+            isCrit:       false
+        ))
+
+        // 3. 戰鬥回合
+        var heroHp  = heroMaxHp
+        var enemyHp = enemyMaxHp
+        let maxRounds = 50
+
+        for _ in 0..<maxRounds {
+            guard heroHp > 0, enemyHp > 0 else { break }
+
+            let isCrit  = rng.nextDouble() < critRate
+            var heroDmg = max(1, heroAtk - enemyDef + rng.nextInt(in: -2...2))
+            if isCrit { heroDmg = Int(Double(heroDmg) * 1.5) }
+            enemyHp = max(0, enemyHp - heroDmg)
+
+            let attackDesc = isCrit
+                ? "⚡ 暴擊！發動斬擊 → 造成 \(heroDmg) 傷害"
+                : "發動斬擊 → 造成 \(heroDmg) 傷害"
+
+            events.append(BattleEvent(
+                type:         .attack,
+                description:  attackDesc,
+                heroHpAfter:  heroHp,
+                enemyHpAfter: enemyHp,
+                heroMaxHp:    heroMaxHp,
+                enemyMaxHp:   enemyMaxHp,
+                chargeTime:   heroChargeTime,
+                isCrit:       isCrit
+            ))
+
+            guard enemyHp > 0 else { break }
+
+            let enemyDmg = max(1, enemyAtk - heroDef + rng.nextInt(in: -2...2))
+            heroHp       = max(0, heroHp - enemyDmg)
+
+            events.append(BattleEvent(
+                type:         .damage,
+                description:  "\(enemyName) 反擊 → 受到 \(enemyDmg) 傷害",
+                heroHpAfter:  heroHp,
+                enemyHpAfter: enemyHp,
+                heroMaxHp:    heroMaxHp,
+                enemyMaxHp:   enemyMaxHp,
+                chargeTime:   enemyChargeTime,
+                isCrit:       false
+            ))
+        }
+
+        // 4. 勝利 / 失敗
+        if heroHp > 0 {
+            // 勝利：從 goldPerBattleRange 取本場金幣
+            let gold = rng.nextInt(in: floor.goldPerBattleRange)
+            events.append(BattleEvent(
+                type:         .victory,
+                description:  "⚔️ 戰勝 \(enemyName)！獲得 \(gold) 金幣",
+                heroHpAfter:  heroHp,
+                enemyHpAfter: 0,
+                heroMaxHp:    heroMaxHp,
+                enemyMaxHp:   enemyMaxHp,
+                chargeTime:   0,
+                isCrit:       false
+            ))
+        } else {
+            // 失敗
+            events.append(BattleEvent(
+                type:         .defeat,
+                description:  "💀 落敗於 \(enemyName)…",
+                heroHpAfter:  0,
+                enemyHpAfter: enemyHp,
+                heroMaxHp:    heroMaxHp,
+                enemyMaxHp:   enemyMaxHp,
+                chargeTime:   0,
+                isCrit:       false
+            ))
+            // 療傷：HP 回滿，chargeTime 依 heroDef 決定
+            events.append(BattleEvent(
+                type:         .heal,
+                description:  "療傷中… HP 恢復至 \(heroMaxHp)",
+                heroHpAfter:  heroMaxHp,
+                enemyHpAfter: 0,
+                heroMaxHp:    heroMaxHp,
+                enemyMaxHp:   enemyMaxHp,
+                chargeTime:   healChargeTime,
+                isCrit:       false
+            ))
+        }
+
+        return events
+    }
+
+    // MARK: - 探索到達描述候選（依 regionKey）
+
+    private static func exploreDescriptions(for regionKey: String) -> [String] {
+        switch regionKey {
+        case "wildland":
+            return [
+                "穿越枯草荒原，搜尋敵蹤…",
+                "沿著裂石山道深入邊境…",
+                "狩獵足跡蔓延至前方林地…",
+                "荒風捲起塵土，四周悄然無聲…",
+            ]
+        case "abandoned_mine":
+            return [
+                "循著礦坑幽光緩步前行…",
+                "敲擊岩壁，辨認通道方向…",
+                "瓦斯燈昏暗，深處傳來回音…",
+                "踩過碎石，礦道愈加狹窄…",
+            ]
+        case "ancient_ruins":
+            return [
+                "碑文碎裂，空氣中瀰漫古老氣息…",
+                "踏過斷階，前殿在遠方隱約可見…",
+                "遺跡牆面浮現詭異符文…",
+                "迴廊深處，火把忽明忽滅…",
+            ]
+        case "sunken_city":
+            return [
+                "幽暗水流漫過腳踝，滲透甲縫…",
+                "沉沒的王城殘影在黑水中若隱若現…",
+                "腐蝕魔力在空氣中凝結，呼吸愈發沉重…",
+                "石壁滲出幽光，水底藏著什麼…",
+            ]
+        default:
+            return ["小心翼翼地探索前方…"]
+        }
+    }
+
+    // MARK: - 探索三階段文字候選
+
+    /// 階段一：輕鬆（進度 0→⅓）
+    private static func exploreRelaxedDescriptions(for regionKey: String) -> [String] {
+        switch regionKey {
+        case "wildland":
+            return [
+                "撥開荒草，仔細查看腳印方向…",
+                "藏身岩後，靜待獵物現身…",
+                "循聲而動，確認威脅來源…",
+                "握緊武器，確認地形後繼續推進…",
+            ]
+        case "abandoned_mine":
+            return [
+                "舉起礦燈，逐一掃視坑道隱角…",
+                "壓低身形，貼著礦壁緩緩前移…",
+                "聽辨水滴與腳步的差異…",
+                "探出手，摸索黑暗中的通道壁面…",
+            ]
+        case "ancient_ruins":
+            return [
+                "以劍尖試探碎石地面，避免陷阱…",
+                "細讀壁上符文，判斷守護者位置…",
+                "屏住呼吸，辨別遠處回廊的氣息…",
+                "繞過倒塌石柱，搜索前方暗處…",
+            ]
+        case "sunken_city":
+            return [
+                "撥開黑水中的浮木殘骸，緩慢前行…",
+                "沿著半沉的迴廊扶手，辨認方向…",
+                "低頭通過坍塌的拱門，小心腳下…",
+                "水聲掩蓋腳步，靜靜探索前方…",
+            ]
+        default:
+            return ["謹慎搜索周圍環境…"]
+        }
+    }
+
+    /// 階段二：警覺（進度 ⅓→⅔）
+    private static func exploreSuspiciousDescriptions(for regionKey: String) -> [String] {
+        switch regionKey {
+        case "wildland":
+            return [
+                "枯草中隱約有動靜，謹慎靠近…",
+                "遠處傳來踩枝聲，停步傾聽…",
+                "腳步聲漸近，握緊武器…",
+                "草叢搖動，是獵物還是陷阱？",
+            ]
+        case "abandoned_mine":
+            return [
+                "深處傳來低沉回響，停步辨認…",
+                "礦壁裂縫透出微光，靠近查看…",
+                "坑道空氣突然凝重，有什麼在前方…",
+                "碎石悄然滾落，來自某個方向…",
+            ]
+        case "ancient_ruins":
+            return [
+                "符文忽然發出微弱光芒…",
+                "廊道氣流異常，有東西在移動…",
+                "前方陰影扭曲，不像是岩石…",
+                "石板上留有新鮮的爪痕…",
+            ]
+        case "sunken_city":
+            return [
+                "水面泛起漣漪，不是水流造成的…",
+                "幽光閃動，有什麼正在接近…",
+                "腐蝕氣息驟然變濃，警覺提升…",
+                "黑水深處有輪廓在移動，停步觀察…",
+            ]
+        default:
+            return ["感覺有什麼在附近潛伏…"]
+        }
+    }
+
+    /// 階段三：緊張（進度 ⅔→1）
+    private static func exploreTenseDescriptions(for regionKey: String) -> [String] {
+        switch regionKey {
+        case "wildland":
+            return [
+                "輪廓在荒草中若隱若現，就是現在！",
+                "獵物已在視線內，不能退縮！",
+                "雙方視線交錯，戰鬥一觸即發！",
+                "來者不善，決戰就在眼前！",
+            ]
+        case "abandoned_mine":
+            return [
+                "黑暗中有東西在逼近，後退已來不及！",
+                "坑道盡頭，一雙眼睛正盯著你！",
+                "礦道震動，威脅就在轉角後方！",
+                "身後退路已斷，只能正面迎擊！",
+            ]
+        case "ancient_ruins":
+            return [
+                "守護者從黑暗中現形，無路可退！",
+                "遺跡封印碎裂，危機已然降臨！",
+                "石像睜開眼睛，直視著你！",
+                "回廊充斥殺意，決戰時刻已到！",
+            ]
+        case "sunken_city":
+            return [
+                "黑水激蕩，溺化的守衛已鎖定你！",
+                "腐蝕魔力驟然爆發，決戰無可避免！",
+                "沉沒的王城顫抖，威脅正面現身！",
+                "幽暗海水凝固成刃，退路已斷！",
+            ]
+        default:
+            return ["危險近在咫尺，迎戰！"]
+        }
+    }
+
+    // MARK: - 探索搜索時長（regionKey + floorIndex → chargeTime）
+    // 荒野 F1=10s, 礦坑 F1=15s, 遺跡 F1=22s, 沉落王城 F1=30s；每層 +10%
+
+    private static func exploreChargeTime(regionKey: String, floorIndex: Int) -> Double {
+        let base: Double
+        switch regionKey {
+        case "wildland":       base = 10.0
+        case "abandoned_mine": base = 15.0
+        case "ancient_ruins":  base = 22.0
+        case "sunken_city":    base = 30.0
+        default:               base = 10.0
+        }
+        let depth = max(0, floorIndex - 1)
+        let raw   = base * pow(1.1, Double(depth))
+        return (raw * 10).rounded() / 10
+    }
+
+}

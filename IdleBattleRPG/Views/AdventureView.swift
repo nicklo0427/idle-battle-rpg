@@ -8,7 +8,9 @@
 //   - 地下城區域列表（DungeonRegionDef，3 區 × 4 層）
 //     - 區域卡片可展開 / 收合
 //     - 未解鎖區域：灰化，顯示解鎖條件
-//     - 點擊已解鎖樓層 → FloorDetailSheet（掉落表、戰力比較、時長選擇、出發）
+//     - 點擊進行中樓層 → 直接進入 BattleLogSheet（跳過 FloorDetailSheet）
+//     - 點擊閒置樓層 → FloorDetailSheet（掉落表、戰力比較、時長選擇、出發）
+//     - 出發成功 → 自動開啟 BattleLogSheet
 
 import SwiftUI
 import SwiftData
@@ -21,11 +23,12 @@ struct AdventureView: View {
     @Query private var equipments: [EquipmentModel]
     @Query private var tasks:      [TaskModel]
 
-    @State private var viewModel         = AdventureViewModel()
-    @State private var expandedRegionKey: String? = "wildland"   // 預設展開第一區
-    @State private var selectedFloor:    DungeonFloorDef?
-    @State private var errorMessage:     String?
-    @State private var showError         = false
+    @State private var viewModel          = AdventureViewModel()
+    @State private var expandedRegionKey: String? = "wildland"
+    @State private var selectedFloor:     DungeonFloorDef?
+    @State private var showBattleLog      = false
+    @State private var errorMessage:      String?
+    @State private var showError          = false
 
     @Environment(\.modelContext) private var context
 
@@ -38,6 +41,11 @@ struct AdventureView: View {
 
     private var activeDungeonTask: TaskModel? {
         viewModel.dungeonTask(from: tasks)
+    }
+
+    private var activeDungeonFloor: DungeonFloorDef? {
+        guard let task = activeDungeonTask else { return nil }
+        return DungeonRegionDef.all.flatMap { $0.floors }.first { $0.key == task.definitionKey }
     }
 
     // MARK: - Body
@@ -53,16 +61,30 @@ struct AdventureView: View {
             .navigationTitle("冒險")
             .sheet(item: $selectedFloor) { floor in
                 FloorDetailSheet(
-                    floor:              floor,
-                    heroStats:          heroStats,
-                    activeDungeonTask:  activeDungeonTask,
-                    progressionService: appState.progressionService,
-                    tick:               appState.tick,
+                    floor:             floor,
+                    heroStats:         heroStats,
+                    activeDungeonTask: activeDungeonTask,
+                    appState:          appState,
+                    tick:              appState.tick,
                     onStart: { duration in
-                        launchFloor(floor: floor, durationSeconds: duration)
-                        selectedFloor = nil
+                        if let task = launchFloor(floor: floor, durationSeconds: duration) {
+                            startBattleLogModel(task: task, floor: floor)
+                            selectedFloor = nil
+                            showBattleLog = true
+                        } else {
+                            selectedFloor = nil
+                        }
                     }
                 )
+            }
+            .sheet(isPresented: $showBattleLog) {
+                if let floor = activeDungeonFloor {
+                    BattleLogSheet(
+                        model:      appState.battleLogPlayback,
+                        title:      floor.name,
+                        enemyLabel: floor.bossName ?? "敵方"
+                    )
+                }
             }
             .alert("無法出征", isPresented: $showError) {
                 Button("確定", role: .cancel) {}
@@ -94,33 +116,41 @@ struct AdventureView: View {
     @ViewBuilder
     private var activeBannerSection: some View {
         if let task = activeDungeonTask {
+            let color = regionColor(activeDungeonFloor?.regionKey ?? "")
             Section {
-                HStack(spacing: 12) {
-                    Image(systemName: "map.fill")
-                        .foregroundStyle(.purple)
-                        .frame(width: 24)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("正在出征：\(viewModel.activeDungeonName(from: tasks) ?? "—")")
-                            .fontWeight(.semibold)
-                        Text(TaskCountdown.remaining(for: task, relativeTo: appState.tick))
-                            .font(.caption)
-                            .foregroundStyle(.purple)
-                            .monospacedDigit()
-                        let progress = taskProgress(task)
-                        ProgressView(value: progress)
-                            .tint(.blue)
-                            .padding(.top, 2)
-
+                Button {
+                    if !appState.battleLogPlayback.isActive ||
+                        appState.battleLogPlayback.associatedTaskId != task.id,
+                       let floor = activeDungeonFloor {
+                        startBattleLogModel(task: task, floor: floor)
                     }
-                    Spacer()
-                    Text("出征中")
-                        .font(.caption)
-                        .padding(.horizontal, 8).padding(.vertical, 3)
-                        .background(Color.purple.opacity(0.12))
-                        .foregroundStyle(.purple)
-                        .clipShape(Capsule())
+                    showBattleLog = true
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "map.fill")
+                            .symbolEffect(.pulse)          // T02 動畫
+                            .foregroundStyle(color)          // T01 區域色
+                            .frame(width: 24)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("正在出征：\(viewModel.activeDungeonName(from: tasks) ?? "—")")
+                                .fontWeight(.semibold)
+                            Text(TaskCountdown.remaining(for: task, relativeTo: appState.tick))
+                                .font(.caption)
+                                .foregroundStyle(color)
+                                .monospacedDigit()
+                            let progress = taskProgress(task)
+                            ProgressView(value: progress)
+                                .tint(color)                 // T01 區域色
+                                .padding(.top, 2)
+                        }
+                        Spacer()
+                        Label("查看過程", systemImage: "text.alignleft")
+                            .font(.caption)
+                            .foregroundStyle(color)
+                    }
+                    .padding(.vertical, 2)
                 }
-                .padding(.vertical, 2)
+                .buttonStyle(.plain)
             }
         }
     }
@@ -146,7 +176,6 @@ struct AdventureView: View {
             let expanded  = expandedRegionKey == region.key
 
             Section {
-                // 區域標頭
                 Button {
                     guard unlocked else { return }
                     expandedRegionKey = expanded ? nil : region.key
@@ -155,7 +184,6 @@ struct AdventureView: View {
                 }
                 .buttonStyle(.plain)
 
-                // 樓層列表（已解鎖且展開才顯示）
                 if unlocked && expanded {
                     ForEach(region.floors) { floor in
                         floorRow(floor: floor, region: region)
@@ -176,7 +204,7 @@ struct AdventureView: View {
     ) -> some View {
         HStack(spacing: 10) {
             Image(systemName: unlocked ? (completed ? "checkmark.seal.fill" : "lock.open.fill") : "lock.fill")
-                .foregroundStyle(completed ? .green : (unlocked ? .purple : .secondary))
+                .foregroundStyle(completed ? .green : (unlocked ? regionColor(region.key) : .secondary))
                 .frame(width: 26)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -225,17 +253,27 @@ struct AdventureView: View {
             regionKey: region.key, floorIndex: floor.floorIndex,
             service: appState.progressionService
         )
-        let isBusy = activeDungeonTask != nil
+        let isActiveFloor = activeDungeonTask?.definitionKey == floor.key
 
         Button {
             guard unlocked else { return }
-            selectedFloor = floor
+            if isActiveFloor, let task = activeDungeonTask {
+                // 進行中樓層：直接開 BattleLogSheet
+                if !appState.battleLogPlayback.isActive ||
+                    appState.battleLogPlayback.associatedTaskId != task.id {
+                    startBattleLogModel(task: task, floor: floor)
+                }
+                showBattleLog = true
+            } else {
+                selectedFloor = floor
+            }
         } label: {
             HStack(spacing: 10) {
-                // 樓層序號 / Boss 標記
                 ZStack {
                     Circle()
-                        .fill(floor.isBossFloor ? Color.orange.opacity(0.15) : Color.secondary.opacity(0.1))
+                        .fill(floor.isBossFloor
+                              ? regionColor(region.key).opacity(0.2)     // T01 Boss 圓圈
+                              : Color.secondary.opacity(0.1))
                         .frame(width: 30, height: 30)
                     if floor.isBossFloor {
                         Text("👑").font(.caption)
@@ -261,9 +299,9 @@ struct AdventureView: View {
                         if floor.isBossFloor, let bossName = floor.bossName {
                             Text(bossName)
                                 .font(.caption2)
-                                .foregroundStyle(.orange)
+                                .foregroundStyle(regionColor(region.key))  // T01 Boss 名稱
                                 .padding(.horizontal, 5).padding(.vertical, 1)
-                                .background(Color.orange.opacity(0.1))
+                                .background(regionColor(region.key).opacity(0.12))
                                 .clipShape(Capsule())
                         }
                     }
@@ -294,7 +332,15 @@ struct AdventureView: View {
                 Spacer()
 
                 if unlocked {
-                    if isBusy {
+                    if isActiveFloor {
+                        HStack(spacing: 4) {
+                            Image(systemName: "text.alignleft")
+                                .font(.caption)
+                            Text("出征中")
+                                .font(.caption)
+                        }
+                        .foregroundStyle(regionColor(region.key))  // T01 區域色
+                    } else if activeDungeonTask != nil {
                         Text("出征中")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
@@ -314,6 +360,17 @@ struct AdventureView: View {
 
     // MARK: - Helpers
 
+    /// 各地下城區域的主題色（T01 差異化色調）
+    private func regionColor(_ key: String) -> Color {
+        switch key {
+        case "wildland":       return .orange
+        case "abandoned_mine": return Color(red: 0.45, green: 0.6, blue: 0.75)  // 藍灰
+        case "ancient_ruins":  return .purple
+        case "sunken_city":    return .indigo
+        default:               return .blue
+        }
+    }
+
     private func winRateColor(_ rate: Int) -> Color {
         switch rate {
         case 70...: return .green
@@ -329,11 +386,13 @@ struct AdventureView: View {
         return min(1.0, max(0.0, elapsed / total))
     }
 
-    private func launchFloor(floor: DungeonFloorDef, durationSeconds: Int) {
+    /// 建立地下城任務。成功時回傳已建立的 TaskModel；失敗時設定錯誤訊息並回傳 nil。
+    @discardableResult
+    private func launchFloor(floor: DungeonFloorDef, durationSeconds: Int) -> TaskModel? {
         guard let stats = heroStats else {
             errorMessage = "找不到英雄資料"
             showError = true
-            return
+            return nil
         }
         let result = viewModel.startDungeonFloor(
             floorKey: floor.key,
@@ -344,7 +403,40 @@ struct AdventureView: View {
         if case .failure(let error) = result {
             errorMessage = error.errorDescription
             showError = true
+            return nil
         }
+        // 直接從 context 查詢剛建立的任務（@Query 更新是非同步的）
+        let descriptor = FetchDescriptor<TaskModel>(
+            predicate: #Predicate { $0.actorKey == "player" }
+        )
+        return (try? context.fetch(descriptor))?.first(where: { $0.status == .inProgress })
+    }
+
+    /// 啟動戰鬥播放模型（首次啟動或 app 重啟後重新連接）
+    private func startBattleLogModel(task: TaskModel, floor: DungeonFloorDef) {
+        let fromIdx      = BattleLogGenerator.currentBattleIndex(for: task)
+        let totalDur     = task.endsAt.timeIntervalSince(task.startedAt)
+        let totalBattles = task.forcedBattles ?? max(1, Int(totalDur / 60))
+        let batchSize    = 5
+
+        let events = BattleLogGenerator.generate(
+            task: task, floor: floor,
+            fromBattleIndex: fromIdx, maxBattles: batchSize
+        )
+
+        appState.battleLogPlayback.start(
+            events:           events,
+            fromBattleIndex:  fromIdx,
+            taskTotalBattles: totalBattles,
+            taskId:           task.id,
+            nextBatchProvider: { nextIdx in
+                guard Date.now < task.endsAt, nextIdx < totalBattles else { return nil }
+                return BattleLogGenerator.generate(
+                    task: task, floor: floor,
+                    fromBattleIndex: nextIdx, maxBattles: batchSize
+                )
+            }
+        )
     }
 }
 
@@ -352,18 +444,20 @@ struct AdventureView: View {
 
 private struct FloorDetailSheet: View {
 
-    let floor:              DungeonFloorDef
-    let heroStats:          HeroStats?
-    let activeDungeonTask:  TaskModel?
-    let progressionService: DungeonProgressionService
-    let tick:               Date
-    let onStart:            (Int) -> Void
+    let floor:             DungeonFloorDef
+    let heroStats:         HeroStats?
+    let activeDungeonTask: TaskModel?
+    let appState:          AppState
+    let tick:              Date
+    let onStart:           (Int) -> Void
 
     @State private var selectedDuration = AppConstants.DungeonDuration.short
+    @State private var showEliteBattle  = false
+    @State private var eliteCleared     = false
     @Environment(\.dismiss) private var dismiss
 
     private var isCleared: Bool {
-        progressionService.isFloorCleared(regionKey: floor.regionKey, floorIndex: floor.floorIndex)
+        appState.progressionService.isFloorCleared(regionKey: floor.regionKey, floorIndex: floor.floorIndex)
     }
 
     private var isBusy: Bool { activeDungeonTask != nil }
@@ -375,6 +469,7 @@ private struct FloorDetailSheet: View {
                 if let stats = heroStats { powerSection(stats: stats) }
                 dropTableSection
                 unlockPreviewSection
+                eliteSection
                 launchSection
             }
             .navigationTitle(floor.name)
@@ -383,6 +478,21 @@ private struct FloorDetailSheet: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("關閉") { dismiss() }
                 }
+            }
+            .sheet(isPresented: $showEliteBattle) {
+                if let elite = EliteDef.find(floorKey: floor.key) {
+                    EliteBattleSheet(
+                        elite:    elite,
+                        appState: appState,
+                        onEliteDefeated: { eliteCleared = true }
+                    )
+                }
+            }
+            .onAppear {
+                eliteCleared = appState.progressionService.isEliteCleared(
+                    regionKey:  floor.regionKey,
+                    floorIndex: floor.floorIndex
+                )
             }
         }
     }
@@ -483,21 +593,105 @@ private struct FloorDetailSheet: View {
         }
     }
 
+    // MARK: - Elite Section
+
+    @ViewBuilder
+    private var eliteSection: some View {
+        if let elite = EliteDef.find(floorKey: floor.key) {
+            Section("地區菁英") {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text(elite.name)
+                            .fontWeight(.semibold)
+                        Spacer()
+                        if eliteCleared {
+                            Label("已擊敗", systemImage: "star.fill")
+                                .font(.caption)
+                                .foregroundStyle(.yellow)
+                                .padding(.horizontal, 6).padding(.vertical, 2)
+                                .background(Color.yellow.opacity(0.15))
+                                .clipShape(Capsule())
+                        }
+                    }
+                    Text(elite.lore)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                HStack(spacing: 16) {
+                    eliteStatPill("HP",  "\(elite.hp)",  .red)
+                    eliteStatPill("ATK", "\(elite.atk)", .orange)
+                    eliteStatPill("DEF", "\(elite.def)", .blue)
+                    Spacer()
+                    Text("需 \(elite.minPowerRequired) 戰力")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+
+                HStack(spacing: 8) {
+                    Text("💰 \(elite.reward.gold) 金幣")
+                        .font(.caption)
+                    Text("+")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                    Text("\(elite.reward.material.icon) \(elite.reward.material.displayName) ×\(elite.reward.materialCount)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                if eliteCleared {
+                    Label("菁英已擊敗，獎勵已領取", systemImage: "checkmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                } else if let power = heroStats?.power, power >= elite.minPowerRequired {
+                    Button {
+                        showEliteBattle = true
+                    } label: {
+                        Label("挑戰菁英", systemImage: "shield.lefthalf.filled")
+                            .fontWeight(.semibold)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 4)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.orange)
+                    .disabled(isBusy)
+                } else {
+                    Label("戰力不足（需 \(elite.minPowerRequired)）", systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func eliteStatPill(_ label: String, _ value: String, _ color: Color) -> some View {
+        VStack(spacing: 1) {
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundStyle(color)
+        }
+    }
+
     private var launchSection: some View {
         Section {
             if isBusy, let task = activeDungeonTask {
-                // 出征中：顯示倒數，禁用出發
                 HStack {
-                    Image(systemName: "map.fill").foregroundStyle(.purple)
+                    Image(systemName: "map.fill")
+                        .symbolEffect(.pulse)                    // T02 動畫
+                        .foregroundStyle(regionColor(floor.regionKey))
                     Text("英雄出征中").foregroundStyle(.secondary)
                     Spacer()
                     Text(TaskCountdown.remaining(for: task, relativeTo: tick))
                         .font(.caption)
-                        .foregroundStyle(.purple)
+                        .foregroundStyle(regionColor(floor.regionKey))
                         .monospacedDigit()
                 }
             } else {
-                // 時長選擇
                 Picker("出征時長", selection: $selectedDuration) {
                     ForEach(AppConstants.DungeonDuration.all, id: \.self) { duration in
                         Text(AppConstants.DungeonDuration.displayName(for: duration))
@@ -506,7 +700,6 @@ private struct FloorDetailSheet: View {
                 }
                 .pickerStyle(.segmented)
 
-                // 出發按鈕
                 Button {
                     onStart(selectedDuration)
                 } label: {
@@ -516,12 +709,23 @@ private struct FloorDetailSheet: View {
                         .padding(.vertical, 4)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(.purple)
+                .tint(regionColor(floor.regionKey))  // T01 出發按鈕用區域色
             }
         }
     }
 
     // MARK: - Helpers
+
+    /// 各地下城區域主題色
+    private func regionColor(_ key: String) -> Color {
+        switch key {
+        case "wildland":       return .orange
+        case "abandoned_mine": return Color(red: 0.45, green: 0.6, blue: 0.75)
+        case "ancient_ruins":  return .purple
+        case "sunken_city":    return .indigo
+        default:               return .blue
+        }
+    }
 
     private func winRateColor(_ rate: Int) -> Color {
         switch rate {

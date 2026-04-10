@@ -48,6 +48,10 @@ final class TaskModel {
     var forcedBattles: Int?
     /// .dungeon 專用：出發當下的英雄戰力快照（結算時用此值，不用當前戰力）
     var snapshotPower: Int?
+    /// .dungeon 專用：出發當下的英雄 AGI 快照（ATB 填充速度，nil = 舊任務向後相容）
+    var snapshotAgi: Int?
+    /// .dungeon 專用：出發當下的英雄 DEX 快照（暴擊率，nil = 舊任務向後相容）
+    var snapshotDex: Int?
 
     // MARK: - 狀態
 
@@ -83,6 +87,13 @@ final class TaskModel {
     var resultForeShrineClip:       Int   // 前殿儀扣
     var resultAncientKingCore:      Int   // 古王儀核
 
+    // MARK: - 結果欄位：V4-3 沉落王城素材
+
+    var resultSunkenRuneShard:      Int   // 沉紋碎片
+    var resultAbyssalCrystalDrop:   Int   // 深淵晶滴
+    var resultDrownedCrownFragment: Int   // 溺冕殘片
+    var resultSunkenKingSeal:       Int   // 沉王印璽
+
     // MARK: - 結果欄位：特殊
 
     /// .dungeon 專用
@@ -115,6 +126,8 @@ final class TaskModel {
         durationOverride: Int?  = nil,
         forcedBattles:    Int?  = nil,
         snapshotPower:    Int?  = nil,
+        snapshotAgi:      Int?  = nil,
+        snapshotDex:      Int?  = nil,
         status: TaskStatus = .inProgress,
         // V1 結果
         resultGold:            Int = 0,
@@ -138,6 +151,11 @@ final class TaskModel {
         resultOathInscriptionShard: Int = 0,
         resultForeShrineClip:       Int = 0,
         resultAncientKingCore:      Int = 0,
+        // V4-3 沉落王城
+        resultSunkenRuneShard:      Int = 0,
+        resultAbyssalCrystalDrop:   Int = 0,
+        resultDrownedCrownFragment: Int = 0,
+        resultSunkenKingSeal:       Int = 0,
         // 特殊
         resultBattlesWon:           Int?    = nil,
         resultBattlesLost:          Int?    = nil,
@@ -154,6 +172,8 @@ final class TaskModel {
         self.durationOverride = durationOverride
         self.forcedBattles    = forcedBattles
         self.snapshotPower    = snapshotPower
+        self.snapshotAgi      = snapshotAgi
+        self.snapshotDex      = snapshotDex
         self.status           = status
 
         self.resultGold            = resultGold
@@ -177,6 +197,11 @@ final class TaskModel {
         self.resultOathInscriptionShard = resultOathInscriptionShard
         self.resultForeShrineClip       = resultForeShrineClip
         self.resultAncientKingCore      = resultAncientKingCore
+
+        self.resultSunkenRuneShard      = resultSunkenRuneShard
+        self.resultAbyssalCrystalDrop   = resultAbyssalCrystalDrop
+        self.resultDrownedCrownFragment = resultDrownedCrownFragment
+        self.resultSunkenKingSeal       = resultSunkenKingSeal
 
         self.resultBattlesWon           = resultBattlesWon
         self.resultBattlesLost          = resultBattlesLost
@@ -220,6 +245,10 @@ final class TaskModel {
         case .oathInscriptionShard: return resultOathInscriptionShard
         case .foreShrineClip:       return resultForeShrineClip
         case .ancientKingCore:      return resultAncientKingCore
+        case .sunkenRuneShard:      return resultSunkenRuneShard
+        case .abyssalCrystalDrop:   return resultAbyssalCrystalDrop
+        case .drownedCrownFragment: return resultDrownedCrownFragment
+        case .sunkenKingSeal:       return resultSunkenKingSeal
         }
     }
 
@@ -243,6 +272,10 @@ final class TaskModel {
         case .oathInscriptionShard: resultOathInscriptionShard = amount
         case .foreShrineClip:       resultForeShrineClip       = amount
         case .ancientKingCore:      resultAncientKingCore      = amount
+        case .sunkenRuneShard:      resultSunkenRuneShard      = amount
+        case .abyssalCrystalDrop:   resultAbyssalCrystalDrop   = amount
+        case .drownedCrownFragment: resultDrownedCrownFragment = amount
+        case .sunkenKingSeal:       resultSunkenKingSeal       = amount
         }
     }
 }

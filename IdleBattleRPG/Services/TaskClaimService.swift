@@ -124,6 +124,9 @@ struct TaskClaimService {
             context.delete(task)
         }
 
+        // 成就檢查（所有獎勵 + 統計入帳後執行）
+        AchievementService(context: context).checkAll()
+
         repository.save()
 
         print("[TaskClaimService] 收下 \(completed.count) 筆，金幣 +\(totalGold)，素材 \(materials)")
@@ -159,6 +162,8 @@ struct TaskClaimService {
         let descriptor = FetchDescriptor<PlayerStateModel>()
         guard let player = (try? context.fetch(descriptor))?.first else { return }
         player.heroExp += amount
+        // EXP 入帳後立即嘗試自動升級（可跨多級）
+        CharacterProgressionService(context: context).autoLevelIfPossible(player: player)
     }
 
     private func creditGold(_ amount: Int) {

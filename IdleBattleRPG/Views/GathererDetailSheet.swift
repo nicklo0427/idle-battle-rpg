@@ -13,8 +13,8 @@ import SwiftData
 
 struct GathererDetailSheet: View {
 
-    let npcDef:   GathererNpcDef
-    let appState: AppState
+    let npcDef:    GathererNpcDef
+    let appState:  AppState
     let viewModel: BaseViewModel
 
     @Environment(\.modelContext) private var context

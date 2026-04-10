@@ -37,6 +37,10 @@ final class PlayerStateModel {
     var totalItemsCrafted: Int = 0
     var highestPowerReached: Int = 0
 
+    // MARK: - 敏捷 / 靈巧（V4-1 新增，SwiftData optional init 自動向後相容）
+    var agiPoints: Int = 0   // 敏捷：影響 ATB 填充速度（越高攻擊越快）
+    var dexPoints: Int = 0   // 靈巧：影響暴擊率（越高暴擊機率越高）
+
     // MARK: - NPC 升級 Tier（0 = 未升級，上限 NpcUpgradeDef.maxTier）
     var gatherer1Tier: Int = 0
     var gatherer2Tier: Int = 0

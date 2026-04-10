@@ -10,17 +10,27 @@ struct IdleBattleRPGApp: App {
     let container: ModelContainer
 
     init() {
+        let schema = Schema([
+            PlayerStateModel.self,
+            MaterialInventoryModel.self,
+            EquipmentModel.self,
+            TaskModel.self,
+            DungeonProgressionModel.self,
+            AchievementProgressModel.self
+        ])
+        let config = ModelConfiguration(schema: schema)
+
         do {
-            container = try ModelContainer(
-                for:
-                    PlayerStateModel.self,
-                    MaterialInventoryModel.self,
-                    EquipmentModel.self,
-                    TaskModel.self,
-                    DungeonProgressionModel.self
-            )
+            container = try ModelContainer(for: schema, configurations: config)
         } catch {
-            fatalError("Failed to create ModelContainer: \(error)")
+            // Schema 有異動（例如新增欄位）導致舊 Store 無法載入。
+            // 開發階段：直接刪除舊 Store 並重建；DatabaseSeeder 會重新 seed。
+            Self.deleteStore(at: config.url)
+            do {
+                container = try ModelContainer(for: schema, configurations: config)
+            } catch {
+                fatalError("Failed to create ModelContainer even after wiping store: \(error)")
+            }
         }
     }
 
@@ -35,5 +45,17 @@ struct IdleBattleRPGApp: App {
                 }
         }
         .modelContainer(container)
+    }
+
+    // MARK: - Store 清理
+
+    /// 刪除指定 URL 的 SQLite 檔案（含 -shm / -wal journal 檔）
+    private static func deleteStore(at url: URL) {
+        let fm   = FileManager.default
+        let base = url.deletingPathExtension().path
+        let ext  = url.pathExtension                // "store"
+        for suffix in [ext, "\(ext)-shm", "\(ext)-wal"] {
+            try? fm.removeItem(atPath: "\(base).\(suffix)")
+        }
     }
 }

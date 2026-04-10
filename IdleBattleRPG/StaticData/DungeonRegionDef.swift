@@ -34,6 +34,8 @@ struct DungeonFloorDef: Identifiable {
     let unlocksEquipmentKey: String             // 首通解鎖的裝備 key
     let unlocksSlot:         EquipmentSlot      // 首通解鎖的裝備部位
     let bossName:            String?            // Boss 名稱（一般層為 nil）
+    /// 普通小怪名稱候選（非 Boss 層填 3–4 個，Boss 層留空）
+    let commonEnemyNames:    [String]
 }
 
 // MARK: - 區域定義
@@ -66,6 +68,7 @@ extension DungeonRegionDef {
         wildland,
         abandonedMine,
         ancientRuins,
+        sunkenCity,
     ]
 
     static func find(key: String) -> DungeonRegionDef? {
@@ -106,7 +109,8 @@ extension DungeonRegionDef {
                 ],
                 unlocksEquipmentKey: "wildland_accessory",
                 unlocksSlot:         .accessory,
-                bossName:            nil
+                bossName:            nil,
+                commonEnemyNames:    ["荒野哨兵", "殘林追獵者", "蠻地斥候"]
             ),
 
             // 第 2 層：獸痕荒徑（解鎖防具）
@@ -124,7 +128,8 @@ extension DungeonRegionDef {
                 ],
                 unlocksEquipmentKey: "wildland_armor",
                 unlocksSlot:         .armor,
-                bossName:            nil
+                bossName:            nil,
+                commonEnemyNames:    ["野地獵手", "荒原狂戰士", "裂骨掠奪者"]
             ),
 
             // 第 3 層：掠影交界（解鎖副手）
@@ -142,7 +147,8 @@ extension DungeonRegionDef {
                 ],
                 unlocksEquipmentKey: "wildland_offhand",
                 unlocksSlot:         .offhand,
-                bossName:            nil
+                bossName:            nil,
+                commonEnemyNames:    ["裂角戰士", "荊棘蠻衛", "邊境狙殺者"]
             ),
 
             // 第 4 層：裂牙王庭（Boss 層，解鎖武器）
@@ -160,7 +166,8 @@ extension DungeonRegionDef {
                 ],
                 unlocksEquipmentKey: "wildland_weapon",
                 unlocksSlot:         .weapon,
-                bossName:            "裂牙掠首"
+                bossName:            "裂牙掠首",
+                commonEnemyNames:    []
             ),
         ]
     )
@@ -192,7 +199,8 @@ extension DungeonRegionDef {
                 ],
                 unlocksEquipmentKey: "mine_accessory",
                 unlocksSlot:         .accessory,
-                bossName:            nil
+                bossName:            nil,
+                commonEnemyNames:    ["礦坑守衛", "坑道挖掘者", "礦脈巡查兵"]
             ),
 
             // 第 2 層：支架裂層（解鎖防具）
@@ -210,7 +218,8 @@ extension DungeonRegionDef {
                 ],
                 unlocksEquipmentKey: "mine_armor",
                 unlocksSlot:         .armor,
-                bossName:            nil
+                bossName:            nil,
+                commonEnemyNames:    ["脈鐵鑿工", "深坑採礦手", "裂岩衛士"]
             ),
 
             // 第 3 層：沉脈深坑（解鎖副手）
@@ -228,7 +237,8 @@ extension DungeonRegionDef {
                 ],
                 unlocksEquipmentKey: "mine_offhand",
                 unlocksSlot:         .offhand,
-                bossName:            nil
+                bossName:            nil,
+                commonEnemyNames:    ["承脈重甲", "礦核執行者", "鑄岩傭兵"]
             ),
 
             // 第 4 層：吞岩巢庭（Boss 層，解鎖武器）
@@ -246,7 +256,8 @@ extension DungeonRegionDef {
                 ],
                 unlocksEquipmentKey: "mine_weapon",
                 unlocksSlot:         .weapon,
-                bossName:            "深坑吞岩獸"
+                bossName:            "深坑吞岩獸",
+                commonEnemyNames:    []
             ),
         ]
     )
@@ -279,7 +290,8 @@ extension DungeonRegionDef {
                 ],
                 unlocksEquipmentKey: "ruins_accessory",
                 unlocksSlot:         .accessory,
-                bossName:            nil
+                bossName:            nil,
+                commonEnemyNames:    ["遺跡守誓者", "碎壁巡守", "廢墟浪人"]
             ),
 
             // 第 2 層：斷碑迴廊（解鎖防具）
@@ -297,7 +309,8 @@ extension DungeonRegionDef {
                 ],
                 unlocksEquipmentKey: "ruins_armor",
                 unlocksSlot:         .armor,
-                bossName:            nil
+                bossName:            nil,
+                commonEnemyNames:    ["碑紋祭司", "符文詠唱者", "遺靈術士"]
             ),
 
             // 第 3 層：守誓前殿（解鎖副手）
@@ -315,7 +328,8 @@ extension DungeonRegionDef {
                 ],
                 unlocksEquipmentKey: "ruins_offhand",
                 unlocksSlot:         .offhand,
-                bossName:            nil
+                bossName:            nil,
+                commonEnemyNames:    ["前殿衛士", "殿堂執行者", "古誓騎士"]
             ),
 
             // 第 4 層：王印聖所（Boss 層，解鎖武器）
@@ -334,7 +348,95 @@ extension DungeonRegionDef {
                 ],
                 unlocksEquipmentKey: "ruins_weapon",
                 unlocksSlot:         .weapon,
-                bossName:            "王誓執行者"
+                bossName:            "王誓執行者",
+                commonEnemyNames:    []
+            ),
+        ]
+    )
+}
+
+// MARK: - 區域 4：沉落王城
+
+extension DungeonRegionDef {
+
+    static let sunkenCity = DungeonRegionDef(
+        key:               "sunken_city",
+        name:              "沉落王城",
+        regionDescription: "被詛咒沉入地下暗水的王都，腐蝕魔力與幽暗水流充斥廢墟。",
+        suiteName:         "沉城深淵套裝",
+        floors: [
+
+            // 第 1 層：沉塔入口（解鎖飾品）
+            // 遺跡全套（鑄造武器）≈ 532 power + Lv.20 全 ATK（+60）→ 592/530 ≈ 66%
+            DungeonFloorDef(
+                key:                 "sunken_floor_1",
+                name:                "沉塔入口",
+                regionKey:           "sunken_city",
+                floorIndex:          1,
+                isBossFloor:         false,
+                recommendedPower:    530,
+                goldPerBattleRange:  50...95,
+                dropTable: [
+                    DropTableEntry(material: .sunkenRuneShard, dropRate: 0.50, quantityRange: 1...2),
+                ],
+                unlocksEquipmentKey: "sunken_city_accessory",
+                unlocksSlot:         .accessory,
+                bossName:            nil,
+                commonEnemyNames:    ["沉城守衛", "溺甲巡邏者", "深淵前哨兵"]
+            ),
+
+            // 第 2 層：溺殿迴廊（解鎖防具）
+            DungeonFloorDef(
+                key:                 "sunken_floor_2",
+                name:                "溺殿迴廊",
+                regionKey:           "sunken_city",
+                floorIndex:          2,
+                isBossFloor:         false,
+                recommendedPower:    585,
+                goldPerBattleRange:  62...115,
+                dropTable: [
+                    DropTableEntry(material: .abyssalCrystalDrop, dropRate: 0.45, quantityRange: 1...2),
+                ],
+                unlocksEquipmentKey: "sunken_city_armor",
+                unlocksSlot:         .armor,
+                bossName:            nil,
+                commonEnemyNames:    ["晶液術士", "腐化侍從", "淵底召喚師"]
+            ),
+
+            // 第 3 層：王室深淵（解鎖副手）
+            DungeonFloorDef(
+                key:                 "sunken_floor_3",
+                name:                "王室深淵",
+                regionKey:           "sunken_city",
+                floorIndex:          3,
+                isBossFloor:         false,
+                recommendedPower:    645,
+                goldPerBattleRange:  78...145,
+                dropTable: [
+                    DropTableEntry(material: .drownedCrownFragment, dropRate: 0.45, quantityRange: 1...2),
+                ],
+                unlocksEquipmentKey: "sunken_city_offhand",
+                unlocksSlot:         .offhand,
+                bossName:            nil,
+                commonEnemyNames:    ["溺冕衛兵", "沉冕執法者", "王室禁衛"]
+            ),
+
+            // 第 4 層：沉王聖座（Boss，解鎖武器）
+            DungeonFloorDef(
+                key:                 "sunken_floor_4",
+                name:                "沉王聖座",
+                regionKey:           "sunken_city",
+                floorIndex:          4,
+                isBossFloor:         true,
+                recommendedPower:    710,
+                goldPerBattleRange:  100...180,
+                dropTable: [
+                    DropTableEntry(material: .sunkenKingSeal, dropRate: 0.35, quantityRange: 1...1),
+                ],
+                unlocksEquipmentKey: "sunken_city_weapon",
+                unlocksSlot:         .weapon,
+                bossName:            "沉落王・深淵甦醒",
+                commonEnemyNames:    []
             ),
         ]
     )

@@ -199,7 +199,8 @@ struct BaseView: View {
         Button(action: { selectedGathererDef = def }) {
             HStack(spacing: 12) {
                 Image(systemName: def.icon)
-                    .foregroundStyle(Color.green.opacity(isBusy ? 0.4 : 1.0))
+                    .symbolEffect(.pulse, isActive: isBusy)    // T02 動畫
+                    .foregroundStyle(Color.green.opacity(isBusy ? 0.7 : 1.0))
                     .frame(width: 24)
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -260,7 +261,8 @@ struct BaseView: View {
         Button(action: { if !isBusy { showCraftSheet = true } }) {
             HStack(spacing: 12) {
                 Image(systemName: "hammer.fill")
-                    .foregroundStyle(Color.orange.opacity(isBusy ? 0.4 : 1.0))
+                    .symbolEffect(.pulse, isActive: isBusy)    // T02 動畫
+                    .foregroundStyle(Color.orange.opacity(isBusy ? 0.7 : 1.0))
                     .frame(width: 24)
 
                 VStack(alignment: .leading, spacing: 2) {

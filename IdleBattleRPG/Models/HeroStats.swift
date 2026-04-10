@@ -7,11 +7,21 @@ import Foundation
 struct HeroStats {
     let totalATK: Int
     let totalDEF: Int
-    let totalHP: Int
+    let totalHP:  Int
+    let totalAGI: Int   // 敏捷：ATB 填充速度
+    let totalDEX: Int   // 靈巧：暴擊率
 
-    /// 戰力 = ATK × 2 + DEF × 1.5 + HP × 1
+    init(totalATK: Int, totalDEF: Int, totalHP: Int, totalAGI: Int = 0, totalDEX: Int = 0) {
+        self.totalATK = totalATK
+        self.totalDEF = totalDEF
+        self.totalHP  = totalHP
+        self.totalAGI = totalAGI
+        self.totalDEX = totalDEX
+    }
+
+    /// 戰力 = ATK × 2 + DEF × 1.5 + HP + AGI + DEX
     var power: Int {
-        totalATK * 2 + Int(Double(totalDEF) * 1.5) + totalHP
+        totalATK * 2 + Int(Double(totalDEF) * 1.5) + totalHP + totalAGI + totalDEX
     }
 
     /// 對指定地下城的預估勝率（供 AdventureViewModel 顯示）

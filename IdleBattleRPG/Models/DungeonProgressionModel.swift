@@ -24,16 +24,23 @@ final class DungeonProgressionModel {
     var clearedFloorKeysJSON: String
 
     /// 已解鎖區域的 key（JSON-encoded [String]）
-    /// 初始值為第一區 "wildland"，後續由 DungeonProgressionService 在 Boss 首通時自動擴充
+    /// 初始值為第一區 "wildland"，後續由 DungeonProgressionService 在菁英首通時自動擴充
     var unlockedRegionKeysJSON: String
+
+    /// 已擊敗菁英所屬的樓層 key（JSON-encoded [String]）
+    /// 儲存格式與 clearedFloorKeysJSON 相同，key 取自 EliteDef.floorKey
+    /// V4-2 新增：菁英通關 → 解鎖下一樓層 / 下一區域
+    var clearedEliteKeysJSON: String
 
     // MARK: - Init
 
     init(
         clearedFloorKeysJSON:   String = "[]",
-        unlockedRegionKeysJSON: String = "[\"wildland\"]"
+        unlockedRegionKeysJSON: String = "[\"wildland\"]",
+        clearedEliteKeysJSON:   String = "[]"
     ) {
         self.clearedFloorKeysJSON   = clearedFloorKeysJSON
         self.unlockedRegionKeysJSON = unlockedRegionKeysJSON
+        self.clearedEliteKeysJSON   = clearedEliteKeysJSON
     }
 }

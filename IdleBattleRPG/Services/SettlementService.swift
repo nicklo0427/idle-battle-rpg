@@ -94,10 +94,11 @@ struct SettlementService {
         case .hide:            task.resultHide            = amount
         case .crystalShard:    task.resultCrystalShard    = amount
         case .ancientFragment: task.resultAncientFragment = amount
-        // V2-1 區域素材：採集地點不會輸出這些素材，此 case 不會觸發
+        // V2-1 / V4-3 區域素材：採集地點不會輸出這些素材，此 case 不會觸發
         case .oldPostBadge, .driedHideBundle, .splitHornBone, .riftFangRoyalBadge,
              .mineLampCopperClip, .tunnelIronClip, .veinStoneSlab, .stoneSwallowCore,
-             .relicSealRing, .oathInscriptionShard, .foreShrineClip, .ancientKingCore:
+             .relicSealRing, .oathInscriptionShard, .foreShrineClip, .ancientKingCore,
+             .sunkenRuneShard, .abyssalCrystalDrop, .drownedCrownFragment, .sunkenKingSeal:
             break
         }
     }

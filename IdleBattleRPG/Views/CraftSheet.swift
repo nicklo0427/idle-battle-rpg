@@ -47,6 +47,7 @@ struct CraftSheet: View {
                 "wildland": "wildland",
                 "mine":     "abandoned_mine",
                 "ruins":    "ancient_ruins",
+                "sunken":   "sunken_city",
             ]
             guard let regionKey = regionKeyMap[prefix] else { return false }
             return progressionService.isFloorCleared(regionKey: regionKey, floorIndex: index)
