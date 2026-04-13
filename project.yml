@@ -33,3 +33,36 @@ targets:
           - UIInterfaceOrientationPortrait
         UIRequiresFullScreen: true
         ITSAppUsesNonExemptEncryption: false
+
+  IdleBattleRPGTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: IdleBattleRPGTests
+    dependencies:
+      - target: IdleBattleRPG
+    settings:
+      base:
+        SWIFT_VERSION: "5.9"
+        IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+        PRODUCT_BUNDLE_IDENTIFIER: com.lowhaijer.IdleBattleRPGTests
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  IdleBattleRPG:
+    build:
+      targets:
+        IdleBattleRPG: all
+        IdleBattleRPGTests: [test]
+    test:
+      targets:
+        - IdleBattleRPGTests
+    run:
+      config: Debug
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
