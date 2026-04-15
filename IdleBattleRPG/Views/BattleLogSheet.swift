@@ -103,30 +103,47 @@ struct BattleLogSheet: View {
     private func hpBar(icon: String, label: String,
                        current: Int, maxHp: Int, color: Color) -> some View {
         HStack(spacing: 8) {
+            // label：固定最小寬度，超過自然 shrink，不截斷
             Text("\(icon) \(label)")
                 .font(.caption)
                 .lineLimit(1)
-                .frame(width: 100, alignment: .leading)
+                .fixedSize(horizontal: true, vertical: false)
+                .frame(minWidth: 60, maxWidth: 120, alignment: .leading)
+
             ProgressView(value: Double(Swift.max(0, current)),
                          total:  Double(Swift.max(1, maxHp)))
                 .tint(color)
+                .frame(maxWidth: .infinity)
                 .animation(.easeInOut(duration: 0.2), value: current)
+
+            // HP 數字：不用固定寬，讓 layout 自然對齊
             Text("\(Swift.max(0, current))/\(maxHp)")
                 .font(.caption2)
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
-                .frame(width: 64, alignment: .trailing)
+                .fixedSize(horizontal: true, vertical: false)
+                .frame(minWidth: 50, alignment: .trailing)
         }
     }
 
     private func atbBar(progress: Double, color: Color) -> some View {
         HStack(spacing: 8) {
-            Spacer().frame(width: 100)
+            // 對齊 hpBar 的 label 區域（用透明 Text 佔位，不硬編碼寬度）
+            Text("　")
+                .font(.caption)
+                .frame(minWidth: 60, maxWidth: 120)
+                .hidden()
+
             ProgressView(value: progress, total: 1.0)
                 .tint(color)
-                // 步進補間（歸零由 Model 的 withAnimation(nil) 控制，不倒退）
+                .frame(maxWidth: .infinity)
                 .animation(.linear(duration: 0.055), value: progress)
-            Spacer().frame(width: 72)
+
+            // 對齊 HP 數字區域
+            Text("　")
+                .font(.caption2)
+                .frame(minWidth: 50)
+                .hidden()
         }
     }
 

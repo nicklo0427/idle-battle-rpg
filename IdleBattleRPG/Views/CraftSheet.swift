@@ -126,22 +126,27 @@ struct CraftSheet: View {
                         .foregroundStyle(canAfford ? Color.primary : Color.secondary)
                 }
                 Spacer()
-                // 不可用時顯示紅色膠囊 badge
-                if !canAfford {
+                // 時長永遠顯示（讓玩家知道等待成本）
+                Text(recipe.durationDisplay)
+                    .font(.caption)
+                    .foregroundStyle(Color.secondary)
+                    .monospacedDigit()
+            }
+
+            // 不可用 badge（獨立一行，不搶奪時長位置）
+            if !canAfford {
+                HStack(spacing: 4) {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .font(.caption2)
                     Text("資源不足")
                         .font(.caption2)
                         .fontWeight(.medium)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3)
-                        .background(Color.red.opacity(0.12))
-                        .foregroundStyle(.red)
-                        .clipShape(Capsule())
-                } else {
-                    Text(recipe.durationDisplay)
-                        .font(.caption)
-                        .foregroundStyle(Color.secondary)
-                        .monospacedDigit()
                 }
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .background(Color.red.opacity(0.10))
+                .foregroundStyle(.red)
+                .clipShape(Capsule())
             }
 
             // 裝備屬性預覽
@@ -179,11 +184,6 @@ struct CraftSheet: View {
                 Text("💰×\(recipe.goldCost)")
                     .font(.caption)
                     .foregroundStyle((player?.gold ?? 0) >= recipe.goldCost ? Color.primary : Color.red)
-
-                // 可用時才顯示時長（節省行高）
-                if canAfford {
-                    Spacer()
-                }
             }
         }
         .padding(.vertical, 4)
