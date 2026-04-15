@@ -10,6 +10,7 @@
 
 import SwiftUI
 import SwiftData
+import PhosphorSwift
 
 struct GathererDetailSheet: View {
 
@@ -132,10 +133,7 @@ struct GathererDetailSheet: View {
                             have: inventory?.amount(of: mat) ?? 0,
                             suffix: "")
                 }
-                costRow(label: "💰 金幣",
-                        required: cost.goldCost,
-                        have: player.gold,
-                        suffix: "")
+                goldCostRow(required: cost.goldCost, have: player.gold)
 
                 Button("升至 T\(currentTier + 1)") {
                     performUpgrade()
@@ -256,6 +254,20 @@ struct GathererDetailSheet: View {
     // MARK: - Helpers
 
     @ViewBuilder
+    private func goldCostRow(required: Int, have: Int) -> some View {
+        HStack {
+            HStack(spacing: 4) {
+                Ph.coins.fill.frame(width: 14, height: 14).foregroundStyle(.yellow)
+                Text("金幣")
+            }
+            Spacer()
+            Text("\(have) / \(required)")
+                .font(.caption)
+                .foregroundStyle(have >= required ? Color.secondary : Color.red)
+                .monospacedDigit()
+        }
+    }
+
     private func costRow(label: String, required: Int, have: Int, suffix: String) -> some View {
         HStack {
             Text(label)

@@ -14,6 +14,7 @@
 
 import SwiftUI
 import SwiftData
+import PhosphorSwift
 
 // MARK: - Segment 定義
 
@@ -179,16 +180,16 @@ struct CharacterView: View {
         Section {
             if let player {
                 infoRow(label: "等級", value: "Lv.\(player.heroLevel)")
-                infoRow(label: "金幣", value: "\(player.gold) 💰")
+                infoRow(label: "金幣", value: "\(player.gold)")
             }
             if let stats = heroStats {
                 powerRow(stats.power)
                 if let player {
-                    statAllocRow(label: "⚔️ ATK", value: stats.totalATK, pending: viewModel.pendingAtk, stat: .atk, player: player)
-                    statAllocRow(label: "🛡 DEF",  value: stats.totalDEF, pending: viewModel.pendingDef, stat: .def, player: player)
-                    statAllocRow(label: "❤️ HP",   value: stats.totalHP,  pending: viewModel.pendingHp,  stat: .hp,  player: player)
-                    statAllocRow(label: "🏃 AGI",  value: stats.totalAGI, pending: viewModel.pendingAgi, stat: .agi, player: player)
-                    statAllocRow(label: "🎯 DEX",  value: stats.totalDEX, pending: viewModel.pendingDex, stat: .dex, player: player)
+                    statAllocRow(icon: .sword,           label: "ATK", value: stats.totalATK, pending: viewModel.pendingAtk, stat: .atk, player: player)
+                    statAllocRow(icon: .shieldChevron,  label: "DEF", value: stats.totalDEF, pending: viewModel.pendingDef, stat: .def, player: player)
+                    statAllocRow(icon: .heart,           label: "HP",  value: stats.totalHP,  pending: viewModel.pendingHp,  stat: .hp,  player: player)
+                    statAllocRow(icon: .personSimpleRun, label: "AGI", value: stats.totalAGI, pending: viewModel.pendingAgi, stat: .agi, player: player)
+                    statAllocRow(icon: .crosshair,       label: "DEX", value: stats.totalDEX, pending: viewModel.pendingDex, stat: .dex, player: player)
 
                     let remaining = viewModel.remainingPendingPoints(player: player)
                     if remaining > 0 {
@@ -281,11 +282,11 @@ struct CharacterView: View {
         // ── 累計統計 ────────────────────────────────────────────────
         if let player {
             Section("累計統計") {
-                statRow(icon: "💰", label: "累計金幣收入", value: "\(player.totalGoldEarned)")
-                statRow(icon: "⚔️", label: "地下城勝場",   value: "\(player.totalBattlesWon)")
-                statRow(icon: "🛡",  label: "地下城敗場",   value: "\(player.totalBattlesLost)")
-                statRow(icon: "🔨", label: "裝備獲得件數", value: "\(player.totalItemsCrafted)")
-                statRow(icon: "⚡", label: "歷史最高戰力", value: "\(player.highestPowerReached)")
+                statRow(.coins,         label: "累計金幣收入", value: "\(player.totalGoldEarned)")
+                statRow(.sword,         label: "地下城勝場",   value: "\(player.totalBattlesWon)")
+                statRow(.shieldChevron, label: "地下城敗場",   value: "\(player.totalBattlesLost)")
+                statRow(.hammer,        label: "裝備獲得件數", value: "\(player.totalItemsCrafted)")
+                statRow(.lightning,     label: "歷史最高戰力", value: "\(player.highestPowerReached)")
             }
         }
     }
@@ -521,10 +522,15 @@ struct CharacterView: View {
     // MARK: - Row Helpers
 
     @ViewBuilder
-    private func statRow(icon: String, label: String, value: String) -> some View {
+    private func statRow(_ icon: Ph, label: String, value: String) -> some View {
         HStack {
-            Text("\(icon) \(label)")
-                .foregroundStyle(.secondary)
+            HStack(spacing: 4) {
+                icon.fill
+                    .frame(width: 14, height: 14)
+                    .foregroundStyle(.secondary)
+                Text(label)
+                    .foregroundStyle(.secondary)
+            }
             Spacer()
             Text(value)
                 .fontWeight(.medium)
@@ -558,11 +564,16 @@ struct CharacterView: View {
     /// pending > 0 時以橙色預覽 "value → +pending = total"
     @ViewBuilder
     private func statAllocRow(
-        label: String, value: Int, pending: Int,
+        icon: Ph, label: String, value: Int, pending: Int,
         stat: StatType, player: PlayerStateModel
     ) -> some View {
         HStack {
-            Text(label).foregroundStyle(.secondary)
+            HStack(spacing: 4) {
+                icon.fill
+                    .frame(width: 14, height: 14)
+                    .foregroundStyle(.secondary)
+                Text(label).foregroundStyle(.secondary)
+            }
             Spacer()
             if pending > 0 {
                 Text("\(value)")
@@ -706,25 +717,28 @@ struct CharacterView: View {
 
     @ViewBuilder
     private func diffBadge(_ diff: StatDiff) -> some View {
-        HStack(spacing: 3) {
+        HStack(spacing: 5) {
             if diff.atk != 0 {
-                Text(diffText("⚔", diff.atk))
-                    .foregroundStyle(diff.atk > 0 ? Color.green : Color.red)
+                diffItem(icon: .sword, value: diff.atk)
             }
             if diff.def != 0 {
-                Text(diffText("🛡", diff.def))
-                    .foregroundStyle(diff.def > 0 ? Color.green : Color.red)
+                diffItem(icon: .shieldChevron, value: diff.def)
             }
             if diff.hp != 0 {
-                Text(diffText("❤", diff.hp))
-                    .foregroundStyle(diff.hp > 0 ? Color.green : Color.red)
+                diffItem(icon: .heart, value: diff.hp)
             }
         }
         .font(.caption2)
     }
 
-    private func diffText(_ icon: String, _ value: Int) -> String {
-        value > 0 ? "\(icon)+\(value)" : "\(icon)\(value)"
+    @ViewBuilder
+    private func diffItem(icon: Ph, value: Int) -> some View {
+        HStack(spacing: 2) {
+            icon.fill
+                .frame(width: 10, height: 10)
+            Text(value > 0 ? "+\(value)" : "\(value)")
+        }
+        .foregroundStyle(value > 0 ? Color.green : Color.red)
     }
 }
 
@@ -768,15 +782,28 @@ private struct EquipSelectSheet: View {
                                 // 行 2：完整屬性數值
                                 HStack(spacing: 8) {
                                     if item.totalAtk > 0 {
-                                        Text("⚔ \(item.totalAtk)")
-                                            .font(.caption2)
-                                            .foregroundStyle(item.isRolledBossWeapon ? .yellow : .secondary)
+                                        HStack(spacing: 3) {
+                                            Ph.sword.fill.frame(width: 11, height: 11)
+                                            Text("\(item.totalAtk)")
+                                        }
+                                        .font(.caption2)
+                                        .foregroundStyle(item.isRolledBossWeapon ? Color.yellow : Color.secondary)
                                     }
                                     if item.totalDef > 0 {
-                                        Text("🛡 \(item.totalDef)").font(.caption2).foregroundStyle(.secondary)
+                                        HStack(spacing: 3) {
+                                            Ph.shieldChevron.fill.frame(width: 11, height: 11)
+                                            Text("\(item.totalDef)")
+                                        }
+                                        .font(.caption2)
+                                        .foregroundStyle(Color.secondary)
                                     }
                                     if item.totalHp > 0 {
-                                        Text("❤ \(item.totalHp)").font(.caption2).foregroundStyle(.secondary)
+                                        HStack(spacing: 3) {
+                                            Ph.heart.fill.frame(width: 11, height: 11)
+                                            Text("\(item.totalHp)")
+                                        }
+                                        .font(.caption2)
+                                        .foregroundStyle(Color.secondary)
                                     }
                                 }
 
@@ -804,18 +831,27 @@ private struct EquipSelectSheet: View {
 
     @ViewBuilder
     private func diffBadge(_ diff: StatDiff) -> some View {
-        HStack(spacing: 3) {
+        HStack(spacing: 5) {
             if diff.atk != 0 {
-                Text(diff.atk > 0 ? "⚔+\(diff.atk)" : "⚔\(diff.atk)")
-                    .foregroundStyle(diff.atk > 0 ? Color.green : Color.red)
+                HStack(spacing: 2) {
+                    Ph.sword.fill.frame(width: 10, height: 10)
+                    Text(diff.atk > 0 ? "+\(diff.atk)" : "\(diff.atk)")
+                }
+                .foregroundStyle(diff.atk > 0 ? Color.green : Color.red)
             }
             if diff.def != 0 {
-                Text(diff.def > 0 ? "🛡+\(diff.def)" : "🛡\(diff.def)")
-                    .foregroundStyle(diff.def > 0 ? Color.green : Color.red)
+                HStack(spacing: 2) {
+                    Ph.shieldChevron.fill.frame(width: 10, height: 10)
+                    Text(diff.def > 0 ? "+\(diff.def)" : "\(diff.def)")
+                }
+                .foregroundStyle(diff.def > 0 ? Color.green : Color.red)
             }
             if diff.hp != 0 {
-                Text(diff.hp > 0 ? "❤+\(diff.hp)" : "❤\(diff.hp)")
-                    .foregroundStyle(diff.hp > 0 ? Color.green : Color.red)
+                HStack(spacing: 2) {
+                    Ph.heart.fill.frame(width: 10, height: 10)
+                    Text(diff.hp > 0 ? "+\(diff.hp)" : "\(diff.hp)")
+                }
+                .foregroundStyle(diff.hp > 0 ? Color.green : Color.red)
             }
         }
         .font(.caption2)

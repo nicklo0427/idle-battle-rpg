@@ -13,6 +13,7 @@
 
 import SwiftUI
 import SwiftData
+import PhosphorSwift
 
 struct MerchantSheet: View {
 
@@ -39,8 +40,12 @@ struct MerchantSheet: View {
                 // ── 資源摘要（只顯示持有量 > 0 的素材，保持畫面簡潔）────
                 Section("目前資源") {
                     HStack {
-                        Label("金幣", systemImage: "dollarsign.circle.fill")
-                            .foregroundStyle(.yellow)
+                        Label {
+                        Text("金幣")
+                    } icon: {
+                        Ph.coins.fill.frame(width: 16, height: 16)
+                    }
+                    .foregroundStyle(.yellow)
                         Spacer()
                         Text("\(player?.gold ?? 0)")
                             .fontWeight(.semibold)
@@ -99,9 +104,12 @@ struct MerchantSheet: View {
                         HStack(spacing: 10) {
                             // 給出
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("💰 金幣 ×\(trade.goldCost)")
+                                HStack(spacing: 4) {
+                                Ph.coins.fill.frame(width: 14, height: 14)
+                                Text("金幣 ×\(trade.goldCost)")
                                     .fontWeight(.medium)
-                                    .foregroundStyle(canAfford ? .primary : .secondary)
+                            }
+                            .foregroundStyle(canAfford ? .primary : .secondary)
                                 Text("持有 \(gold)")
                                     .font(.caption2)
                                     .foregroundStyle(canAfford ? Color.secondary : Color.red)
@@ -171,9 +179,12 @@ struct MerchantSheet: View {
 
                 Spacer()
 
-                Text("💰 +\(goldAmt)")
-                    .fontWeight(.semibold)
-                    .foregroundStyle(canAfford ? .yellow : .secondary)
+                HStack(spacing: 3) {
+                    Ph.coins.fill.frame(width: 14, height: 14)
+                    Text("+\(goldAmt)")
+                }
+                .fontWeight(.semibold)
+                .foregroundStyle(canAfford ? .yellow : .secondary)
 
                 Button("出售") {
                     execute { MerchantService(context: context).executeSellTrade(tradeKey: trade.key) }

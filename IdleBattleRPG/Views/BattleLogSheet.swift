@@ -12,6 +12,7 @@
 // 菁英模式（V4-2 預留）：傳入 eliteResult + onRetry
 
 import SwiftUI
+import PhosphorSwift
 
 // MARK: - 菁英戰鬥結果型別（V4-2 預留接口）
 
@@ -82,14 +83,14 @@ struct BattleLogSheet: View {
 
     private var hpBarsView: some View {
         VStack(spacing: 4) {
-            hpBar(icon: "🧙", label: "英雄",
+            hpBar(icon: Ph.personSimple.fill, label: "英雄",
                   current: currentHeroHp, maxHp: heroMaxHp, color: .blue)
             atbBar(progress: model.heroATBProgress,
                    color: model.isExploring ? .teal : .yellow)
 
             if model.isBattleActive {
                 Spacer().frame(height: 4)
-                hpBar(icon: "👹", label: enemyLabel,
+                hpBar(icon: Ph.skull.fill, label: enemyLabel,
                       current: currentEnemyHp, maxHp: enemyMaxHp, color: .red)
                 atbBar(progress: model.enemyATBProgress, color: .orange)
             }
@@ -100,15 +101,20 @@ struct BattleLogSheet: View {
         .animation(.easeInOut(duration: 0.25), value: model.isBattleActive)
     }
 
-    private func hpBar(icon: String, label: String,
+    private func hpBar(icon: Image, label: String,
                        current: Int, maxHp: Int, color: Color) -> some View {
         HStack(spacing: 8) {
             // label：固定最小寬度，超過自然 shrink，不截斷
-            Text("\(icon) \(label)")
-                .font(.caption)
-                .lineLimit(1)
-                .fixedSize(horizontal: true, vertical: false)
-                .frame(minWidth: 60, maxWidth: 120, alignment: .leading)
+            HStack(spacing: 4) {
+                icon
+                    .frame(width: 14, height: 14)
+                    .foregroundStyle(color)
+                Text(label)
+                    .font(.caption)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+            .frame(minWidth: 60, maxWidth: 120, alignment: .leading)
 
             ProgressView(value: Double(Swift.max(0, current)),
                          total:  Double(Swift.max(1, maxHp)))
@@ -176,8 +182,9 @@ struct BattleLogSheet: View {
 
     private func eventRow(_ event: BattleEvent) -> some View {
         HStack(alignment: .top, spacing: 8) {
-            Text(eventIcon(event.type))
-                .frame(width: 18)
+            eventIconView(event.type)
+                .frame(width: 16, height: 16)
+                .padding(.top, 2)
             Text(event.description)
                 .font(.subheadline)
                 .foregroundStyle(eventColor(event.type))
@@ -216,15 +223,16 @@ struct BattleLogSheet: View {
 
     // MARK: - Helpers
 
-    private func eventIcon(_ type: BattleEvent.EventType) -> String {
+    @ViewBuilder
+    private func eventIconView(_ type: BattleEvent.EventType) -> some View {
         switch type {
-        case .explore:   return "🗺"
-        case .encounter: return "⚠️"
-        case .attack:    return "⚔"
-        case .damage:    return "🛡"
-        case .victory:   return "✓"
-        case .defeat:    return "✗"
-        case .heal:      return "💚"
+        case .explore:   Ph.mapTrifold.fill.foregroundStyle(Color.secondary)
+        case .encounter: Ph.warningCircle.fill.foregroundStyle(Color.orange)
+        case .attack:    Ph.sword.fill.foregroundStyle(Color.primary)
+        case .damage:    Ph.shieldChevron.fill.foregroundStyle(Color.orange)
+        case .victory:   Ph.check.fill.foregroundStyle(Color.green)
+        case .defeat:    Ph.x.fill.foregroundStyle(Color.red)
+        case .heal:      Ph.heart.fill.foregroundStyle(Color.green)
         }
     }
 

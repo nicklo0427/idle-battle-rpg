@@ -13,6 +13,7 @@
 
 import SwiftUI
 import SwiftData
+import PhosphorSwift
 
 struct SettlementSheet: View {
 
@@ -119,12 +120,14 @@ struct SettlementSheet: View {
         switch row.kind {
         case .gold(let amt):
             HStack {
-                Text("💰 金幣 +\(amt)").font(.body)
+                Ph.coins.fill.frame(width: 18, height: 18).foregroundStyle(.yellow)
+                Text("金幣 +\(amt)").font(.body)
                 Spacer()
             }
         case .exp(let amt):
             HStack {
-                Text("✨ EXP +\(amt)").font(.body)
+                Ph.sparkle.fill.frame(width: 18, height: 18).foregroundStyle(.purple)
+                Text("EXP +\(amt)").font(.body)
                 Spacer()
             }
         case .material(let mat, let amt):
@@ -139,8 +142,13 @@ struct SettlementSheet: View {
                     RoundedRectangle(cornerRadius: 8)
                         .fill(isRolled ? Color.yellow.opacity(0.15) : Color.accentColor.opacity(0.12))
                         .frame(width: 36, height: 36)
-                    Text(isRolled ? "✦" : "🗡")
-                        .font(.body)
+                    if isRolled {
+                        Text("✦").font(.body)
+                    } else {
+                        Ph.sword.fill
+                            .frame(width: 20, height: 20)
+                            .foregroundStyle(Color.accentColor)
+                    }
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -169,7 +177,8 @@ struct SettlementSheet: View {
             .padding(.vertical, 2)
         case .battle(let won, let lost):
             HStack {
-                Text("⚔️ 戰鬥 \(won) 勝 \(lost) 敗").font(.body)
+                Ph.sword.fill.frame(width: 18, height: 18).foregroundStyle(.secondary)
+                Text("戰鬥 \(won) 勝 \(lost) 敗").font(.body)
                 Spacer()
             }
         case .firstClear, .regionUnlock:

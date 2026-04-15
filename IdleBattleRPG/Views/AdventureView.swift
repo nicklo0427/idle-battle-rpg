@@ -14,6 +14,7 @@
 
 import SwiftUI
 import SwiftData
+import PhosphorSwift
 
 struct AdventureView: View {
 
@@ -108,7 +109,12 @@ struct AdventureView: View {
                         .monospacedDigit()
                 }
             } else {
-                Text("⚠️ 尚無英雄資料").foregroundStyle(.red)
+                Label {
+                    Text("尚無英雄資料")
+                } icon: {
+                    Ph.warningCircle.fill.frame(width: 16, height: 16)
+                }
+                .foregroundStyle(.red)
             }
         }
     }
@@ -275,7 +281,9 @@ struct AdventureView: View {
                               : Color.secondary.opacity(0.1))
                         .frame(width: 30, height: 30)
                     if floor.isBossFloor {
-                        Text("👑").font(.caption)
+                        Ph.crown.fill
+                            .frame(width: 14, height: 14)
+                            .foregroundStyle(Color.dungeonRegion(region.key))
                     } else {
                         Text("\(floor.floorIndex)")
                             .font(.caption)
@@ -538,7 +546,10 @@ private struct FloorDetailSheet: View {
                 }
             }
             HStack {
-                Text("💰 金幣")
+                HStack(spacing: 4) {
+                    Ph.coins.fill.frame(width: 14, height: 14).foregroundStyle(.yellow)
+                    Text("金幣")
+                }
                 Spacer()
                 let r = floor.goldPerBattleRange
                 Text("\(r.lowerBound)–\(r.upperBound) / 場")
@@ -602,8 +613,11 @@ private struct FloorDetailSheet: View {
                 }
 
                 HStack(spacing: 8) {
-                    Text("💰 \(elite.reward.gold) 金幣")
-                        .font(.caption)
+                    HStack(spacing: 3) {
+                        Ph.coins.fill.frame(width: 12, height: 12).foregroundStyle(.yellow)
+                        Text("\(elite.reward.gold) 金幣")
+                    }
+                    .font(.caption)
                     Text("+")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)

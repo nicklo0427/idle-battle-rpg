@@ -15,6 +15,7 @@
 
 import SwiftUI
 import SwiftData
+import PhosphorSwift
 
 struct CraftSheet: View {
 
@@ -153,24 +154,36 @@ struct CraftSheet: View {
             if let equip = EquipmentDef.find(key: recipe.outputEquipmentKey) {
                 HStack(spacing: 8) {
                     if equip.isBossWeapon, let range = equip.atkRange {
-                        Text("⚔️ \(range.lowerBound)–\(range.upperBound)（浮動）")
-                            .font(.caption2)
-                            .foregroundStyle(Color.secondary)
+                        HStack(spacing: 3) {
+                            Ph.sword.fill.frame(width: 11, height: 11)
+                            Text("\(range.lowerBound)–\(range.upperBound)（浮動）")
+                        }
+                        .font(.caption2)
+                        .foregroundStyle(Color.secondary)
                     } else {
                         if equip.atkBonus > 0 {
-                            Text("⚔️ +\(equip.atkBonus)")
-                                .font(.caption2)
-                                .foregroundStyle(Color.secondary)
+                            HStack(spacing: 3) {
+                                Ph.sword.fill.frame(width: 11, height: 11)
+                                Text("+\(equip.atkBonus)")
+                            }
+                            .font(.caption2)
+                            .foregroundStyle(Color.secondary)
                         }
                         if equip.defBonus > 0 {
-                            Text("🛡 +\(equip.defBonus)")
-                                .font(.caption2)
-                                .foregroundStyle(Color.secondary)
+                            HStack(spacing: 3) {
+                                Ph.shieldChevron.fill.frame(width: 11, height: 11)
+                                Text("+\(equip.defBonus)")
+                            }
+                            .font(.caption2)
+                            .foregroundStyle(Color.secondary)
                         }
                         if equip.hpBonus > 0 {
-                            Text("❤️ +\(equip.hpBonus)")
-                                .font(.caption2)
-                                .foregroundStyle(Color.secondary)
+                            HStack(spacing: 3) {
+                                Ph.heart.fill.frame(width: 11, height: 11)
+                                Text("+\(equip.hpBonus)")
+                            }
+                            .font(.caption2)
+                            .foregroundStyle(Color.secondary)
                         }
                     }
                 }
@@ -181,9 +194,12 @@ struct CraftSheet: View {
                 ForEach(0..<materials.count, id: \.self) { i in
                     materialTag(materials[i])
                 }
-                Text("💰×\(recipe.goldCost)")
-                    .font(.caption)
-                    .foregroundStyle((player?.gold ?? 0) >= recipe.goldCost ? Color.primary : Color.red)
+                HStack(spacing: 3) {
+                    Ph.coins.fill.frame(width: 11, height: 11)
+                    Text("×\(recipe.goldCost)")
+                }
+                .font(.caption)
+                .foregroundStyle((player?.gold ?? 0) >= recipe.goldCost ? Color.primary : Color.red)
             }
         }
         .padding(.vertical, 4)
