@@ -116,7 +116,7 @@ struct AdventureView: View {
     @ViewBuilder
     private var activeBannerSection: some View {
         if let task = activeDungeonTask {
-            let color = regionColor(activeDungeonFloor?.regionKey ?? "")
+            let color = Color.dungeonRegion(activeDungeonFloor?.regionKey ?? "")
             Section {
                 Button {
                     if !appState.battleLogPlayback.isActive ||
@@ -138,8 +138,7 @@ struct AdventureView: View {
                                 .font(.caption)
                                 .foregroundStyle(color)
                                 .monospacedDigit()
-                            let progress = taskProgress(task)
-                            ProgressView(value: progress)
+                                ProgressView(value: task.progress(relativeTo: appState.tick))
                                 .tint(color)                 // T01 區域色
                                 .padding(.top, 2)
                         }
@@ -204,7 +203,7 @@ struct AdventureView: View {
     ) -> some View {
         HStack(spacing: 10) {
             Image(systemName: unlocked ? (completed ? "checkmark.seal.fill" : "lock.open.fill") : "lock.fill")
-                .foregroundStyle(completed ? .green : (unlocked ? regionColor(region.key) : .secondary))
+                .foregroundStyle(completed ? .green : (unlocked ? Color.dungeonRegion(region.key) : .secondary))
                 .frame(width: 26)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -272,7 +271,7 @@ struct AdventureView: View {
                 ZStack {
                     Circle()
                         .fill(floor.isBossFloor
-                              ? regionColor(region.key).opacity(0.2)     // T01 Boss 圓圈
+                              ? Color.dungeonRegion(region.key).opacity(0.2)     // T01 Boss 圓圈
                               : Color.secondary.opacity(0.1))
                         .frame(width: 30, height: 30)
                     if floor.isBossFloor {
@@ -299,9 +298,9 @@ struct AdventureView: View {
                         if floor.isBossFloor, let bossName = floor.bossName {
                             Text(bossName)
                                 .font(.caption2)
-                                .foregroundStyle(regionColor(region.key))  // T01 Boss 名稱
+                                .foregroundStyle(Color.dungeonRegion(region.key))  // T01 Boss 名稱
                                 .padding(.horizontal, 5).padding(.vertical, 1)
-                                .background(regionColor(region.key).opacity(0.12))
+                                .background(Color.dungeonRegion(region.key).opacity(0.12))
                                 .clipShape(Capsule())
                         }
                     }
@@ -323,7 +322,7 @@ struct AdventureView: View {
                                 Text("勝率 \(rate)%")
                                     .font(.caption2)
                                     .fontWeight(.semibold)
-                                    .foregroundStyle(winRateColor(rate))
+                                    .foregroundStyle(Color.winRate(rate))
                             }
                         }
                     }
@@ -339,7 +338,7 @@ struct AdventureView: View {
                             Text("出征中")
                                 .font(.caption)
                         }
-                        .foregroundStyle(regionColor(region.key))  // T01 區域色
+                        .foregroundStyle(Color.dungeonRegion(region.key))  // T01 區域色
                     } else if activeDungeonTask != nil {
                         Text("出征中")
                             .font(.caption2)
@@ -359,32 +358,6 @@ struct AdventureView: View {
     }
 
     // MARK: - Helpers
-
-    /// 各地下城區域的主題色（T01 差異化色調）
-    private func regionColor(_ key: String) -> Color {
-        switch key {
-        case "wildland":       return .orange
-        case "abandoned_mine": return Color(red: 0.45, green: 0.6, blue: 0.75)  // 藍灰
-        case "ancient_ruins":  return .purple
-        case "sunken_city":    return .indigo
-        default:               return .blue
-        }
-    }
-
-    private func winRateColor(_ rate: Int) -> Color {
-        switch rate {
-        case 70...: return .green
-        case 40..<70: return .orange
-        default: return .red
-        }
-    }
-
-    private func taskProgress(_ task: TaskModel) -> Double {
-        let total   = task.endsAt.timeIntervalSince(task.startedAt)
-        let elapsed = appState.tick.timeIntervalSince(task.startedAt)
-        guard total > 0 else { return 1.0 }
-        return min(1.0, max(0.0, elapsed / total))
-    }
 
     /// 建立地下城任務。成功時回傳已建立的 TaskModel；失敗時設定錯誤訊息並回傳 nil。
     @discardableResult
@@ -545,7 +518,7 @@ private struct FloorDetailSheet: View {
                 Spacer()
                 Text("\(rate)%")
                     .fontWeight(.bold)
-                    .foregroundStyle(winRateColor(rate))
+                    .foregroundStyle(Color.winRate(rate))
             }
         }
     }
@@ -683,12 +656,12 @@ private struct FloorDetailSheet: View {
                 HStack {
                     Image(systemName: "map.fill")
                         .symbolEffect(.pulse)                    // T02 動畫
-                        .foregroundStyle(regionColor(floor.regionKey))
+                        .foregroundStyle(Color.dungeonRegion(floor.regionKey))
                     Text("英雄出征中").foregroundStyle(.secondary)
                     Spacer()
                     Text(TaskCountdown.remaining(for: task, relativeTo: tick))
                         .font(.caption)
-                        .foregroundStyle(regionColor(floor.regionKey))
+                        .foregroundStyle(Color.dungeonRegion(floor.regionKey))
                         .monospacedDigit()
                 }
             } else {
@@ -709,31 +682,11 @@ private struct FloorDetailSheet: View {
                         .padding(.vertical, 4)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(regionColor(floor.regionKey))  // T01 出發按鈕用區域色
+                .tint(Color.dungeonRegion(floor.regionKey))  // T01 出發按鈕用區域色
             }
         }
     }
 
-    // MARK: - Helpers
-
-    /// 各地下城區域主題色
-    private func regionColor(_ key: String) -> Color {
-        switch key {
-        case "wildland":       return .orange
-        case "abandoned_mine": return Color(red: 0.45, green: 0.6, blue: 0.75)
-        case "ancient_ruins":  return .purple
-        case "sunken_city":    return .indigo
-        default:               return .blue
-        }
-    }
-
-    private func winRateColor(_ rate: Int) -> Color {
-        switch rate {
-        case 70...: return .green
-        case 40..<70: return .orange
-        default: return .red
-        }
-    }
 }
 
 #Preview {

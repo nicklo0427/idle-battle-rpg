@@ -7,6 +7,7 @@ options:
   xcodeVersion: "15"
   createIntermediateGroups: true
   generateEmptyDirectories: true
+  developmentLanguage: zh-Hant
 
 targets:
   IdleBattleRPG:
@@ -28,6 +29,9 @@ targets:
       properties:
         CFBundleDisplayName: "放置英雄"
         NSHumanReadableCopyright: "Copyright © 2026 lowhaijer. All rights reserved."
+        CFBundleLocalizations:
+          - zh-Hant
+          - en
         UILaunchScreen: {}
         UISupportedInterfaceOrientations~iphone:
           - UIInterfaceOrientationPortrait

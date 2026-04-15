@@ -1,0 +1,116 @@
+/* Localizable.strings — en (English)
+   Only UI chrome is translated. Game content (dungeon names, boss names,
+   item names, lore) remains in Chinese as part of the game's identity.
+*/
+
+// MARK: - Tab / Navigation
+
+"基地"   = "Base";
+"冒險"   = "Adventure";
+"角色"   = "Character";
+
+// MARK: - Common Actions
+
+"確定"   = "OK";
+"取消"   = "Cancel";
+"關閉"   = "Close";
+"完成"   = "Done";
+"確認"   = "Confirm";
+"重置"   = "Reset";
+"收下"   = "Collect";
+"確認升級" = "Confirm Upgrade";
+"確認加點" = "Confirm Allocation";
+
+// MARK: - BaseView
+
+"玩家狀態"    = "Hero Status";
+"NPC"        = "NPCs";
+"金幣"        = "Gold";
+"等級"        = "Level";
+"採集中"      = "Gathering";
+"鑄造中"      = "Crafting";
+"閒置中，點擊查看"  = "Idle, tap to view";
+"閒置中，點擊委派"  = "Idle, tap to assign";
+"點擊開啟商店"      = "Tap to open shop";
+
+// MARK: - AdventureView
+
+"英雄戰力"   = "Hero Power";
+"當前戰力"   = "Current Power";
+"查看過程"   = "View Log";
+"出征中"     = "On Quest";
+"首次出征特快！選 15 分鐘出征，只需 30 秒即可完成，固定 5 場戰鬥。"
+           = "First quest bonus! Choose 15 min and finish in 30 sec with 5 fixed battles.";
+"區域未解鎖" = "Region Locked";
+"已首通"     = "Cleared";
+"挑戰菁英"   = "Challenge Elite";
+"地區菁英"   = "Region Elite";
+"已擊敗"     = "Defeated";
+"出征時長"   = "Duration";
+"出發"       = "Depart";
+"英雄出征中" = "Hero on Quest";
+"無法出征"   = "Cannot Depart";
+"戰力評估"   = "Power Assessment";
+"推薦戰力"   = "Recommended";
+"預估勝率"   = "Est. Win Rate";
+"掉落物"     = "Drops";
+"首通解鎖"   = "First Clear";
+"已解鎖"     = "Unlocked";
+"未解鎖"     = "Locked";
+
+// MARK: - CharacterView
+
+"裝備"       = "Gear";
+"背包"       = "Backpack";
+"成就"       = "Achievements";
+"通用素材"   = "Basic Mats";
+"區域素材"   = "Region Mats";
+"英雄屬性"   = "Hero Stats";
+"升級"       = "Level Up";
+"累計統計"   = "Lifetime Stats";
+"自動升級"   = "Auto Level";
+"點擊裝備欄位可切換，點擊已裝備圖示可卸除" = "Tap slot to switch · tap icon to unequip";
+"背包中沒有裝備"  = "No gear in backpack";
+"點擊穿上 · 右滑強化 · 左滑拆解" = "Tap to equip · Swipe right to enhance · Left to disassemble";
+"強化"           = "Enhance";
+"拆解"           = "Disassemble";
+"尚無通用素材"   = "No basic materials";
+"尚無區域素材"   = "No region materials";
+"成就進度"       = "Achievement Progress";
+"已解鎖成就"     = "Unlocked";
+"成就列表"       = "All Achievements";
+"未裝備"         = "Not Equipped";
+"重置所有屬性點" = "Reset All Stat Points";
+"強化確認"       = "Enhance";
+"確認拆解"       = "Disassemble";
+"確認重置？"     = "Reset All Stats?";
+"提示"           = "Notice";
+"累計金幣收入"   = "Total Gold Earned";
+"地下城勝場"     = "Dungeon Wins";
+"地下城敗場"     = "Dungeon Losses";
+"裝備獲得件數"   = "Equipment Crafted";
+"歷史最高戰力"   = "Peak Power";
+"戰力"           = "Power";
+
+// MARK: - GathererDetailSheet
+
+"目前狀態"            = "Current Status";
+"派遣"                = "Dispatch";
+"無額外加成（升級後解鎖）" = "No bonus yet (upgrade to unlock)";
+
+// MARK: - SettlementSheet
+
+"獎勵明細"        = "Reward Details";
+"（本次無額外獎勵）" = "(No additional rewards)";
+
+// MARK: - BattleLogSheet
+
+"英雄"       = "Hero";
+"落敗… 再試一次" = "Defeated... try again";
+"再試一次"   = "Try Again";
+
+// MARK: - DungeonDuration
+
+"15 分鐘"  = "15 min";
+"1 小時"   = "1 hr";
+"12 小時"  = "12 hr";

@@ -592,12 +592,12 @@ struct CharacterView: View {
                         }
                         Text(item.displayName)
                             .fontWeight(.medium)
-                            .foregroundStyle(item.rarity == .refined ? Color(red: 1.0, green: 0.78, blue: 0.2) : Color.primary)  // T03 精良金色
+                            .foregroundStyle(item.rarity == .refined ? Color.rarityRefined : Color.primary)  // T03 精良金色
                     }
                     HStack(spacing: 4) {
                         Text(item.rarity.displayName)
                             .font(.caption2)
-                            .foregroundStyle(item.rarity == .refined ? Color(red: 1.0, green: 0.78, blue: 0.2) : Color.secondary)  // T03 精良金色
+                            .foregroundStyle(item.rarity == .refined ? Color.rarityRefined : Color.secondary)  // T03 精良金色
                         if item.atkBonus > 0 {
                             Text("ATK +\(item.atkBonus)")
                                 .font(.caption2)
@@ -648,11 +648,11 @@ struct CharacterView: View {
                     }
                     Text(item.displayName)
                         .fontWeight(.medium)
-                        .foregroundStyle(item.rarity == .refined ? Color(red: 1.0, green: 0.78, blue: 0.2) : Color.primary)  // T03 精良金色
+                        .foregroundStyle(item.rarity == .refined ? Color.rarityRefined : Color.primary)  // T03 精良金色
                 }
                 Text(item.rarity.displayName)
                     .font(.caption2)
-                    .foregroundStyle(item.rarity == .refined ? Color(red: 1.0, green: 0.78, blue: 0.2) : Color.secondary)   // T03 精良金色
+                    .foregroundStyle(item.rarity == .refined ? Color.rarityRefined : Color.secondary)   // T03 精良金色
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 1) {
@@ -731,11 +731,11 @@ private struct EquipSelectSheet: View {
                                     }
                                     Text(item.displayName)
                                         .fontWeight(.medium)
-                                        .foregroundStyle(item.rarity == .refined ? Color(red: 1.0, green: 0.78, blue: 0.2) : Color.primary)  // T03 精良金色
+                                        .foregroundStyle(item.rarity == .refined ? Color.rarityRefined : Color.primary)  // T03 精良金色
                                     Spacer()
                                     Text(item.rarity.displayName)
                                         .font(.caption2)
-                                        .foregroundStyle(item.rarity == .refined ? Color(red: 1.0, green: 0.78, blue: 0.2) : Color.secondary)  // T03 精良金色
+                                        .foregroundStyle(item.rarity == .refined ? Color.rarityRefined : Color.secondary)  // T03 精良金色
                                 }
 
                                 // 行 2：完整屬性數值

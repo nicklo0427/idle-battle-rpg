@@ -102,7 +102,7 @@ struct GathererDetailSheet: View {
                 Text(npcDef.name)
                     .fontWeight(.medium)
                 Spacer()
-                tierBadge(currentTier)
+                TierBadgeView(tier: currentTier, alwaysShow: true, color: .green)
             }
             let bonus = NpcUpgradeDef.gatherBonus(tier: currentTier)
             Text(bonus > 0
@@ -164,7 +164,7 @@ struct GathererDetailSheet: View {
                 Text(TaskCountdown.remaining(for: task, relativeTo: appState.tick))
                     .font(.caption)
                     .foregroundStyle(.green)
-                ProgressView(value: taskProgress(task))
+                ProgressView(value: task.progress(relativeTo: appState.tick))
                     .tint(.green)
                     .scaleEffect(y: 0.7)
                     .padding(.top, 1)
@@ -224,7 +224,7 @@ struct GathererDetailSheet: View {
                 }
                 .contentShape(Rectangle())
             }
-            .buttonStyle(GathererDispatchButtonStyle())
+            .buttonStyle(NPCDispatchButtonStyle())
 
             HStack(spacing: 6) {
                 ForEach(location.durationOptions, id: \.self) { dur in
@@ -268,25 +268,6 @@ struct GathererDetailSheet: View {
         }
     }
 
-    @ViewBuilder
-    private func tierBadge(_ tier: Int) -> some View {
-        Text("T\(tier)")
-            .font(.caption2)
-            .fontWeight(.bold)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(tier == 0 ? Color.gray.opacity(0.15) : Color.green.opacity(0.15))
-            .foregroundStyle(tier == 0 ? Color.secondary : Color.green)
-            .clipShape(Capsule())
-    }
-
-    private func taskProgress(_ task: TaskModel) -> Double {
-        let total   = task.endsAt.timeIntervalSince(task.startedAt)
-        let elapsed = appState.tick.timeIntervalSince(task.startedAt)
-        guard total > 0 else { return 1 }
-        return min(1, max(0, elapsed / total))
-    }
-
     private func startGather(location: GatherLocationDef, duration: Int) {
         let result = viewModel.startGatherTask(
             actorKey:        npcDef.actorKey,
@@ -312,16 +293,6 @@ struct GathererDetailSheet: View {
         if case .failure(let err) = result {
             alertMsg = err.message
         }
-    }
-}
-
-// MARK: - Button Style
-
-private struct GathererDispatchButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .opacity(configuration.isPressed ? 0.55 : 1.0)
-            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 

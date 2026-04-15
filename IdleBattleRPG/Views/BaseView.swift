@@ -215,8 +215,7 @@ struct BaseView: View {
                         Text(TaskCountdown.remaining(for: task, relativeTo: appState.tick))
                             .font(.caption)
                             .foregroundStyle(.green)
-                        let progress = taskProgress(task)
-                        ProgressView(value: progress)
+                        ProgressView(value: task.progress(relativeTo: appState.tick))
                             .tint(.green)
                             .scaleEffect(y: 0.7)
                             .padding(.top, 1)
@@ -229,7 +228,7 @@ struct BaseView: View {
 
                 Spacer()
 
-                tierBadge(tier: tier)
+                TierBadgeView(tier: tier)
 
                 if isBusy {
                     Text("採集中")
@@ -247,7 +246,7 @@ struct BaseView: View {
             .padding(.vertical, 2)
             .contentShape(Rectangle())
         }
-        .buttonStyle(NPCRowButtonStyle(enabled: true))
+        .buttonStyle(NPCDispatchButtonStyle(enabled: true))
     }
 
     // MARK: - NPC Row: 鑄造師
@@ -277,8 +276,7 @@ struct BaseView: View {
                         Text(TaskCountdown.remaining(for: task, relativeTo: appState.tick))
                             .font(.caption)
                             .foregroundStyle(.orange)
-                        let progress = taskProgress(task)
-                        ProgressView(value: progress)
+                        ProgressView(value: task.progress(relativeTo: appState.tick))
                             .tint(.orange)
                             .scaleEffect(y: 0.7)
                             .padding(.top, 1)
@@ -291,7 +289,7 @@ struct BaseView: View {
 
                 Spacer()
 
-                tierBadge(tier: tier)
+                TierBadgeView(tier: tier)
 
                 if isBusy {
                     Text("鑄造中")
@@ -309,7 +307,7 @@ struct BaseView: View {
             .padding(.vertical, 2)
             .contentShape(Rectangle())
         }
-        .buttonStyle(NPCRowButtonStyle(enabled: !isBusy))
+        .buttonStyle(NPCDispatchButtonStyle(enabled: !isBusy))
         .contextMenu {
             if let player,
                let cost = appState.npcUpgradeService.nextUpgradeCost(
@@ -360,31 +358,7 @@ struct BaseView: View {
             .padding(.vertical, 2)
             .contentShape(Rectangle())
         }
-        .buttonStyle(NPCRowButtonStyle(enabled: true))
-    }
-
-    // MARK: - Tier Badge
-
-    @ViewBuilder
-    private func tierBadge(tier: Int) -> some View {
-        if tier > 0 {
-            Text("T\(tier)")
-                .font(.caption2.bold())
-                .padding(.horizontal, 5)
-                .padding(.vertical, 2)
-                .background(Color.accentColor.opacity(0.15))
-                .foregroundStyle(Color.accentColor)
-                .clipShape(Capsule())
-        }
-    }
-
-    // MARK: - Private Helpers
-
-    private func taskProgress(_ task: TaskModel) -> Double {
-        let total   = task.endsAt.timeIntervalSince(task.startedAt)
-        let elapsed = appState.tick.timeIntervalSince(task.startedAt)
-        guard total > 0 else { return 1.0 }
-        return min(1.0, max(0.0, elapsed / total))
+        .buttonStyle(NPCDispatchButtonStyle(enabled: true))
     }
 
     #if DEBUG
@@ -464,20 +438,6 @@ private struct NpcUpgradeRequest: Identifiable {
     let actorKey: String
     let label: String
     let cost: NpcUpgradeCostDef
-}
-
-// MARK: - Button Style
-
-/// NPC row 按壓回饋：整行可點（contentShape 已設）+ 按壓時輕微淡出
-/// enabled = false（忙碌中）時按壓無視覺變化，強調不可互動
-private struct NPCRowButtonStyle: ButtonStyle {
-    let enabled: Bool
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .opacity(enabled && configuration.isPressed ? 0.55 : 1.0)
-            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
-    }
 }
 
 #Preview {

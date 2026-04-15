@@ -41,11 +41,17 @@ enum AppConstants {
         static let all: [Int] = [short, medium, long]
 
         static func displayName(for seconds: Int) -> String {
-            let h = seconds / 3600
-            let m = (seconds % 3600) / 60
-            if h > 0 && m > 0 { return "\(h) 小時 \(m) 分鐘" }
-            if h > 0           { return "\(h) 小時" }
-            return "\(m) 分鐘"
+            switch seconds {
+            case short:  return String(localized: "15 分鐘")
+            case medium: return String(localized: "1 小時")
+            case long:   return String(localized: "12 小時")
+            default:
+                let h = seconds / 3600
+                let m = (seconds % 3600) / 60
+                if h > 0 && m > 0 { return "\(h) 小時 \(m) 分鐘" }
+                if h > 0           { return "\(h) 小時" }
+                return "\(m) 分鐘"
+            }
         }
     }
 
