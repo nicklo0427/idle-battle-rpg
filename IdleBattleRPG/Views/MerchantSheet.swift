@@ -36,7 +36,7 @@ struct MerchantSheet: View {
         NavigationStack {
             List {
 
-                // ── 資源摘要 ─────────────────────────────────────────
+                // ── 資源摘要（只顯示持有量 > 0 的素材，保持畫面簡潔）────
                 Section("目前資源") {
                     HStack {
                         Label("金幣", systemImage: "dollarsign.circle.fill")
@@ -47,15 +47,20 @@ struct MerchantSheet: View {
                             .monospacedDigit()
                     }
                     if let inv = inventory {
-                        ForEach(MaterialType.allCases, id: \.self) { mat in
-                            let amount = inv.amount(of: mat)
-                            HStack {
-                                Text("\(mat.icon) \(mat.displayName)")
-                                    .foregroundStyle(amount > 0 ? .primary : .secondary)
-                                Spacer()
-                                Text("\(amount)")
-                                    .monospacedDigit()
-                                    .foregroundStyle(amount > 0 ? .primary : .secondary)
+                        let ownedMats = MaterialType.allCases.filter { inv.amount(of: $0) > 0 }
+                        if ownedMats.isEmpty {
+                            Text("尚無素材")
+                                .foregroundStyle(.tertiary)
+                                .font(.caption)
+                        } else {
+                            ForEach(ownedMats, id: \.self) { mat in
+                                HStack {
+                                    Text("\(mat.icon) \(mat.displayName)")
+                                    Spacer()
+                                    Text("\(inv.amount(of: mat))")
+                                        .fontWeight(.medium)
+                                        .monospacedDigit()
+                                }
                             }
                         }
                     }

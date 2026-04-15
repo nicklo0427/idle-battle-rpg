@@ -319,9 +319,20 @@ struct CharacterView: View {
         let unequipped = viewModel.unequippedItems(from: equipments)
         Section {
             if unequipped.isEmpty {
-                Text("背包中沒有裝備")
-                    .foregroundStyle(.secondary)
-                    .font(.callout)
+                VStack(spacing: 10) {
+                    Image(systemName: "bag.fill")
+                        .font(.system(size: 36))
+                        .foregroundStyle(.tertiary)
+                    Text("背包中沒有裝備")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Text("鑄造師打造裝備後會出現在這裡")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
             } else {
                 ForEach(unequipped) { item in
                     Button {
