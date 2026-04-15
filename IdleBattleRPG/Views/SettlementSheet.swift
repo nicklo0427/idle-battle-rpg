@@ -133,20 +133,40 @@ struct SettlementSheet: View {
                 Spacer()
             }
         case .equipment(let name, let stats, let isRolled):
-            HStack {
-                Text("🗡 \(name)")
-                    .font(.body)
-                    .fontWeight(.medium)
-                Spacer()
-                Text(stats)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                if isRolled {
-                    Text("✦")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
+            HStack(spacing: 10) {
+                // 左側圖示（裝備專屬背景）
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(isRolled ? Color.yellow.opacity(0.15) : Color.accentColor.opacity(0.12))
+                        .frame(width: 36, height: 36)
+                    Text(isRolled ? "✦" : "🗡")
+                        .font(.body)
                 }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 4) {
+                        Text(name)
+                            .font(.body)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(isRolled ? Color.rarityRefined : Color.primary)
+                        Text("新裝備")
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(Color.accentColor.opacity(0.12))
+                            .foregroundStyle(Color.accentColor)
+                            .clipShape(Capsule())
+                    }
+                    if !stats.isEmpty {
+                        Text(stats)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer()
             }
+            .padding(.vertical, 2)
         case .battle(let won, let lost):
             HStack {
                 Text("⚔️ 戰鬥 \(won) 勝 \(lost) 敗").font(.body)

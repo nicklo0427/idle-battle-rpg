@@ -114,14 +114,34 @@ struct CraftSheet: View {
         let materials = recipe.requiredMaterials
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text(recipe.name)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(canAfford ? Color.primary : Color.secondary)
+                // 名稱 + 不可用圖示
+                HStack(spacing: 6) {
+                    if !canAfford {
+                        Image(systemName: "lock.fill")
+                            .font(.caption)
+                            .foregroundStyle(.red.opacity(0.7))
+                    }
+                    Text(recipe.name)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(canAfford ? Color.primary : Color.secondary)
+                }
                 Spacer()
-                Text(recipe.durationDisplay)
-                    .font(.caption)
-                    .foregroundStyle(Color.secondary)
-                    .monospacedDigit()
+                // 不可用時顯示紅色膠囊 badge
+                if !canAfford {
+                    Text("資源不足")
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(Color.red.opacity(0.12))
+                        .foregroundStyle(.red)
+                        .clipShape(Capsule())
+                } else {
+                    Text(recipe.durationDisplay)
+                        .font(.caption)
+                        .foregroundStyle(Color.secondary)
+                        .monospacedDigit()
+                }
             }
 
             // 裝備屬性預覽
@@ -151,7 +171,7 @@ struct CraftSheet: View {
                 }
             }
 
-            // 素材需求（range-based ForEach 避免 Binding<C> 推斷問題）
+            // 素材需求
             HStack(spacing: 8) {
                 ForEach(0..<materials.count, id: \.self) { i in
                     materialTag(materials[i])
@@ -159,15 +179,16 @@ struct CraftSheet: View {
                 Text("💰×\(recipe.goldCost)")
                     .font(.caption)
                     .foregroundStyle((player?.gold ?? 0) >= recipe.goldCost ? Color.primary : Color.red)
-            }
 
-            if !canAfford {
-                Text("資源不足")
-                    .font(.caption2)
-                    .foregroundStyle(Color.red)
+                // 可用時才顯示時長（節省行高）
+                if canAfford {
+                    Spacer()
+                }
             }
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 4)
+        // 不可用時整行半透明 + 淡出
+        .opacity(canAfford ? 1.0 : 0.55)
     }
 
     // MARK: - Material Tag Helper

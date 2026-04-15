@@ -210,16 +210,22 @@ struct CharacterView: View {
 
                             Button("取消") { viewModel.cancelAllocations() }
                                 .buttonStyle(.bordered)
+                                .tint(.secondary)
                         }
                     }
 
                     let usedPoints = player.atkPoints + player.defPoints + player.hpPoints
                                    + player.agiPoints + player.dexPoints
                     if usedPoints > 0 {
-                        Button("重置所有屬性點") { showResetAlert = true }
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .center)
+                        Button {
+                            showResetAlert = true
+                        } label: {
+                            Label("重置所有屬性點", systemImage: "arrow.uturn.backward")
+                                .font(.caption)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
                     }
                 }
             }
