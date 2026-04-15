@@ -16,8 +16,8 @@ final class HeroStatsTests: XCTestCase {
 
     func test_power_withAgiAndDex() {
         let stats = HeroStats(totalATK: 10, totalDEF: 10, totalHP: 10, totalAGI: 5, totalDEX: 3)
-        // 45 + 5 + 3 = 53
-        XCTAssertEqual(stats.power, 53)
+        // ATK×2=20, DEF×1.5=15, HP=10, AGI×1.5=7, DEX×1.5=4 → 56
+        XCTAssertEqual(stats.power, 56)
     }
 
     func test_power_zeros() {

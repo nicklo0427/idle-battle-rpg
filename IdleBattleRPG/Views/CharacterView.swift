@@ -40,6 +40,7 @@ struct CharacterView: View {
     @Query private var equipments:         [EquipmentModel]
     @Query private var inventories:        [MaterialInventoryModel]
     @Query private var achievementModels:  [AchievementProgressModel]
+    @Query private var tasks:              [TaskModel]
 
     @State private var viewModel    = CharacterViewModel()
     @State private var segment      = CharacterSegment.gear
@@ -69,6 +70,11 @@ struct CharacterView: View {
 
     private var heroStats: HeroStats? {
         viewModel.heroStats(player: player, equipped: equippedItems)
+    }
+
+    /// 英雄出征中（有進行中的 .dungeon 任務）→ 禁止切換裝備
+    private var isOnExpedition: Bool {
+        tasks.contains { $0.kind == .dungeon && $0.status == .inProgress }
     }
 
     // MARK: - Body
@@ -188,8 +194,8 @@ struct CharacterView: View {
                     statAllocRow(icon: .sword,           label: "ATK", value: stats.totalATK, pending: viewModel.pendingAtk, stat: .atk, player: player)
                     statAllocRow(icon: .shieldChevron,  label: "DEF", value: stats.totalDEF, pending: viewModel.pendingDef, stat: .def, player: player)
                     statAllocRow(icon: .heart,           label: "HP",  value: stats.totalHP,  pending: viewModel.pendingHp,  stat: .hp,  player: player)
-                    statAllocRow(icon: .personSimpleRun, label: "AGI", value: stats.totalAGI, pending: viewModel.pendingAgi, stat: .agi, player: player)
-                    statAllocRow(icon: .crosshair,       label: "DEX", value: stats.totalDEX, pending: viewModel.pendingDex, stat: .dex, player: player)
+                    statAllocRow(icon: .personSimpleRun, label: "AGI", hint: "ATB 速度", value: stats.totalAGI, pending: viewModel.pendingAgi, stat: .agi, player: player)
+                    statAllocRow(icon: .crosshair,       label: "DEX", hint: "暴擊率",   value: stats.totalDEX, pending: viewModel.pendingDex, stat: .dex, player: player)
 
                     let remaining = viewModel.remainingPendingPoints(player: player)
                     if remaining > 0 {
@@ -564,7 +570,7 @@ struct CharacterView: View {
     /// pending > 0 時以橙色預覽 "value → +pending = total"
     @ViewBuilder
     private func statAllocRow(
-        icon: Ph, label: String, value: Int, pending: Int,
+        icon: Ph, label: String, hint: String? = nil, value: Int, pending: Int,
         stat: StatType, player: PlayerStateModel
     ) -> some View {
         HStack {
@@ -572,7 +578,14 @@ struct CharacterView: View {
                 icon.fill
                     .frame(width: 14, height: 14)
                     .foregroundStyle(.secondary)
-                Text(label).foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(label).foregroundStyle(.secondary)
+                    if let hint {
+                        Text(hint)
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
             }
             Spacer()
             if pending > 0 {
@@ -643,26 +656,37 @@ struct CharacterView: View {
                         }
                     }
                 }
-                // 強化按鈕（滿強化 +5 時不顯示）
-                if item.enhancementLevel < EnhancementDef.maxLevel {
+                if isOnExpedition {
+                    // 出征中：顯示鎖定標記，禁止任何操作
+                    HStack(spacing: 3) {
+                        Image(systemName: "lock.fill")
+                        Text("出征中")
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, 8)
+                } else {
+                    // 強化按鈕（滿強化 +5 時不顯示）
+                    if item.enhancementLevel < EnhancementDef.maxLevel {
+                        Button {
+                            pendingEnhanceItem = item
+                        } label: {
+                            Image(systemName: "hammer")
+                                .foregroundStyle(.orange)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.leading, 8)
+                    }
+                    // 卸除按鈕
                     Button {
-                        pendingEnhanceItem = item
+                        viewModel.unequip(item, context: context)
                     } label: {
-                        Image(systemName: "hammer")
-                            .foregroundStyle(.orange)
+                        Image(systemName: "xmark.circle")
+                            .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
                     .padding(.leading, 8)
                 }
-                // 卸除按鈕
-                Button {
-                    viewModel.unequip(item, context: context)
-                } label: {
-                    Image(systemName: "xmark.circle")
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .padding(.leading, 8)
             } else {
                 Text("未裝備")
                     .foregroundStyle(.secondary)
@@ -671,6 +695,7 @@ struct CharacterView: View {
         }
         .contentShape(Rectangle())
         .onTapGesture {
+            guard !isOnExpedition else { return }
             equipSheetSlot = slot
         }
     }

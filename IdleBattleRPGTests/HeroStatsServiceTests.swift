@@ -81,8 +81,8 @@ final class HeroStatsServiceTests: XCTestCase {
 
         XCTAssertEqual(stats.totalAGI, 8)
         XCTAssertEqual(stats.totalDEX, 4)
-        // power = 0 + 0 + 0 + 8 + 4 = 12
-        XCTAssertEqual(stats.power, 12)
+        // power = 0 + 0 + 0 + AGI×1.5(12) + DEX×1.5(6) = 18
+        XCTAssertEqual(stats.power, 18)
     }
 
     // MARK: - 不計入未裝備的裝備

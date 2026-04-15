@@ -188,7 +188,7 @@ extension EquipmentDef {
             atkBonus: 22,   // 鑄造固定值，power 44 (普通 36 → 44 → 精良 64)
             defBonus: 0,
             hpBonus:  0,
-            atkRange: 18...30   // Boss 掉落浮動範圍；最高 60 power，略低於精良 64
+            atkRange: 24...36   // Boss 掉落浮動範圍；下限 = 鑄造 +2，最高 72 power
         ),
 
         // ── V2-1 廢棄礦坑套裝：礦脈工匠套裝 ──────────────────────────
@@ -228,7 +228,7 @@ extension EquipmentDef {
             atkBonus: 40,   // 鑄造固定值，power 80 (顯著超過精良 64)
             defBonus: 0,
             hpBonus:  0,
-            atkRange: 34...48   // Boss 掉落浮動範圍；最高 96 power
+            atkRange: 42...56   // Boss 掉落浮動範圍；下限 = 鑄造 +2，最高 112 power
         ),
 
         // ── V2-1 古代遺跡套裝：遺跡守誓套裝 ──────────────────────────
@@ -269,7 +269,7 @@ extension EquipmentDef {
             atkBonus: 62,   // 鑄造固定值，power 124
             defBonus: 0,
             hpBonus:  0,
-            atkRange: 54...72   // Boss 掉落浮動範圍；最高 144 power（Farming 最高目標）
+            atkRange: 64...84   // Boss 掉落浮動範圍；下限 = 鑄造 +2，最高 168 power（Farming 最高目標）
         ),
 
         // ── V4-3 沉落王城套裝：沉城深淵套裝 ──────────────────────────
@@ -310,7 +310,7 @@ extension EquipmentDef {
             atkBonus: 80,   // 鑄造固定值，power 160
             defBonus: 0,
             hpBonus:  0,
-            atkRange: 70...92   // Boss 掉落浮動範圍；最高 184 power
+            atkRange: 82...108  // Boss 掉落浮動範圍；下限 = 鑄造 +2，最高 216 power
         ),
     ]
 

@@ -386,6 +386,11 @@ struct AdventureView: View {
             showError = true
             return nil
         }
+        // 出征成功 → 自動推進新手引導 step 2 → 3
+        if let player = players.first, player.onboardingStep == 2 {
+            player.onboardingStep = 3
+            try? context.save()
+        }
         // 直接從 context 查詢剛建立的任務（@Query 更新是非同步的）
         let descriptor = FetchDescriptor<TaskModel>(
             predicate: #Predicate { $0.actorKey == "player" }

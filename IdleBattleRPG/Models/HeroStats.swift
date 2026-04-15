@@ -19,9 +19,13 @@ struct HeroStats {
         self.totalDEX = totalDEX
     }
 
-    /// 戰力 = ATK × 2 + DEF × 1.5 + HP + AGI + DEX
+    /// 戰力 = ATK × 2 + DEF × 1.5 + HP × 1 + AGI × 1.5 + DEX × 1.5
     var power: Int {
-        totalATK * 2 + Int(Double(totalDEF) * 1.5) + totalHP + totalAGI + totalDEX
+        totalATK * 2
+        + Int(Double(totalDEF) * 1.5)
+        + totalHP
+        + Int(Double(totalAGI) * 1.5)
+        + Int(Double(totalDEX) * 1.5)
     }
 
     /// 對指定地下城的預估勝率（供 AdventureViewModel 顯示）

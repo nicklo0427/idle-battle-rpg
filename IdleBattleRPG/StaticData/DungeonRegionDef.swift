@@ -103,7 +103,7 @@ extension DungeonRegionDef {
                 floorIndex:          1,
                 isBossFloor:         false,
                 recommendedPower:    40,
-                goldPerBattleRange:  4...10,
+                goldPerBattleRange:  5...12,
                 dropTable: [
                     DropTableEntry(material: .oldPostBadge, dropRate: 0.50, quantityRange: 1...2),
                 ],
@@ -122,7 +122,7 @@ extension DungeonRegionDef {
                 floorIndex:          2,
                 isBossFloor:         false,
                 recommendedPower:    65,
-                goldPerBattleRange:  6...14,
+                goldPerBattleRange:  7...16,
                 dropTable: [
                     DropTableEntry(material: .driedHideBundle, dropRate: 0.50, quantityRange: 1...2),
                 ],
@@ -141,7 +141,7 @@ extension DungeonRegionDef {
                 floorIndex:          3,
                 isBossFloor:         false,
                 recommendedPower:    90,
-                goldPerBattleRange:  8...18,
+                goldPerBattleRange:  9...20,
                 dropTable: [
                     DropTableEntry(material: .splitHornBone, dropRate: 0.50, quantityRange: 1...2),
                 ],
@@ -160,7 +160,7 @@ extension DungeonRegionDef {
                 floorIndex:          4,
                 isBossFloor:         true,
                 recommendedPower:    120,
-                goldPerBattleRange:  12...25,
+                goldPerBattleRange:  13...28,
                 dropTable: [
                     DropTableEntry(material: .riftFangRoyalBadge, dropRate: 0.40, quantityRange: 1...1),
                 ],

@@ -223,6 +223,10 @@ struct CraftSheet: View {
         let result = viewModel.startCraftTask(recipeKey: recipe.key, context: context)
         switch result {
         case .success:
+            // 鑄造成功 → 自動推進新手引導 step 1
+            if let player {
+                viewModel.advanceOnboarding(expectedStep: 1, player: player, context: context)
+            }
             isPresented = false
         case .failure(let error):
             errorMessage = error.errorDescription

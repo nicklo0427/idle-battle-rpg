@@ -289,6 +289,10 @@ struct GathererDetailSheet: View {
         )
         switch result {
         case .success:
+            // 採集成功 → 自動推進新手引導 step 0
+            if let player {
+                viewModel.advanceOnboarding(expectedStep: 0, player: player, context: context)
+            }
             dismiss()
         case .failure(let error):
             alertMsg = error.errorDescription

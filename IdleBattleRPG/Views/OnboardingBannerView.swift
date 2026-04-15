@@ -3,51 +3,50 @@
 //
 // 顯示時機：PlayerStateModel.onboardingStep < 3
 // 步驟說明：
-//   0 → 採集：指引玩家點採集者
-//   1 → 鑄造：指引玩家點鑄造師（附首件加速提示）
-//   2 → 冒險：指引玩家切換到冒險頁（附首次出征加速提示）
+//   0 → 採集：指引玩家點採集者（實際派出後自動推進）
+//   1 → 鑄造：指引玩家點鑄造師（實際開始鑄造後自動推進）
+//   2 → 冒險：指引玩家切換到冒險頁（實際出征後自動推進）
 //   3 → 完成，Banner 消失
 //
-// 使用方式（在 List 內直接放置）：
-//   OnboardingBannerView(step: player.onboardingStep, onAdvance: { ... })
+// 注意：步驟推進由真實行為驅動（不再有手動「下一步」按鈕）。
 
 import SwiftUI
 
 struct OnboardingBannerView: View {
 
     let step:      Int
-    let onAdvance: () -> Void
+    let onAdvance: () -> Void   // 保留簽名相容，但不再使用
 
     var body: some View {
         if step == 0 {
             stepSection(
-                badge:       "1 / 3",
-                icon:        "leaf.fill",
-                iconColor:   .green,
-                headline:    "先派遣採集者",
-                body:        "點擊下方「採集者」，送出採集任務取得素材。素材是打造裝備的原料！",
-                buttonLabel: "下一步",
-                tint:        .green
+                badge:     "1 / 3",
+                icon:      "leaf.fill",
+                iconColor: .green,
+                headline:  "先派遣採集者",
+                body:      "點擊下方「採集者」，送出採集任務取得素材。素材是打造裝備的原料！",
+                hint:      "派出採集者後自動進入下一步",
+                tint:      .green
             )
         } else if step == 1 {
             stepSection(
-                badge:       "2 / 3",
-                icon:        "hammer.fill",
-                iconColor:   .orange,
-                headline:    "委派鑄造師",
-                body:        "點擊「鑄造師」，用素材打造裝備提升戰力。✨ 首件鑄造特快，只需 30 秒！",
-                buttonLabel: "下一步",
-                tint:        .orange
+                badge:     "2 / 3",
+                icon:      "hammer.fill",
+                iconColor: .orange,
+                headline:  "委派鑄造師",
+                body:      "點擊「鑄造師」，用素材打造裝備提升戰力。✨ 首件鑄造特快，只需 30 秒！",
+                hint:      "開始鑄造後自動進入下一步",
+                tint:      .orange
             )
         } else if step == 2 {
             stepSection(
-                badge:       "3 / 3",
-                icon:        "map.fill",
-                iconColor:   .purple,
-                headline:    "前往冒險頁出征",
-                body:        "切到底部「冒險」Tab，選地下城出發！⚡ 首次出征特快，只需 30 秒！",
-                buttonLabel: "知道了",
-                tint:        .purple
+                badge:     "3 / 3",
+                icon:      "map.fill",
+                iconColor: .purple,
+                headline:  "前往冒險頁出征",
+                body:      "切到底部「冒險」Tab，選地下城出發！⚡ 首次出征特快，只需 30 秒！",
+                hint:      "出征後引導自動完成",
+                tint:      .purple
             )
         }
     }
@@ -61,7 +60,7 @@ struct OnboardingBannerView: View {
         iconColor: Color,
         headline: String,
         body: String,
-        buttonLabel: String,
+        hint: String,
         tint: Color
     ) -> some View {
         Section {
@@ -88,14 +87,14 @@ struct OnboardingBannerView: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
 
-                // 前進按鈕
-                HStack {
-                    Spacer()
-                    Button(buttonLabel) { onAdvance() }
-                        .buttonStyle(.borderedProminent)
-                        .tint(tint)
-                        .controlSize(.small)
+                // 行動提示（取代原有「下一步」按鈕）
+                HStack(spacing: 4) {
+                    Image(systemName: "hand.tap")
+                        .font(.caption2)
+                    Text(hint)
+                        .font(.caption)
                 }
+                .foregroundStyle(tint.opacity(0.8))
             }
             .padding(.vertical, 4)
         } header: {
