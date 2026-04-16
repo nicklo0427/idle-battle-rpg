@@ -191,6 +191,13 @@ struct BaseView: View {
                 )
             }
         }
+        // V6-1：職業選擇（新遊戲 或 舊存檔 classKey = "" 時強制顯示）
+        .fullScreenCover(isPresented: Binding(
+            get: { players.first?.classKey.isEmpty == true },
+            set: { _ in }   // 不允許外部關閉，必須選職業
+        )) {
+            ClassSelectionView()
+        }
     }
 
     // MARK: - NPC Row: 採集者
