@@ -114,6 +114,11 @@ final class TaskModel {
     /// .dungeon 專用：結算後獲得的 EXP（.gather / .craft 恆為 0）
     var resultExp: Int = 0
 
+    // MARK: - 技能快照（V6-1）
+
+    /// .dungeon 專用：出發時裝備的技能 key 快照，逗號分隔（空字串 = 無技能）
+    var snapshotSkillKeysRaw: String = ""
+
     // MARK: - Init
 
     init(
@@ -276,6 +281,23 @@ final class TaskModel {
         case .abyssalCrystalDrop:   resultAbyssalCrystalDrop   = amount
         case .drownedCrownFragment: resultDrownedCrownFragment = amount
         case .sunkenKingSeal:       resultSunkenKingSeal       = amount
+        }
+    }
+}
+
+// MARK: - 技能快照便利存取（V6-1）
+
+extension TaskModel {
+
+    /// 出發時裝備的技能 key 陣列（由 snapshotSkillKeysRaw 解析）
+    var snapshotSkillKeys: [String] {
+        get {
+            snapshotSkillKeysRaw
+                .split(separator: ",")
+                .compactMap { s in s.isEmpty ? nil : String(s) }
+        }
+        set {
+            snapshotSkillKeysRaw = newValue.joined(separator: ",")
         }
     }
 }

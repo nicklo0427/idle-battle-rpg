@@ -46,6 +46,13 @@ final class PlayerStateModel {
     var gatherer2Tier: Int = 0
     var blacksmithTier: Int = 0
 
+    // MARK: - 職業 & 技能（V6-1）
+
+    /// 選定的職業 key（空字串 = 尚未選擇，觸發職業選擇畫面）
+    var classKey: String = ""
+    /// 已裝備的技能 key，逗號分隔，最多 4 個（e.g. "sw_slash_boost,sw_iron_will"）
+    var equippedSkillKeysRaw: String = ""
+
     // MARK: - Init
 
     init(
@@ -91,6 +98,23 @@ final class PlayerStateModel {
         case "gatherer_2": return .miner
         case "blacksmith":  return .blacksmith
         default:            return nil
+        }
+    }
+}
+
+// MARK: - 技能便利存取
+
+extension PlayerStateModel {
+
+    /// 已裝備技能 key 陣列（由 equippedSkillKeysRaw 解析，最多 4 個）
+    var equippedSkillKeys: [String] {
+        get {
+            equippedSkillKeysRaw
+                .split(separator: ",")
+                .compactMap { s in s.isEmpty ? nil : String(s) }
+        }
+        set {
+            equippedSkillKeysRaw = newValue.joined(separator: ",")
         }
     }
 }
