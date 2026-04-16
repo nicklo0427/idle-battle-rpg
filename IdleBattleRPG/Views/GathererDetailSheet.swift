@@ -10,7 +10,6 @@
 
 import SwiftUI
 import SwiftData
-import PhosphorSwift
 
 struct GathererDetailSheet: View {
 
@@ -257,7 +256,7 @@ struct GathererDetailSheet: View {
     private func goldCostRow(required: Int, have: Int) -> some View {
         HStack {
             HStack(spacing: 4) {
-                Ph.coins.fill.frame(width: 14, height: 14).foregroundStyle(.yellow)
+                Image(systemName: "coins.fill").frame(width: 14, height: 14).foregroundStyle(.yellow)
                 Text("金幣")
             }
             Spacer()

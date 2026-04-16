@@ -12,7 +12,6 @@
 // 菁英模式（V4-2 預留）：傳入 eliteResult + onRetry
 
 import SwiftUI
-import PhosphorSwift
 
 // MARK: - 菁英戰鬥結果型別（V4-2 預留接口）
 
@@ -83,14 +82,14 @@ struct BattleLogSheet: View {
 
     private var hpBarsView: some View {
         VStack(spacing: 4) {
-            hpBar(icon: Ph.personSimple.fill, label: "英雄",
+            hpBar(icon: "person.fill", label: "英雄",
                   current: currentHeroHp, maxHp: heroMaxHp, color: .blue)
             atbBar(progress: model.heroATBProgress,
                    color: model.isExploring ? .teal : .yellow)
 
             if model.isBattleActive {
                 Spacer().frame(height: 4)
-                hpBar(icon: Ph.skull.fill, label: enemyLabel,
+                hpBar(icon: "skull.fill", label: enemyLabel,
                       current: currentEnemyHp, maxHp: enemyMaxHp, color: .red)
                 atbBar(progress: model.enemyATBProgress, color: .orange)
             }
@@ -101,12 +100,12 @@ struct BattleLogSheet: View {
         .animation(.easeInOut(duration: 0.25), value: model.isBattleActive)
     }
 
-    private func hpBar(icon: Image, label: String,
+    private func hpBar(icon: String, label: String,
                        current: Int, maxHp: Int, color: Color) -> some View {
         HStack(spacing: 8) {
             // label：固定最小寬度，超過自然 shrink，不截斷
             HStack(spacing: 4) {
-                icon
+                Image(systemName: icon)
                     .frame(width: 14, height: 14)
                     .foregroundStyle(color)
                 Text(label)
@@ -226,13 +225,13 @@ struct BattleLogSheet: View {
     @ViewBuilder
     private func eventIconView(_ type: BattleEvent.EventType) -> some View {
         switch type {
-        case .explore:   Ph.mapTrifold.fill.foregroundStyle(Color.secondary)
-        case .encounter: Ph.warningCircle.fill.foregroundStyle(Color.orange)
-        case .attack:    Ph.sword.fill.foregroundStyle(Color.primary)
-        case .damage:    Ph.shieldChevron.fill.foregroundStyle(Color.orange)
-        case .victory:   Ph.check.fill.foregroundStyle(Color.green)
-        case .defeat:    Ph.x.fill.foregroundStyle(Color.red)
-        case .heal:      Ph.heart.fill.foregroundStyle(Color.green)
+        case .explore:   Image(systemName: "map.fill").foregroundStyle(Color.secondary)
+        case .encounter: Image(systemName: "exclamationmark.circle.fill").foregroundStyle(Color.orange)
+        case .attack:    Image(systemName: "sword.fill").foregroundStyle(Color.primary)
+        case .damage:    Image(systemName: "shield.fill").foregroundStyle(Color.orange)
+        case .victory:   Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.green)
+        case .defeat:    Image(systemName: "xmark.circle.fill").foregroundStyle(Color.red)
+        case .heal:      Image(systemName: "heart.fill").foregroundStyle(Color.green)
         }
     }
 

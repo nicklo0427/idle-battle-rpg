@@ -14,7 +14,6 @@
 
 import SwiftUI
 import SwiftData
-import PhosphorSwift
 
 struct AdventureView: View {
 
@@ -112,7 +111,7 @@ struct AdventureView: View {
                 Label {
                     Text("尚無英雄資料")
                 } icon: {
-                    Ph.warningCircle.fill.frame(width: 16, height: 16)
+                    Image(systemName: "exclamationmark.circle.fill").frame(width: 16, height: 16)
                 }
                 .foregroundStyle(.red)
             }
@@ -281,7 +280,7 @@ struct AdventureView: View {
                               : Color.secondary.opacity(0.1))
                         .frame(width: 30, height: 30)
                     if floor.isBossFloor {
-                        Ph.crown.fill
+                        Image(systemName: "crown.fill")
                             .frame(width: 14, height: 14)
                             .foregroundStyle(Color.dungeonRegion(region.key))
                     } else {
@@ -552,7 +551,7 @@ private struct FloorDetailSheet: View {
             }
             HStack {
                 HStack(spacing: 4) {
-                    Ph.coins.fill.frame(width: 14, height: 14).foregroundStyle(.yellow)
+                    Image(systemName: "coins.fill").frame(width: 14, height: 14).foregroundStyle(.yellow)
                     Text("金幣")
                 }
                 Spacer()
@@ -619,7 +618,7 @@ private struct FloorDetailSheet: View {
 
                 HStack(spacing: 8) {
                     HStack(spacing: 3) {
-                        Ph.coins.fill.frame(width: 12, height: 12).foregroundStyle(.yellow)
+                        Image(systemName: "coins.fill").frame(width: 12, height: 12).foregroundStyle(.yellow)
                         Text("\(elite.reward.gold) 金幣")
                     }
                     .font(.caption)

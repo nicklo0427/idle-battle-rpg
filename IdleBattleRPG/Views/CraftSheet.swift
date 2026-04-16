@@ -15,7 +15,6 @@
 
 import SwiftUI
 import SwiftData
-import PhosphorSwift
 
 struct CraftSheet: View {
 
@@ -155,7 +154,7 @@ struct CraftSheet: View {
                 HStack(spacing: 8) {
                     if equip.isBossWeapon, let range = equip.atkRange {
                         HStack(spacing: 3) {
-                            Ph.sword.fill.frame(width: 11, height: 11)
+                            Image(systemName: "sword.fill").frame(width: 11, height: 11)
                             Text("\(range.lowerBound)–\(range.upperBound)（浮動）")
                         }
                         .font(.caption2)
@@ -163,7 +162,7 @@ struct CraftSheet: View {
                     } else {
                         if equip.atkBonus > 0 {
                             HStack(spacing: 3) {
-                                Ph.sword.fill.frame(width: 11, height: 11)
+                                Image(systemName: "sword.fill").frame(width: 11, height: 11)
                                 Text("+\(equip.atkBonus)")
                             }
                             .font(.caption2)
@@ -171,7 +170,7 @@ struct CraftSheet: View {
                         }
                         if equip.defBonus > 0 {
                             HStack(spacing: 3) {
-                                Ph.shieldChevron.fill.frame(width: 11, height: 11)
+                                Image(systemName: "shield.fill").frame(width: 11, height: 11)
                                 Text("+\(equip.defBonus)")
                             }
                             .font(.caption2)
@@ -179,7 +178,7 @@ struct CraftSheet: View {
                         }
                         if equip.hpBonus > 0 {
                             HStack(spacing: 3) {
-                                Ph.heart.fill.frame(width: 11, height: 11)
+                                Image(systemName: "heart.fill").frame(width: 11, height: 11)
                                 Text("+\(equip.hpBonus)")
                             }
                             .font(.caption2)
@@ -195,7 +194,7 @@ struct CraftSheet: View {
                     materialTag(materials[i])
                 }
                 HStack(spacing: 3) {
-                    Ph.coins.fill.frame(width: 11, height: 11)
+                    Image(systemName: "coins.fill").frame(width: 11, height: 11)
                     Text("×\(recipe.goldCost)")
                 }
                 .font(.caption)

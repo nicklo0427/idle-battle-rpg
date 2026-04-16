@@ -13,7 +13,6 @@
 
 import SwiftUI
 import SwiftData
-import PhosphorSwift
 
 struct MerchantSheet: View {
 
@@ -43,7 +42,7 @@ struct MerchantSheet: View {
                         Label {
                         Text("金幣")
                     } icon: {
-                        Ph.coins.fill.frame(width: 16, height: 16)
+                        Image(systemName: "coins.fill").frame(width: 16, height: 16)
                     }
                     .foregroundStyle(.yellow)
                         Spacer()
@@ -105,7 +104,7 @@ struct MerchantSheet: View {
                             // 給出
                             VStack(alignment: .leading, spacing: 2) {
                                 HStack(spacing: 4) {
-                                Ph.coins.fill.frame(width: 14, height: 14)
+                                Image(systemName: "coins.fill").frame(width: 14, height: 14)
                                 Text("金幣 ×\(trade.goldCost)")
                                     .fontWeight(.medium)
                             }
@@ -180,7 +179,7 @@ struct MerchantSheet: View {
                 Spacer()
 
                 HStack(spacing: 3) {
-                    Ph.coins.fill.frame(width: 14, height: 14)
+                    Image(systemName: "coins.fill").frame(width: 14, height: 14)
                     Text("+\(goldAmt)")
                 }
                 .fontWeight(.semibold)

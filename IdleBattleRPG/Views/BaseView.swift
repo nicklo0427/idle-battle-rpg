@@ -9,7 +9,6 @@
 
 import SwiftUI
 import SwiftData
-import PhosphorSwift
 
 struct BaseView: View {
 
@@ -68,7 +67,7 @@ struct BaseView: View {
                         Label {
                             Text("尚無玩家資料")
                         } icon: {
-                            Ph.warningCircle.fill.frame(width: 16, height: 16)
+                            Image(systemName: "exclamationmark.circle.fill").frame(width: 16, height: 16)
                         }
                         .foregroundStyle(.red)
                     }

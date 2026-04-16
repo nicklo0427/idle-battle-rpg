@@ -9,11 +9,6 @@ options:
   generateEmptyDirectories: true
   developmentLanguage: zh-Hant
 
-packages:
-  PhosphorSwift:
-    url: https://github.com/phosphor-icons/swift
-    from: "2.1.0"
-
 targets:
   IdleBattleRPG:
     type: application
@@ -21,9 +16,7 @@ targets:
     deploymentTarget: "17.0"
     sources:
       - path: IdleBattleRPG
-    dependencies:
-      - package: PhosphorSwift
-        product: PhosphorSwift
+    dependencies: []
     settings:
       base:
         SWIFT_VERSION: "5.9"

@@ -13,7 +13,6 @@
 
 import SwiftUI
 import SwiftData
-import PhosphorSwift
 
 struct SettlementSheet: View {
 
@@ -120,13 +119,13 @@ struct SettlementSheet: View {
         switch row.kind {
         case .gold(let amt):
             HStack {
-                Ph.coins.fill.frame(width: 18, height: 18).foregroundStyle(.yellow)
+                Image(systemName: "coins.fill").frame(width: 18, height: 18).foregroundStyle(.yellow)
                 Text("金幣 +\(amt)").font(.body)
                 Spacer()
             }
         case .exp(let amt):
             HStack {
-                Ph.sparkle.fill.frame(width: 18, height: 18).foregroundStyle(.purple)
+                Image(systemName: "sparkles").frame(width: 18, height: 18).foregroundStyle(.purple)
                 Text("EXP +\(amt)").font(.body)
                 Spacer()
             }
@@ -145,7 +144,7 @@ struct SettlementSheet: View {
                     if isRolled {
                         Text("✦").font(.body)
                     } else {
-                        Ph.sword.fill
+                        Image(systemName: "sword.fill")
                             .frame(width: 20, height: 20)
                             .foregroundStyle(Color.accentColor)
                     }
@@ -177,7 +176,7 @@ struct SettlementSheet: View {
             .padding(.vertical, 2)
         case .battle(let won, let lost):
             HStack {
-                Ph.sword.fill.frame(width: 18, height: 18).foregroundStyle(.secondary)
+                Image(systemName: "sword.fill").frame(width: 18, height: 18).foregroundStyle(.secondary)
                 Text("戰鬥 \(won) 勝 \(lost) 敗").font(.body)
                 Spacer()
             }
