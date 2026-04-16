@@ -378,6 +378,7 @@ struct AdventureView: View {
             floorKey: floor.key,
             durationSeconds: durationSeconds,
             heroStats: stats,
+            equippedSkillKeys: players.first?.equippedSkillKeys ?? [],
             context: context
         )
         if case .failure(let error) = result {

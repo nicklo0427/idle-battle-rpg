@@ -269,6 +269,13 @@ final class BattleLogPlaybackModel {
                         currentBattleEvents.append(event)
                         displayedCount += 1
                         i += 1
+
+                    // MARK: skill — V6-1 技能啟動（瞬間顯示，無動畫等待）
+                    case .skill:
+                        currentBattleEvents.append(event)
+                        displayedCount += 1
+                        try? await Task.sleep(nanoseconds: 400_000_000)
+                        i += 1
                     }
                 }
 

@@ -152,7 +152,12 @@ struct TaskCreationService {
     /// 建立 V2-1 地下城（樓層）任務。
     /// 驗證：樓層存在、玩家目前沒有進行中地下城任務。
     /// 首次出征（選 15 分鐘）：30 秒完成，固定 5 場戰鬥。
-    func createDungeonFloorTask(floorKey: String, durationSeconds: Int, heroStats: HeroStats) throws {
+    func createDungeonFloorTask(
+        floorKey: String,
+        durationSeconds: Int,
+        heroStats: HeroStats,
+        equippedSkillKeys: [String] = []  // V6-1：已裝備技能 key
+    ) throws {
         guard DungeonFloorDef.find(key: floorKey) != nil else {
             throw TaskCreationError.areaNotFound(floorKey)
         }
@@ -175,6 +180,10 @@ struct TaskCreationService {
             player.hasUsedFirstDungeonBoost = true
         }
 
+        // V6-1：套用已裝備技能加成，確保 snapshotPower 包含技能效果
+        let equippedSkills = equippedSkillKeys.compactMap { SkillDef.find(key: $0) }
+        let effectiveStats = heroStats.applying(skills: equippedSkills)
+
         let duration = durationOverride ?? durationSeconds
         let now = Date.now
         let task = TaskModel(
@@ -185,17 +194,23 @@ struct TaskCreationService {
             endsAt:        now.addingTimeInterval(TimeInterval(duration)),
             durationOverride: durationOverride,
             forcedBattles:    forcedBattles,
-            snapshotPower:    heroStats.power,
-            snapshotAgi:      heroStats.totalAGI,
-            snapshotDex:      heroStats.totalDEX
+            snapshotPower:    effectiveStats.power,
+            snapshotAgi:      effectiveStats.totalAGI,
+            snapshotDex:      effectiveStats.totalDEX
         )
+        task.snapshotSkillKeysRaw = equippedSkillKeys.joined(separator: ",")
         repository.insert(task)
     }
 
     /// 建立地下城任務（V1 路徑，以 DungeonAreaDef key 為 definitionKey）。
     /// 驗證：區域存在、玩家目前沒有進行中地下城任務。
     /// 首次出征（選 15 分鐘）：30 秒完成，固定 5 場戰鬥。
-    func createDungeonTask(areaKey: String, durationSeconds: Int, heroStats: HeroStats) throws {
+    func createDungeonTask(
+        areaKey: String,
+        durationSeconds: Int,
+        heroStats: HeroStats,
+        equippedSkillKeys: [String] = []  // V6-1：已裝備技能 key
+    ) throws {
         guard DungeonAreaDef.find(key: areaKey) != nil else {
             throw TaskCreationError.areaNotFound(areaKey)
         }
@@ -221,6 +236,10 @@ struct TaskCreationService {
             player.hasUsedFirstDungeonBoost = true
         }
 
+        // V6-1：套用已裝備技能加成
+        let equippedSkills = equippedSkillKeys.compactMap { SkillDef.find(key: $0) }
+        let effectiveStats = heroStats.applying(skills: equippedSkills)
+
         let duration = durationOverride ?? durationSeconds
         let now = Date.now
         let task = TaskModel(
@@ -231,10 +250,11 @@ struct TaskCreationService {
             endsAt:        now.addingTimeInterval(TimeInterval(duration)),
             durationOverride: durationOverride,
             forcedBattles:    forcedBattles,
-            snapshotPower:    heroStats.power,
-            snapshotAgi:      heroStats.totalAGI,
-            snapshotDex:      heroStats.totalDEX
+            snapshotPower:    effectiveStats.power,
+            snapshotAgi:      effectiveStats.totalAGI,
+            snapshotDex:      effectiveStats.totalDEX
         )
+        task.snapshotSkillKeysRaw = equippedSkillKeys.joined(separator: ",")
         repository.insert(task)
     }
 }

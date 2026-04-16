@@ -27,8 +27,12 @@ struct HeroStatsService {
             hp  += equip.hpBonus
         }
 
-        return HeroStats(totalATK: atk, totalDEF: def, totalHP: hp,
-                         totalAGI: player.agiPoints, totalDEX: player.dexPoints)
+        let base = HeroStats(totalATK: atk, totalDEF: def, totalHP: hp,
+                             totalAGI: player.agiPoints, totalDEX: player.dexPoints)
+
+        // V6-1：套用職業基礎加成（classKey 為空時跳過，相容舊存檔）
+        guard let classDef = ClassDef.find(key: player.classKey) else { return base }
+        return base.applying(classDef: classDef)
     }
 
     // MARK: - 從 ModelContext 讀取並計算

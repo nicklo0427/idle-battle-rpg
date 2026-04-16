@@ -225,6 +225,7 @@ struct BattleLogSheet: View {
     @ViewBuilder
     private func eventIconView(_ type: BattleEvent.EventType) -> some View {
         switch type {
+        case .skill:     Image(systemName: "bolt.fill").foregroundStyle(Color.orange)
         case .explore:   Image(systemName: "map.fill").foregroundStyle(Color.secondary)
         case .encounter: Image(systemName: "exclamationmark.circle.fill").foregroundStyle(Color.orange)
         case .attack:    Image(systemName: "sword").foregroundStyle(Color.primary)
@@ -237,6 +238,7 @@ struct BattleLogSheet: View {
 
     private func eventColor(_ type: BattleEvent.EventType) -> Color {
         switch type {
+        case .skill:     return .orange
         case .explore:   return .secondary
         case .encounter: return .orange
         case .attack:    return .primary

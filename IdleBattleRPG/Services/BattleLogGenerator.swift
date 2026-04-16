@@ -15,6 +15,7 @@ import Foundation
 
 struct BattleEvent {
     enum EventType {
+        case skill      // V6-1：技能啟動（出征開始時）
         case explore    // 探索敘述（每個 regionKey 不同候選文字）
         case encounter  // 遭遇怪物
         case attack     // 英雄攻擊
@@ -120,6 +121,26 @@ struct BattleLogGenerator {
         let taskSeed = tBits ^ hBits
 
         var allEvents: [BattleEvent] = []
+
+        // V6-1：首批（fromBattleIndex == 0）且有裝備技能時，插入技能啟動事件
+        if startIndex == 0 {
+            let skillNames = task.snapshotSkillKeys
+                .compactMap { SkillDef.find(key: $0)?.name }
+            if !skillNames.isEmpty {
+                let desc = "發動「\(skillNames.joined(separator: "」、「"))」— 出征加成已生效"
+                allEvents.append(BattleEvent(
+                    type:         .skill,
+                    description:  desc,
+                    heroHpAfter:  heroMaxHp,
+                    enemyHpAfter: 0,
+                    heroMaxHp:    heroMaxHp,
+                    enemyMaxHp:   enemyMaxHp,
+                    chargeTime:   0,
+                    isCrit:       false,
+                    chargeTarget: 0
+                ))
+            }
+        }
 
         let endIndex = min(totalBattles, startIndex + maxBattles)
         for battleIndex in startIndex..<endIndex {

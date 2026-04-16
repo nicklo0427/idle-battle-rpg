@@ -93,13 +93,15 @@ final class AdventureViewModel {
         floorKey: String,
         durationSeconds: Int,
         heroStats: HeroStats,
+        equippedSkillKeys: [String] = [],  // V6-1
         context: ModelContext
     ) -> Result<Void, TaskCreationError> {
         do {
             try TaskCreationService(context: context).createDungeonFloorTask(
                 floorKey: floorKey,
                 durationSeconds: durationSeconds,
-                heroStats: heroStats
+                heroStats: heroStats,
+                equippedSkillKeys: equippedSkillKeys
             )
             return .success(())
         } catch let e as TaskCreationError {

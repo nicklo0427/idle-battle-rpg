@@ -4,6 +4,8 @@
 
 import Foundation
 
+// MARK: - HeroStats
+
 struct HeroStats {
     let totalATK: Int
     let totalDEF: Int
@@ -40,5 +42,40 @@ struct HeroStats {
         let ratio = Double(power) / Double(recommendedPower)
         let raw   = 0.50 + 0.40 * tanh(2.0 * (ratio - 1.0))
         return max(0.10, min(0.95, raw))
+    }
+}
+
+// MARK: - V6-1 職業 & 技能加成
+
+extension HeroStats {
+
+    /// 套用職業基礎加成（永久，影響角色頁顯示數值與出征快照）
+    func applying(classDef: ClassDef) -> HeroStats {
+        HeroStats(
+            totalATK: totalATK + classDef.baseATKBonus,
+            totalDEF: totalDEF + classDef.baseDEFBonus,
+            totalHP:  totalHP  + classDef.baseHPBonus,
+            totalAGI: totalAGI + classDef.baseAGIBonus,
+            totalDEX: totalDEX + classDef.baseDEXBonus
+        )
+    }
+
+    /// 套用技能加成（出征建立時使用，加在 snapshotStats 上）
+    func applying(skills: [SkillDef]) -> HeroStats {
+        var atk = totalATK, def = totalDEF, hp = totalHP
+        var agi = totalAGI, dex = totalDEX
+        for skill in skills {
+            for effect in skill.effects {
+                switch effect {
+                case .atkBonus(let v): atk += v
+                case .defBonus(let v): def += v
+                case .hpBonus(let v):  hp  += v
+                case .agiBonus(let v): agi += v
+                case .dexBonus(let v): dex += v
+                }
+            }
+        }
+        return HeroStats(totalATK: atk, totalDEF: def, totalHP: hp,
+                         totalAGI: agi, totalDEX: dex)
     }
 }
