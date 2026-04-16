@@ -227,7 +227,7 @@ struct BattleLogSheet: View {
         switch type {
         case .explore:   Image(systemName: "map.fill").foregroundStyle(Color.secondary)
         case .encounter: Image(systemName: "exclamationmark.circle.fill").foregroundStyle(Color.orange)
-        case .attack:    Image(systemName: "sword.fill").foregroundStyle(Color.primary)
+        case .attack:    Image(systemName: "sword").foregroundStyle(Color.primary)
         case .damage:    Image(systemName: "shield.fill").foregroundStyle(Color.orange)
         case .victory:   Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.green)
         case .defeat:    Image(systemName: "xmark.circle.fill").foregroundStyle(Color.red)

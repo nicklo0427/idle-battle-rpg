@@ -256,7 +256,7 @@ struct GathererDetailSheet: View {
     private func goldCostRow(required: Int, have: Int) -> some View {
         HStack {
             HStack(spacing: 4) {
-                Image(systemName: "coins.fill").frame(width: 14, height: 14).foregroundStyle(.yellow)
+                Image(systemName: "coins").frame(width: 14, height: 14).foregroundStyle(.yellow)
                 Text("金幣")
             }
             Spacer()

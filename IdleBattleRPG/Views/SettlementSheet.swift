@@ -119,7 +119,7 @@ struct SettlementSheet: View {
         switch row.kind {
         case .gold(let amt):
             HStack {
-                Image(systemName: "coins.fill").frame(width: 18, height: 18).foregroundStyle(.yellow)
+                Image(systemName: "coins").frame(width: 18, height: 18).foregroundStyle(.yellow)
                 Text("金幣 +\(amt)").font(.body)
                 Spacer()
             }
@@ -144,7 +144,7 @@ struct SettlementSheet: View {
                     if isRolled {
                         Text("✦").font(.body)
                     } else {
-                        Image(systemName: "sword.fill")
+                        Image(systemName: "sword")
                             .frame(width: 20, height: 20)
                             .foregroundStyle(Color.accentColor)
                     }
@@ -176,7 +176,7 @@ struct SettlementSheet: View {
             .padding(.vertical, 2)
         case .battle(let won, let lost):
             HStack {
-                Image(systemName: "sword.fill").frame(width: 18, height: 18).foregroundStyle(.secondary)
+                Image(systemName: "sword").frame(width: 18, height: 18).foregroundStyle(.secondary)
                 Text("戰鬥 \(won) 勝 \(lost) 敗").font(.body)
                 Spacer()
             }

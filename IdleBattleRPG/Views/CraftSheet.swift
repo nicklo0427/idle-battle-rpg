@@ -154,7 +154,7 @@ struct CraftSheet: View {
                 HStack(spacing: 8) {
                     if equip.isBossWeapon, let range = equip.atkRange {
                         HStack(spacing: 3) {
-                            Image(systemName: "sword.fill").frame(width: 11, height: 11)
+                            Image(systemName: "sword").frame(width: 11, height: 11)
                             Text("\(range.lowerBound)–\(range.upperBound)（浮動）")
                         }
                         .font(.caption2)
@@ -162,7 +162,7 @@ struct CraftSheet: View {
                     } else {
                         if equip.atkBonus > 0 {
                             HStack(spacing: 3) {
-                                Image(systemName: "sword.fill").frame(width: 11, height: 11)
+                                Image(systemName: "sword").frame(width: 11, height: 11)
                                 Text("+\(equip.atkBonus)")
                             }
                             .font(.caption2)
@@ -194,7 +194,7 @@ struct CraftSheet: View {
                     materialTag(materials[i])
                 }
                 HStack(spacing: 3) {
-                    Image(systemName: "coins.fill").frame(width: 11, height: 11)
+                    Image(systemName: "coins").frame(width: 11, height: 11)
                     Text("×\(recipe.goldCost)")
                 }
                 .font(.caption)

@@ -551,7 +551,7 @@ private struct FloorDetailSheet: View {
             }
             HStack {
                 HStack(spacing: 4) {
-                    Image(systemName: "coins.fill").frame(width: 14, height: 14).foregroundStyle(.yellow)
+                    Image(systemName: "coins").frame(width: 14, height: 14).foregroundStyle(.yellow)
                     Text("金幣")
                 }
                 Spacer()
@@ -618,7 +618,7 @@ private struct FloorDetailSheet: View {
 
                 HStack(spacing: 8) {
                     HStack(spacing: 3) {
-                        Image(systemName: "coins.fill").frame(width: 12, height: 12).foregroundStyle(.yellow)
+                        Image(systemName: "coins").frame(width: 12, height: 12).foregroundStyle(.yellow)
                         Text("\(elite.reward.gold) 金幣")
                     }
                     .font(.caption)
