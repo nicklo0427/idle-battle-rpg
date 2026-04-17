@@ -20,6 +20,7 @@ import SwiftData
 private enum CharacterSegment: String, CaseIterable {
     case gear        = "裝備"
     case backpack    = "背包"
+    case skills      = "技能"
     case achievement = "成就"
 }
 
@@ -94,6 +95,7 @@ struct CharacterView: View {
                 switch segment {
                 case .gear:        gearSegment
                 case .backpack:    backpackSegment
+                case .skills:      skillsSegment
                 case .achievement: achievementSegment
                 }
             }
@@ -180,6 +182,40 @@ struct CharacterView: View {
 
     @ViewBuilder
     private var gearSegment: some View {
+
+        // ── 職業徽章 ────────────────────────────────────────────────
+        if let player, let classDef = ClassDef.find(key: player.classKey) {
+            Section {
+                HStack(spacing: 10) {
+                    ZStack {
+                        Circle()
+                            .fill(classDef.themeColor.opacity(0.15))
+                            .frame(width: 36, height: 36)
+                        Image(systemName: classDef.iconName)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(classDef.themeColor)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(classDef.name)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(classDef.themeColor)
+                        Text(classDef.bonusSummary)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Text("職業")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(classDef.themeColor.opacity(0.12))
+                        .clipShape(Capsule())
+                }
+            } header: {
+                Text("職業")
+            }
+        }
 
         // ── 英雄屬性 ────────────────────────────────────────────────
         Section {
@@ -444,6 +480,196 @@ struct CharacterView: View {
             }
         } else {
             Section { Text("—").foregroundStyle(.secondary) }
+        }
+    }
+
+    // MARK: - 技能 Segment
+
+    @ViewBuilder
+    private var skillsSegment: some View {
+        if let player {
+            skillsContent(player: player)
+        } else {
+            Section { Text("—").foregroundStyle(.secondary) }
+        }
+    }
+
+    @ViewBuilder
+    private func skillsContent(player: PlayerStateModel) -> some View {
+        let classKey  = player.classKey
+        let heroLevel = player.heroLevel
+        let allClassSkills = SkillDef.all.filter { $0.classKey == classKey }
+        let unlockedSkills = allClassSkills.filter { $0.requiredLevel <= heroLevel }
+        let lockedSkills   = allClassSkills.filter { $0.requiredLevel > heroLevel }
+        let equipped       = player.equippedSkillKeys
+
+        // ── 嵌入格（最多 4 個）─────────────────────────────────────
+        Section {
+            ForEach(0..<4, id: \.self) { slotIdx in
+                if slotIdx < equipped.count,
+                   let def = SkillDef.find(key: equipped[slotIdx]) {
+                    HStack(spacing: 10) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.orange.opacity(0.15))
+                                .frame(width: 32, height: 32)
+                            Image(systemName: "bolt.fill")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(.orange)
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(def.name).fontWeight(.medium)
+                            Text(def.effectSummary)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
+                                .minimumScaleFactor(0.85)
+                        }
+                        Spacer()
+                        Button("移除") {
+                            var keys = player.equippedSkillKeys
+                            keys.removeAll { $0 == def.key }
+                            player.equippedSkillKeys = keys
+                            try? context.save()
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.secondary)
+                        .font(.caption)
+                        .disabled(isOnExpedition)
+                    }
+                } else {
+                    HStack(spacing: 10) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.secondary.opacity(0.1))
+                                .frame(width: 32, height: 32)
+                            Image(systemName: "plus")
+                                .font(.system(size: 14))
+                                .foregroundStyle(.tertiary)
+                        }
+                        Text("空槽 \(slotIdx + 1)")
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+            }
+        } header: {
+            HStack {
+                Text("配備技能")
+                Spacer()
+                Text("\(equipped.count) / 4")
+                    .foregroundStyle(.secondary)
+            }
+        } footer: {
+            if isOnExpedition {
+                Label("出征中，技能配置已鎖定", systemImage: "lock.fill")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("最多配備 4 個技能，出征時全程生效")
+                    .font(.caption)
+            }
+        }
+
+        // ── 已解鎖（可配備）──────────────────────────────────────────
+        if !unlockedSkills.isEmpty {
+            Section {
+                ForEach(unlockedSkills, id: \.key) { def in
+                    let isEquipped = equipped.contains(def.key)
+                    HStack(spacing: 10) {
+                        ZStack {
+                            Circle()
+                                .fill(isEquipped ? Color.orange.opacity(0.15) : Color.secondary.opacity(0.08))
+                                .frame(width: 32, height: 32)
+                            Image(systemName: "bolt.fill")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(isEquipped ? .orange : .secondary)
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack(spacing: 4) {
+                                Text(def.name).fontWeight(.medium)
+                                Text("Lv.\(def.requiredLevel)")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 1)
+                                    .background(Color.secondary.opacity(0.1))
+                                    .clipShape(Capsule())
+                            }
+                            Text(def.effectSummary)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
+                                .minimumScaleFactor(0.85)
+                        }
+                        Spacer()
+                        if isEquipped {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.orange)
+                                .font(.system(size: 16))
+                        } else {
+                            Button("配備") {
+                                guard equipped.count < 4 else { return }
+                                var keys = player.equippedSkillKeys
+                                keys.append(def.key)
+                                player.equippedSkillKeys = keys
+                                try? context.save()
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(.orange)
+                            .font(.caption)
+                            .disabled(isOnExpedition || equipped.count >= 4)
+                        }
+                    }
+                }
+            } header: {
+                Text("已解鎖技能（\(unlockedSkills.count) 個）")
+            }
+        }
+
+        // ── 尚未解鎖 ─────────────────────────────────────────────────
+        if !lockedSkills.isEmpty {
+            Section {
+                ForEach(lockedSkills, id: \.key) { def in
+                    HStack(spacing: 10) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.secondary.opacity(0.06))
+                                .frame(width: 32, height: 32)
+                            Image(systemName: "lock.fill")
+                                .font(.system(size: 13))
+                                .foregroundStyle(.tertiary)
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(def.name)
+                                .fontWeight(.medium)
+                                .foregroundStyle(.secondary)
+                            Text(def.effectSummary)
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                                .lineLimit(2)
+                                .minimumScaleFactor(0.85)
+                        }
+                        Spacer()
+                        Text("需 Lv.\(def.requiredLevel)")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3)
+                            .background(Color.secondary.opacity(0.1))
+                            .clipShape(Capsule())
+                    }
+                }
+            } header: {
+                Text("尚未解鎖")
+            }
+        }
+
+        // ── 尚未選擇職業 ─────────────────────────────────────────────
+        if classKey.isEmpty {
+            Section {
+                Label("請先選擇職業以解鎖技能", systemImage: "person.badge.shield.checkmark.fill")
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 

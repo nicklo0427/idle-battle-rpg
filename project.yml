@@ -28,7 +28,7 @@ targets:
     info:
       path: IdleBattleRPG/Info.plist
       properties:
-        CFBundleDisplayName: "放置英雄"
+        CFBundleDisplayName: "超無聊放置"
         NSHumanReadableCopyright: "Copyright © 2026 lowhaijer. All rights reserved."
         CFBundleLocalizations:
           - zh-Hant

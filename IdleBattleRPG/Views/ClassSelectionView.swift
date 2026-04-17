@@ -110,13 +110,19 @@ struct ClassSelectionView: View {
                     .first { $0.key == classDef.key }
                     .map { SkillDef.unlocked(classKey: $0.key, atLevel: 3) } ?? []
                 if let firstSkill = previewSkills.first {
-                    HStack(spacing: 4) {
+                    HStack(alignment: .top, spacing: 4) {
                         Image(systemName: "bolt.fill")
                             .font(.caption2)
                             .foregroundStyle(.orange.opacity(0.7))
-                        Text("Lv.3：\(firstSkill.name)")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .padding(.top, 1)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("Lv.3：\(firstSkill.name)")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                            Text(firstSkill.effectSummary)
+                                .font(.caption2)
+                                .foregroundStyle(classDef.themeColor.opacity(0.7))
+                        }
                     }
                 }
             }

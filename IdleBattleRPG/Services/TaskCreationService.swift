@@ -180,10 +180,7 @@ struct TaskCreationService {
             player.hasUsedFirstDungeonBoost = true
         }
 
-        // V6-1：套用已裝備技能加成，確保 snapshotPower 包含技能效果
-        let equippedSkills = equippedSkillKeys.compactMap { SkillDef.find(key: $0) }
-        let effectiveStats = heroStats.applying(skills: equippedSkills)
-
+        // V6-1：技能改為主動觸發，snapshotPower 只含職業加成 + 裝備 + 屬性點
         let duration = durationOverride ?? durationSeconds
         let now = Date.now
         let task = TaskModel(
@@ -194,9 +191,9 @@ struct TaskCreationService {
             endsAt:        now.addingTimeInterval(TimeInterval(duration)),
             durationOverride: durationOverride,
             forcedBattles:    forcedBattles,
-            snapshotPower:    effectiveStats.power,
-            snapshotAgi:      effectiveStats.totalAGI,
-            snapshotDex:      effectiveStats.totalDEX
+            snapshotPower:    heroStats.power,
+            snapshotAgi:      heroStats.totalAGI,
+            snapshotDex:      heroStats.totalDEX
         )
         task.snapshotSkillKeysRaw = equippedSkillKeys.joined(separator: ",")
         repository.insert(task)
@@ -236,10 +233,7 @@ struct TaskCreationService {
             player.hasUsedFirstDungeonBoost = true
         }
 
-        // V6-1：套用已裝備技能加成
-        let equippedSkills = equippedSkillKeys.compactMap { SkillDef.find(key: $0) }
-        let effectiveStats = heroStats.applying(skills: equippedSkills)
-
+        // V6-1：技能改為主動觸發，snapshotPower 只含職業加成 + 裝備 + 屬性點
         let duration = durationOverride ?? durationSeconds
         let now = Date.now
         let task = TaskModel(
@@ -250,9 +244,9 @@ struct TaskCreationService {
             endsAt:        now.addingTimeInterval(TimeInterval(duration)),
             durationOverride: durationOverride,
             forcedBattles:    forcedBattles,
-            snapshotPower:    effectiveStats.power,
-            snapshotAgi:      effectiveStats.totalAGI,
-            snapshotDex:      effectiveStats.totalDEX
+            snapshotPower:    heroStats.power,
+            snapshotAgi:      heroStats.totalAGI,
+            snapshotDex:      heroStats.totalDEX
         )
         task.snapshotSkillKeysRaw = equippedSkillKeys.joined(separator: ",")
         repository.insert(task)

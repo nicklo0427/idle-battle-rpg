@@ -55,6 +55,12 @@ struct BattleEvent {
     }
 }
 
+// MARK: - 戰鬥模擬結果（T10：結算引擎共用）
+
+struct CombatOutcome {
+    let heroSurvived: Bool
+}
+
 // MARK: - 戰鬥記錄生成器
 
 struct BattleLogGenerator {
@@ -120,35 +126,34 @@ struct BattleLogGenerator {
         let hBits    = UInt64(bitPattern: Int64(truncatingIfNeeded: task.id.hashValue))
         let taskSeed = tBits ^ hBits
 
+        // V6-1：讀取已裝備主動技能
+        let activeSkills = task.snapshotSkillKeys.compactMap { SkillDef.find(key: $0) }
+
         var allEvents: [BattleEvent] = []
 
-        // V6-1：首批（fromBattleIndex == 0）且有裝備技能時，插入技能啟動事件
-        if startIndex == 0 {
-            let skillNames = task.snapshotSkillKeys
-                .compactMap { SkillDef.find(key: $0)?.name }
-            if !skillNames.isEmpty {
-                let desc = "發動「\(skillNames.joined(separator: "」、「"))」— 出征加成已生效"
-                allEvents.append(BattleEvent(
-                    type:         .skill,
-                    description:  desc,
-                    heroHpAfter:  heroMaxHp,
-                    enemyHpAfter: 0,
-                    heroMaxHp:    heroMaxHp,
-                    enemyMaxHp:   enemyMaxHp,
-                    chargeTime:   0,
-                    isCrit:       false,
-                    chargeTarget: 0
-                ))
-            }
+        // V6-1：首批且有裝備技能時，插入簡短出征提示
+        if startIndex == 0, !activeSkills.isEmpty {
+            let names = activeSkills.map { $0.name }.joined(separator: "、")
+            allEvents.append(BattleEvent(
+                type:         .skill,
+                description:  "帶著【\(names)】踏入地下城",
+                heroHpAfter:  heroMaxHp,
+                enemyHpAfter: 0,
+                heroMaxHp:    heroMaxHp,
+                enemyMaxHp:   enemyMaxHp,
+                chargeTime:   0,
+                isCrit:       false,
+                chargeTarget: 0
+            ))
         }
 
         let endIndex = min(totalBattles, startIndex + maxBattles)
         for battleIndex in startIndex..<endIndex {
-            var rng = DeterministicRNG(seed: taskSeed ^ UInt64(battleIndex &+ 1))
             allEvents += makeBattleEvents(
                 battleIndex:     battleIndex,
-                rng:             &rng,
+                taskSeed:        taskSeed,
                 floor:           floor,
+                activeSkills:    activeSkills,
                 heroMaxHp:       heroMaxHp,
                 heroAtk:         heroAtk,
                 heroDef:         heroDef,
@@ -165,12 +170,224 @@ struct BattleLogGenerator {
         return allEvents
     }
 
+    // MARK: - 戰鬥核心（T10：BattleLogGenerator + DungeonSettlementEngine 共用）
+
+    /// 執行一場戰鬥回合模擬的核心邏輯。
+    /// - onEvent: nil → 結算模式（不建立 BattleEvent）；closure → 記錄模式（透過 closure 傳出事件）
+    /// - 不生成 victory 事件（由 caller 決定 gold 並自行 append）
+    /// - 生成 defeat + heal 事件（onEvent 非 nil 時）
+    /// - 回傳 CombatOutcome，供 caller 判斷勝負
+    internal static func runCombatCore(
+        rng:             inout DeterministicRNG,
+        enemyName:       String,
+        activeSkills:    [SkillDef],
+        heroMaxHp:       Int,
+        heroAtk:         Int,
+        heroDef:         Int,
+        heroChargeTime:  Double,
+        critRate:        Double,
+        healChargeTime:  Double,
+        enemyMaxHp:      Int,
+        enemyAtk:        Int,
+        enemyDef:        Int,
+        enemyChargeTime: Double,
+        onEvent:         ((BattleEvent) -> Void)?
+    ) -> CombatOutcome {
+
+        var heroHp  = heroMaxHp
+        var enemyHp = enemyMaxHp
+
+        var skillNextFireTime: [String: Double] = Dictionary(
+            uniqueKeysWithValues: activeSkills.map { ($0.key, Double($0.cooldownSeconds)) }
+        )
+        var elapsedCombatTime  = 0.0
+        var heroAtkMultiplier  = 1.0
+        var enemyAtkMultiplier = 1.0
+
+        combatLoop: for _ in 0..<50 {
+            guard heroHp > 0, enemyHp > 0 else { break }
+
+            elapsedCombatTime += heroChargeTime
+
+            // 按裝備槽順序觸發到期技能
+            for skill in activeSkills {
+                guard let nextFire = skillNextFireTime[skill.key],
+                      elapsedCombatTime >= nextFire else { continue }
+
+                skillNextFireTime[skill.key] = nextFire + Double(skill.cooldownSeconds)
+
+                switch skill.effect {
+                case .damage(let m):
+                    let dmg = max(1, Int(Double(heroAtk) * m))
+                    enemyHp = max(0, enemyHp - dmg)
+                    onEvent?(BattleEvent(
+                        type: .skill,
+                        description: "【\(skill.name)】對 \(enemyName) 造成 \(dmg) 傷害",
+                        heroHpAfter: heroHp, enemyHpAfter: enemyHp,
+                        heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
+                        chargeTime: 0, isCrit: false
+                    ))
+                    if enemyHp <= 0 { break combatLoop }
+
+                case .heal(let m):
+                    let restored = Int(Double(heroMaxHp) * m)
+                    heroHp = min(heroMaxHp, heroHp + restored)
+                    onEvent?(BattleEvent(
+                        type: .skill,
+                        description: "【\(skill.name)】恢復 \(restored) HP（\(heroHp)/\(heroMaxHp)）",
+                        heroHpAfter: heroHp, enemyHpAfter: enemyHp,
+                        heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
+                        chargeTime: 0, isCrit: false
+                    ))
+
+                case .damageAndHeal(let dm, let hm):
+                    let dmg      = max(1, Int(Double(heroAtk) * dm))
+                    let restored = Int(Double(heroMaxHp) * hm)
+                    enemyHp = max(0, enemyHp - dmg)
+                    heroHp  = min(heroMaxHp, heroHp + restored)
+                    onEvent?(BattleEvent(
+                        type: .skill,
+                        description: "【\(skill.name)】造成 \(dmg) 傷害，恢復 \(restored) HP",
+                        heroHpAfter: heroHp, enemyHpAfter: enemyHp,
+                        heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
+                        chargeTime: 0, isCrit: false
+                    ))
+                    if enemyHp <= 0 { break combatLoop }
+
+                case .heroAtkUp(let b):
+                    heroAtkMultiplier = 1.0 + b
+                    onEvent?(BattleEvent(
+                        type: .skill,
+                        description: "【\(skill.name)】下次攻擊傷害提升 \(Int(b * 100))%",
+                        heroHpAfter: heroHp, enemyHpAfter: enemyHp,
+                        heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
+                        chargeTime: 0, isCrit: false
+                    ))
+
+                case .enemyAtkDown(let r):
+                    enemyAtkMultiplier = 1.0 - r
+                    onEvent?(BattleEvent(
+                        type: .skill,
+                        description: "【\(skill.name)】\(enemyName) 下次攻擊削弱 \(Int(r * 100))%",
+                        heroHpAfter: heroHp, enemyHpAfter: enemyHp,
+                        heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
+                        chargeTime: 0, isCrit: false
+                    ))
+
+                case .damageAndEnemyAtkDown(let dm, let r):
+                    let dmg = max(1, Int(Double(heroAtk) * dm))
+                    enemyHp = max(0, enemyHp - dmg)
+                    enemyAtkMultiplier = 1.0 - r
+                    onEvent?(BattleEvent(
+                        type: .skill,
+                        description: "【\(skill.name)】造成 \(dmg) 傷害，\(enemyName) 下次攻擊削弱 \(Int(r * 100))%",
+                        heroHpAfter: heroHp, enemyHpAfter: enemyHp,
+                        heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
+                        chargeTime: 0, isCrit: false
+                    ))
+                    if enemyHp <= 0 { break combatLoop }
+                }
+            }
+
+            guard heroHp > 0, enemyHp > 0 else { break }
+
+            // 英雄攻擊
+            let isCrit  = rng.nextDouble() < critRate
+            var heroDmg = max(1, heroAtk - enemyDef + rng.nextInt(in: -2...2))
+            if isCrit { heroDmg = Int(Double(heroDmg) * 1.5) }
+            heroDmg = max(1, Int(Double(heroDmg) * heroAtkMultiplier))
+            heroAtkMultiplier = 1.0
+            enemyHp = max(0, enemyHp - heroDmg)
+
+            onEvent?(BattleEvent(
+                type: .attack,
+                description: isCrit ? "⚡ 暴擊！發動斬擊 → 造成 \(heroDmg) 傷害"
+                                    : "發動斬擊 → 造成 \(heroDmg) 傷害",
+                heroHpAfter: heroHp, enemyHpAfter: enemyHp,
+                heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
+                chargeTime: heroChargeTime, isCrit: isCrit
+            ))
+
+            guard enemyHp > 0 else { break }
+
+            // 敵方反擊
+            var enemyDmg = max(1, enemyAtk - heroDef + rng.nextInt(in: -2...2))
+            enemyDmg = max(1, Int(Double(enemyDmg) * enemyAtkMultiplier))
+            enemyAtkMultiplier = 1.0
+            heroHp = max(0, heroHp - enemyDmg)
+
+            onEvent?(BattleEvent(
+                type: .damage,
+                description: "\(enemyName) 反擊 → 受到 \(enemyDmg) 傷害",
+                heroHpAfter: heroHp, enemyHpAfter: enemyHp,
+                heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
+                chargeTime: enemyChargeTime, isCrit: false
+            ))
+        }
+
+        // 失敗事件（記錄模式）
+        if heroHp <= 0 {
+            onEvent?(BattleEvent(
+                type: .defeat,
+                description: "💀 落敗於 \(enemyName)…",
+                heroHpAfter: 0, enemyHpAfter: enemyHp,
+                heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
+                chargeTime: 0, isCrit: false
+            ))
+            onEvent?(BattleEvent(
+                type: .heal,
+                description: "療傷中… HP 恢復至 \(heroMaxHp)",
+                heroHpAfter: heroMaxHp, enemyHpAfter: 0,
+                heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
+                chargeTime: healChargeTime, isCrit: false
+            ))
+        }
+
+        return CombatOutcome(heroSurvived: heroHp > 0)
+    }
+
+    /// 供 DungeonSettlementEngine 使用的公開入口（無事件生成）
+    /// seed 應為：taskSeed ^ UInt64(battleIndex &+ 1) ^ 0x434F4D42
+    static func runCombat(
+        seed:            UInt64,
+        activeSkills:    [SkillDef],
+        heroMaxHp:       Int,
+        heroAtk:         Int,
+        heroDef:         Int,
+        heroChargeTime:  Double,
+        critRate:        Double,
+        healChargeTime:  Double,
+        enemyMaxHp:      Int,
+        enemyAtk:        Int,
+        enemyDef:        Int,
+        enemyChargeTime: Double
+    ) -> CombatOutcome {
+        var rng = DeterministicRNG(seed: seed)
+        return runCombatCore(
+            rng:             &rng,
+            enemyName:       "",
+            activeSkills:    activeSkills,
+            heroMaxHp:       heroMaxHp,
+            heroAtk:         heroAtk,
+            heroDef:         heroDef,
+            heroChargeTime:  heroChargeTime,
+            critRate:        critRate,
+            healChargeTime:  healChargeTime,
+            enemyMaxHp:      enemyMaxHp,
+            enemyAtk:        enemyAtk,
+            enemyDef:        enemyDef,
+            enemyChargeTime: enemyChargeTime,
+            onEvent:         nil
+        )
+    }
+
     // MARK: - 單場事件生成（private）
 
     private static func makeBattleEvents(
         battleIndex:     Int,
-        rng:             inout DeterministicRNG,
+        taskSeed:        UInt64,
         floor:           DungeonFloorDef,
+        activeSkills:    [SkillDef],
         heroMaxHp:       Int,
         heroAtk:         Int,
         heroDef:         Int,
@@ -182,22 +399,26 @@ struct BattleLogGenerator {
         enemyDef:        Int,
         enemyChargeTime: Double
     ) -> [BattleEvent] {
+        // 探索 seed（文字選取）：原有 per-battle seed
+        var exploreRng = DeterministicRNG(seed: taskSeed ^ UInt64(battleIndex &+ 1))
+        // 戰鬥 seed（RNG 與結算引擎一致）：XOR 0x434F4D42（"COMB"）
+        var combatRng  = DeterministicRNG(seed: taskSeed ^ UInt64(battleIndex &+ 1) ^ 0x434F4D42)
 
         var events: [BattleEvent] = []
 
-        // 0. 敵人名稱：Boss 用 bossName，一般層從 commonEnemyNames 以 RNG 隨機選（確定性）
+        // 0. 敵人名稱：Boss 用 bossName，一般層從 commonEnemyNames 以 exploreRng 隨機選
         let enemyName: String
         if let boss = floor.bossName {
             enemyName = boss
         } else {
             let names = floor.commonEnemyNames
-            let idx   = Int(rng.nextUInt64() % UInt64(max(1, names.count)))
+            let idx   = Int(exploreRng.nextUInt64() % UInt64(max(1, names.count)))
             enemyName = names.isEmpty ? "未知敵人" : names[idx]
         }
 
         // 1. 探索事件（4 個：到達 + 三階段搜索）
         let exploreLines = exploreDescriptions(for: floor.regionKey)
-        let exploreIdx   = Int(rng.nextUInt64() % UInt64(exploreLines.count))
+        let exploreIdx   = Int(exploreRng.nextUInt64() % UInt64(exploreLines.count))
         // 1a. 到達文字（立即顯示，chargeTime = 0）
         events.append(BattleEvent(
             type:         .explore,
@@ -217,9 +438,9 @@ struct BattleLogGenerator {
         let suspiciousLines = exploreSuspiciousDescriptions(for: floor.regionKey)
         let tenseLines      = exploreTenseDescriptions(for: floor.regionKey)
 
-        let relaxedIdx    = Int(rng.nextUInt64() % UInt64(relaxedLines.count))
-        let suspiciousIdx = Int(rng.nextUInt64() % UInt64(suspiciousLines.count))
-        let tenseIdx      = Int(rng.nextUInt64() % UInt64(tenseLines.count))
+        let relaxedIdx    = Int(exploreRng.nextUInt64() % UInt64(relaxedLines.count))
+        let suspiciousIdx = Int(exploreRng.nextUInt64() % UInt64(suspiciousLines.count))
+        let tenseIdx      = Int(exploreRng.nextUInt64() % UInt64(tenseLines.count))
 
         events.append(BattleEvent(
             type:         .explore,
@@ -267,86 +488,35 @@ struct BattleLogGenerator {
             isCrit:       false
         ))
 
-        // 3. 戰鬥回合
-        var heroHp  = heroMaxHp
-        var enemyHp = enemyMaxHp
-        let maxRounds = 50
+        // 3. 戰鬥回合（T10：委託 runCombatCore，使用 combatRng）
+        let outcome = runCombatCore(
+            rng:             &combatRng,
+            enemyName:       enemyName,
+            activeSkills:    activeSkills,
+            heroMaxHp:       heroMaxHp,
+            heroAtk:         heroAtk,
+            heroDef:         heroDef,
+            heroChargeTime:  heroChargeTime,
+            critRate:        critRate,
+            healChargeTime:  healChargeTime,
+            enemyMaxHp:      enemyMaxHp,
+            enemyAtk:        enemyAtk,
+            enemyDef:        enemyDef,
+            enemyChargeTime: enemyChargeTime,
+            onEvent:         { events.append($0) }
+        )
 
-        for _ in 0..<maxRounds {
-            guard heroHp > 0, enemyHp > 0 else { break }
-
-            let isCrit  = rng.nextDouble() < critRate
-            var heroDmg = max(1, heroAtk - enemyDef + rng.nextInt(in: -2...2))
-            if isCrit { heroDmg = Int(Double(heroDmg) * 1.5) }
-            enemyHp = max(0, enemyHp - heroDmg)
-
-            let attackDesc = isCrit
-                ? "⚡ 暴擊！發動斬擊 → 造成 \(heroDmg) 傷害"
-                : "發動斬擊 → 造成 \(heroDmg) 傷害"
-
-            events.append(BattleEvent(
-                type:         .attack,
-                description:  attackDesc,
-                heroHpAfter:  heroHp,
-                enemyHpAfter: enemyHp,
-                heroMaxHp:    heroMaxHp,
-                enemyMaxHp:   enemyMaxHp,
-                chargeTime:   heroChargeTime,
-                isCrit:       isCrit
-            ))
-
-            guard enemyHp > 0 else { break }
-
-            let enemyDmg = max(1, enemyAtk - heroDef + rng.nextInt(in: -2...2))
-            heroHp       = max(0, heroHp - enemyDmg)
-
-            events.append(BattleEvent(
-                type:         .damage,
-                description:  "\(enemyName) 反擊 → 受到 \(enemyDmg) 傷害",
-                heroHpAfter:  heroHp,
-                enemyHpAfter: enemyHp,
-                heroMaxHp:    heroMaxHp,
-                enemyMaxHp:   enemyMaxHp,
-                chargeTime:   enemyChargeTime,
-                isCrit:       false
-            ))
-        }
-
-        // 4. 勝利 / 失敗
-        if heroHp > 0 {
-            // 勝利：從 goldPerBattleRange 取本場金幣
-            let gold = rng.nextInt(in: floor.goldPerBattleRange)
+        // 4. 勝利事件（敗場的 defeat + heal 已由 runCombatCore 透過 onEvent 生成）
+        if outcome.heroSurvived {
+            let gold = exploreRng.nextInt(in: floor.goldPerBattleRange)
             events.append(BattleEvent(
                 type:         .victory,
                 description:  "⚔️ 戰勝 \(enemyName)！獲得 \(gold) 金幣",
-                heroHpAfter:  heroHp,
-                enemyHpAfter: 0,
-                heroMaxHp:    heroMaxHp,
-                enemyMaxHp:   enemyMaxHp,
-                chargeTime:   0,
-                isCrit:       false
-            ))
-        } else {
-            // 失敗
-            events.append(BattleEvent(
-                type:         .defeat,
-                description:  "💀 落敗於 \(enemyName)…",
-                heroHpAfter:  0,
-                enemyHpAfter: enemyHp,
-                heroMaxHp:    heroMaxHp,
-                enemyMaxHp:   enemyMaxHp,
-                chargeTime:   0,
-                isCrit:       false
-            ))
-            // 療傷：HP 回滿，chargeTime 依 heroDef 決定
-            events.append(BattleEvent(
-                type:         .heal,
-                description:  "療傷中… HP 恢復至 \(heroMaxHp)",
                 heroHpAfter:  heroMaxHp,
                 enemyHpAfter: 0,
                 heroMaxHp:    heroMaxHp,
                 enemyMaxHp:   enemyMaxHp,
-                chargeTime:   healChargeTime,
+                chargeTime:   0,
                 isCrit:       false
             ))
         }

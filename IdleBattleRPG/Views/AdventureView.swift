@@ -441,6 +441,11 @@ private struct FloorDetailSheet: View {
     @State private var showEliteBattle  = false
     @State private var eliteCleared     = false
     @Environment(\.dismiss) private var dismiss
+    @Query private var players: [PlayerStateModel]
+
+    private var equippedSkills: [SkillDef] {
+        (players.first?.equippedSkillKeys ?? []).compactMap { SkillDef.find(key: $0) }
+    }
 
     private var isCleared: Bool {
         appState.progressionService.isFloorCleared(regionKey: floor.regionKey, floorIndex: floor.floorIndex)
@@ -702,6 +707,21 @@ private struct FloorDetailSheet: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(Color.dungeonRegion(floor.regionKey))  // T01 出發按鈕用區域色
+
+                // 配備技能預覽
+                if !equippedSkills.isEmpty {
+                    HStack(spacing: 6) {
+                        Image(systemName: "bolt.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                        Text(equippedSkills.map { "\($0.name)（\($0.cooldownSeconds)s）" }.joined(separator: "・"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .center)
+                }
             }
         }
     }

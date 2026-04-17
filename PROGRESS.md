@@ -641,3 +641,42 @@ winRate = 0.50 + 0.40 × tanh(2×0.16) ≈ 0.62 → 約 62%
 
 全部 46 張 ticket ✅ 完成，實機測試通過。
 下一步：討論新玩法方向，確認後規劃 V4 tickets。
+
+---
+
+## V6-1 — 職業系統 + 技能系統（已完成）
+
+### 設計概覽
+
+4 職業（劍士 / 弓手 / 法師 / 聖騎士），遊戲開始選擇一次不可更換。
+每職業 5 個專屬技能，升等自動解鎖（Lv.3/6/10/15/20），最多配備 4 個嵌入格。
+天賦樹延後至 V6-2。
+
+### 完成 Tickets
+
+| Ticket | 說明 | 狀態 |
+|---|---|---|
+| T01 | `ClassDef.swift` + `SkillDef.swift` 靜態資料（4 職業、20 技能） | ✅ |
+| T02 | `PlayerStateModel` 新增 `classKey` / `equippedSkillKeysRaw`；`TaskModel` 新增 `snapshotSkillKeysRaw` | ✅ |
+| T03 | `HeroStats.applying(classDef:)`；`HeroStatsService` 套用職業加成；`TaskCreationService` 技能快照；`BattleLogGenerator` `.skill` 事件 | ✅ |
+| T04 | `ClassSelectionView`（4 職業卡片 + confirmationDialog）；`BaseView` fullScreenCover（`classKey.isEmpty` 觸發） | ✅ |
+| T05 | `CharacterView` 技能 Tab（4 嵌入槽 / 已解鎖 / 尚未解鎖）；裝備頁職業徽章；`FloorDetailSheet` 出征技能預覽 | ✅ |
+| T06 | 天賦樹延後 V6-2，記錄待確認設計問題 | 📋 V6-2 |
+| T07 | `SkillDef.swift` 重設計：`ActiveEffect` enum + 20 主動技能（damage / heal / buff / debuff） | ✅ |
+| T08 | `BattleLogGenerator` 主動技能 ATB 觸發（方案 A：獨立冷卻計時器）；`runCombatCore` 提取為共用層 | ✅ |
+| T09 | UI 更新：`ClassSelectionView` 技能效果預覽、`CharacterView` 技能效果描述、`AdventureView` 出征技能清單 | ✅ |
+| T10 | `DungeonSettlementEngine` 改為全戰鬥模擬；seed 拆分（exploreRng / combatRng）；技能真實影響勝率 | ✅ |
+
+### 關鍵決策
+
+- `classKey` / `equippedSkillKeysRaw` / `snapshotSkillKeysRaw` 皆有預設值 `""`，SwiftData 輕量遷移，無需 VersionedSchema
+- 職業基礎加成在 `HeroStatsService.compute()` 永久套用（影響裝備頁顯示值）
+- 主動技能採用 ATB 獨立冷卻計時器（每 ATB 週期後按順序觸發到期技能）
+- `DungeonSettlementEngine` 移除 winRate 機率公式，改呼叫 `BattleLogGenerator.runCombat()` 逐場模擬
+- Seed 拆分：`exploreRng = taskSeed ^ (battleIndex+1)`，`combatRng = exploreRng ^ 0x434F4D42`，確保戰鬥日誌與結算勝負完全一致
+- 舊存檔 `classKey=""` 進入遊戲自動觸發職業選擇 fullScreenCover，無縫銜接
+
+### 目前狀態
+
+V6-1 全部 Tickets（T01–T10）✅ 完成，`xcodebuild` 通過。
+下一步：V6-2 天賦樹。

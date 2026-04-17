@@ -60,22 +60,4 @@ extension HeroStats {
         )
     }
 
-    /// 套用技能加成（出征建立時使用，加在 snapshotStats 上）
-    func applying(skills: [SkillDef]) -> HeroStats {
-        var atk = totalATK, def = totalDEF, hp = totalHP
-        var agi = totalAGI, dex = totalDEX
-        for skill in skills {
-            for effect in skill.effects {
-                switch effect {
-                case .atkBonus(let v): atk += v
-                case .defBonus(let v): def += v
-                case .hpBonus(let v):  hp  += v
-                case .agiBonus(let v): agi += v
-                case .dexBonus(let v): dex += v
-                }
-            }
-        }
-        return HeroStats(totalATK: atk, totalDEF: def, totalHP: hp,
-                         totalAGI: agi, totalDEX: dex)
-    }
 }
