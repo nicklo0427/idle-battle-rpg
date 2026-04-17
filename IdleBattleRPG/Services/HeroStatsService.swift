@@ -32,7 +32,12 @@ struct HeroStatsService {
 
         // V6-1：套用職業基礎加成（classKey 為空時跳過，相容舊存檔）
         guard let classDef = ClassDef.find(key: player.classKey) else { return base }
-        return base.applying(classDef: classDef)
+        let classStats = base.applying(classDef: classDef)
+
+        // V6-2：套用天賦加成（investedTalentKeysRaw 為空時快速回傳）
+        let talentNodes = player.investedTalentKeys.compactMap { TalentNodeDef.find(key: $0) }
+        guard !talentNodes.isEmpty else { return classStats }
+        return classStats.applying(talentNodes: talentNodes)
     }
 
     // MARK: - 從 ModelContext 讀取並計算

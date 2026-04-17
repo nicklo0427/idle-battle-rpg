@@ -128,6 +128,8 @@ struct BattleLogGenerator {
 
         // V6-1：讀取已裝備主動技能
         let activeSkills = task.snapshotSkillKeys.compactMap { SkillDef.find(key: $0) }
+        // V6-2 T09：讀取技能升階快照
+        let skillLevels  = task.snapshotSkillLevels
 
         var allEvents: [BattleEvent] = []
 
@@ -154,6 +156,7 @@ struct BattleLogGenerator {
                 taskSeed:        taskSeed,
                 floor:           floor,
                 activeSkills:    activeSkills,
+                skillLevels:     skillLevels,
                 heroMaxHp:       heroMaxHp,
                 heroAtk:         heroAtk,
                 heroDef:         heroDef,
@@ -181,6 +184,7 @@ struct BattleLogGenerator {
         rng:             inout DeterministicRNG,
         enemyName:       String,
         activeSkills:    [SkillDef],
+        skillLevels:     [String: Int] = [:],
         heroMaxHp:       Int,
         heroAtk:         Int,
         heroDef:         Int,
@@ -216,9 +220,11 @@ struct BattleLogGenerator {
 
                 skillNextFireTime[skill.key] = nextFire + Double(skill.cooldownSeconds)
 
+                let upgradeM = skill.effectMultiplier(at: skillLevels[skill.key] ?? 0)
+
                 switch skill.effect {
                 case .damage(let m):
-                    let dmg = max(1, Int(Double(heroAtk) * m))
+                    let dmg = max(1, Int(Double(heroAtk) * m * upgradeM))
                     enemyHp = max(0, enemyHp - dmg)
                     onEvent?(BattleEvent(
                         type: .skill,
@@ -230,7 +236,7 @@ struct BattleLogGenerator {
                     if enemyHp <= 0 { break combatLoop }
 
                 case .heal(let m):
-                    let restored = Int(Double(heroMaxHp) * m)
+                    let restored = Int(Double(heroMaxHp) * m * upgradeM)
                     heroHp = min(heroMaxHp, heroHp + restored)
                     onEvent?(BattleEvent(
                         type: .skill,
@@ -241,8 +247,8 @@ struct BattleLogGenerator {
                     ))
 
                 case .damageAndHeal(let dm, let hm):
-                    let dmg      = max(1, Int(Double(heroAtk) * dm))
-                    let restored = Int(Double(heroMaxHp) * hm)
+                    let dmg      = max(1, Int(Double(heroAtk) * dm * upgradeM))
+                    let restored = Int(Double(heroMaxHp) * hm * upgradeM)
                     enemyHp = max(0, enemyHp - dmg)
                     heroHp  = min(heroMaxHp, heroHp + restored)
                     onEvent?(BattleEvent(
@@ -255,32 +261,35 @@ struct BattleLogGenerator {
                     if enemyHp <= 0 { break combatLoop }
 
                 case .heroAtkUp(let b):
-                    heroAtkMultiplier = 1.0 + b
+                    let scaledB = min(0.99, b * upgradeM)
+                    heroAtkMultiplier = 1.0 + scaledB
                     onEvent?(BattleEvent(
                         type: .skill,
-                        description: "【\(skill.name)】下次攻擊傷害提升 \(Int(b * 100))%",
+                        description: "【\(skill.name)】下次攻擊傷害提升 \(Int(scaledB * 100))%",
                         heroHpAfter: heroHp, enemyHpAfter: enemyHp,
                         heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
                         chargeTime: 0, isCrit: false
                     ))
 
                 case .enemyAtkDown(let r):
-                    enemyAtkMultiplier = 1.0 - r
+                    let scaledR = min(0.99, r * upgradeM)
+                    enemyAtkMultiplier = 1.0 - scaledR
                     onEvent?(BattleEvent(
                         type: .skill,
-                        description: "【\(skill.name)】\(enemyName) 下次攻擊削弱 \(Int(r * 100))%",
+                        description: "【\(skill.name)】\(enemyName) 下次攻擊削弱 \(Int(scaledR * 100))%",
                         heroHpAfter: heroHp, enemyHpAfter: enemyHp,
                         heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
                         chargeTime: 0, isCrit: false
                     ))
 
                 case .damageAndEnemyAtkDown(let dm, let r):
-                    let dmg = max(1, Int(Double(heroAtk) * dm))
+                    let scaledR = min(0.99, r * upgradeM)
+                    let dmg = max(1, Int(Double(heroAtk) * dm * upgradeM))
                     enemyHp = max(0, enemyHp - dmg)
-                    enemyAtkMultiplier = 1.0 - r
+                    enemyAtkMultiplier = 1.0 - scaledR
                     onEvent?(BattleEvent(
                         type: .skill,
-                        description: "【\(skill.name)】造成 \(dmg) 傷害，\(enemyName) 下次攻擊削弱 \(Int(r * 100))%",
+                        description: "【\(skill.name)】造成 \(dmg) 傷害，\(enemyName) 下次攻擊削弱 \(Int(scaledR * 100))%",
                         heroHpAfter: heroHp, enemyHpAfter: enemyHp,
                         heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
                         chargeTime: 0, isCrit: false
@@ -351,6 +360,7 @@ struct BattleLogGenerator {
     static func runCombat(
         seed:            UInt64,
         activeSkills:    [SkillDef],
+        skillLevels:     [String: Int] = [:],
         heroMaxHp:       Int,
         heroAtk:         Int,
         heroDef:         Int,
@@ -367,6 +377,7 @@ struct BattleLogGenerator {
             rng:             &rng,
             enemyName:       "",
             activeSkills:    activeSkills,
+            skillLevels:     skillLevels,
             heroMaxHp:       heroMaxHp,
             heroAtk:         heroAtk,
             heroDef:         heroDef,
@@ -388,6 +399,7 @@ struct BattleLogGenerator {
         taskSeed:        UInt64,
         floor:           DungeonFloorDef,
         activeSkills:    [SkillDef],
+        skillLevels:     [String: Int] = [:],
         heroMaxHp:       Int,
         heroAtk:         Int,
         heroDef:         Int,
@@ -493,6 +505,7 @@ struct BattleLogGenerator {
             rng:             &combatRng,
             enemyName:       enemyName,
             activeSkills:    activeSkills,
+            skillLevels:     skillLevels,
             heroMaxHp:       heroMaxHp,
             heroAtk:         heroAtk,
             heroDef:         heroDef,

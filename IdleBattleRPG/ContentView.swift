@@ -78,11 +78,11 @@ struct ContentView: View {
                     Label("冒險", systemImage: "map.fill")
                 }
 
-            CharacterView()
+            CharacterView(appState: appState)
                 .tabItem {
                     Label("角色", systemImage: "person.fill")
                 }
-                .badge(players.first.map { max(0, $0.availableStatPoints) } ?? 0)
+                .badge(players.first.map { max(0, $0.availableStatPoints + $0.availableTalentPoints + $0.availableSkillPoints) } ?? 0)
         }
         // ── 輕量 Toast 覆蓋（非阻擋，結算 Sheet 開啟時也可見）─────
         .overlay(alignment: .top) {

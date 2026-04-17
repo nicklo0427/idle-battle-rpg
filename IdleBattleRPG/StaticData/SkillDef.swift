@@ -42,6 +42,7 @@ struct SkillDef {
     let description:     String        // 效果說明
     let cooldownSeconds: Int           // 冷卻時間（秒）
     let effect:          ActiveEffect  // 主動效果
+    let maxLevel:        Int           // 升階上限（全部技能預設 3）
 }
 
 // MARK: - 靜態查詢
@@ -67,6 +68,38 @@ extension SkillDef {
     static func unlocked(classKey: String, atLevel level: Int) -> [SkillDef] {
         all.filter { $0.classKey == classKey && $0.requiredLevel <= level }
            .sorted { $0.requiredLevel < $1.requiredLevel }
+    }
+}
+
+// MARK: - 升階計算
+
+extension SkillDef {
+
+    /// 升階乘數：Lv.N（N 次升階後）= 1.0 + 0.25 × N
+    func effectMultiplier(at level: Int) -> Double {
+        1.0 + 0.25 * Double(level)
+    }
+
+    /// 指定升階次數下的效果描述文字（level: 0 = 未升階基礎值）
+    func effectDescription(at level: Int) -> String {
+        let m = effectMultiplier(at: level)
+        switch effect {
+        case .damage(let base):
+            return String(format: "傷害 × %.2f", base * m)
+        case .heal(let base):
+            return String(format: "治癒 %.0f%%", base * m * 100)
+        case .damageAndHeal(let dmg, let heal):
+            return String(format: "傷害 × %.2f · 治癒 %.0f%%", dmg * m, heal * m * 100)
+        case .heroAtkUp(let bonus):
+            let scaled = min(0.99, bonus * m)
+            return String(format: "攻擊提升 +%.0f%%", scaled * 100)
+        case .enemyAtkDown(let r):
+            let scaled = min(0.99, r * m)
+            return String(format: "敵方攻擊 -%.0f%%", scaled * 100)
+        case .damageAndEnemyAtkDown(let dmg, let r):
+            let scaledR = min(0.99, r * m)
+            return String(format: "傷害 × %.2f · 敵攻 -%.0f%%", dmg * m, scaledR * 100)
+        }
     }
 }
 
@@ -106,7 +139,8 @@ extension SkillDef {
         name:            "重斬擊",
         description:     "以全身之力揮下重斬，對敵造成巨大傷害。",
         cooldownSeconds: 20,
-        effect:          .damage(multiplier: 1.5)
+        effect:          .damage(multiplier: 1.5),
+        maxLevel:        3
     )
 
     static let sw_battle_cry = SkillDef(
@@ -116,7 +150,8 @@ extension SkillDef {
         name:            "戰吼",
         description:     "發出震天戰吼，下次攻擊傷害大幅提升。",
         cooldownSeconds: 28,
-        effect:          .heroAtkUp(bonus: 0.8)
+        effect:          .heroAtkUp(bonus: 0.8),
+        maxLevel:        3
     )
 
     static let sw_whirlwind = SkillDef(
@@ -126,7 +161,8 @@ extension SkillDef {
         name:            "旋風斬",
         description:     "旋轉揮劍，掃蕩敵方。",
         cooldownSeconds: 28,
-        effect:          .damage(multiplier: 2.0)
+        effect:          .damage(multiplier: 2.0),
+        maxLevel:        3
     )
 
     static let sw_intimidate = SkillDef(
@@ -136,7 +172,8 @@ extension SkillDef {
         name:            "威嚇",
         description:     "凌厲眼神壓制敵方鬥志，大幅削弱其下次攻擊。",
         cooldownSeconds: 35,
-        effect:          .enemyAtkDown(reduction: 0.4)
+        effect:          .enemyAtkDown(reduction: 0.4),
+        maxLevel:        3
     )
 
     static let sw_deathblow = SkillDef(
@@ -146,7 +183,8 @@ extension SkillDef {
         name:            "必殺一擊",
         description:     "集結所有力量的究極斬擊，無人可擋。",
         cooldownSeconds: 45,
-        effect:          .damage(multiplier: 3.0)
+        effect:          .damage(multiplier: 3.0),
+        maxLevel:        3
     )
 }
 
@@ -161,7 +199,8 @@ extension SkillDef {
         name:            "速射",
         description:     "閃電般的快速射擊，短暫冷卻即可再次發動。",
         cooldownSeconds: 12,
-        effect:          .damage(multiplier: 1.2)
+        effect:          .damage(multiplier: 1.2),
+        maxLevel:        3
     )
 
     static let ar_cripple = SkillDef(
@@ -171,7 +210,8 @@ extension SkillDef {
         name:            "腱射",
         description:     "精準射中敵方弱點，大幅削弱其反擊力道。",
         cooldownSeconds: 22,
-        effect:          .enemyAtkDown(reduction: 0.5)
+        effect:          .enemyAtkDown(reduction: 0.5),
+        maxLevel:        3
     )
 
     static let ar_barrage = SkillDef(
@@ -181,7 +221,8 @@ extension SkillDef {
         name:            "連矢",
         description:     "連續發射多支箭矢，密集打擊敵方。",
         cooldownSeconds: 22,
-        effect:          .damage(multiplier: 1.8)
+        effect:          .damage(multiplier: 1.8),
+        maxLevel:        3
     )
 
     static let ar_eagle_shot = SkillDef(
@@ -191,7 +232,8 @@ extension SkillDef {
         name:            "神鷹射",
         description:     "模仿神鷹俯衝之姿，以極高精準度貫穿敵方。",
         cooldownSeconds: 32,
-        effect:          .damage(multiplier: 2.4)
+        effect:          .damage(multiplier: 2.4),
+        maxLevel:        3
     )
 
     static let ar_lethal_aim = SkillDef(
@@ -201,7 +243,8 @@ extension SkillDef {
         name:            "致命狙擊",
         description:     "鎖定致命要害，一擊決勝負。",
         cooldownSeconds: 42,
-        effect:          .damage(multiplier: 3.4)
+        effect:          .damage(multiplier: 3.4),
+        maxLevel:        3
     )
 }
 
@@ -216,7 +259,8 @@ extension SkillDef {
         name:            "火球術",
         description:     "凝聚魔力成火球，爆炸造成範圍傷害。",
         cooldownSeconds: 18,
-        effect:          .damage(multiplier: 1.4)
+        effect:          .damage(multiplier: 1.4),
+        maxLevel:        3
     )
 
     static let mg_frost_nova = SkillDef(
@@ -226,7 +270,8 @@ extension SkillDef {
         name:            "冰霜新星",
         description:     "冰霜爆發同時傷害敵方並封凍其行動力。",
         cooldownSeconds: 28,
-        effect:          .damageAndEnemyAtkDown(dmgMultiplier: 1.2, reduction: 0.35)
+        effect:          .damageAndEnemyAtkDown(dmgMultiplier: 1.2, reduction: 0.35),
+        maxLevel:        3
     )
 
     static let mg_arcane_blast = SkillDef(
@@ -236,7 +281,8 @@ extension SkillDef {
         name:            "魔爆",
         description:     "奧術能量瞬間爆發，造成巨大魔法傷害。",
         cooldownSeconds: 30,
-        effect:          .damage(multiplier: 2.1)
+        effect:          .damage(multiplier: 2.1),
+        maxLevel:        3
     )
 
     static let mg_mana_shield = SkillDef(
@@ -246,7 +292,8 @@ extension SkillDef {
         name:            "魔盾恢復",
         description:     "將魔力轉化為生命能量，恢復自身 HP。",
         cooldownSeconds: 35,
-        effect:          .heal(multiplier: 0.15)
+        effect:          .heal(multiplier: 0.15),
+        maxLevel:        3
     )
 
     static let mg_meteor = SkillDef(
@@ -256,7 +303,8 @@ extension SkillDef {
         name:            "隕星術",
         description:     "召喚天外隕石砸落，究極毀滅之術。",
         cooldownSeconds: 50,
-        effect:          .damage(multiplier: 3.1)
+        effect:          .damage(multiplier: 3.1),
+        maxLevel:        3
     )
 }
 
@@ -271,7 +319,8 @@ extension SkillDef {
         name:            "聖光擊",
         description:     "以聖光注入武器攻擊，同時恢復自身生命。",
         cooldownSeconds: 22,
-        effect:          .damageAndHeal(dmgMultiplier: 1.2, healMultiplier: 0.1)
+        effect:          .damageAndHeal(dmgMultiplier: 1.2, healMultiplier: 0.1),
+        maxLevel:        3
     )
 
     static let pl_divine_shield = SkillDef(
@@ -281,7 +330,8 @@ extension SkillDef {
         name:            "神盾",
         description:     "召喚神聖護盾，大幅削弱敵方下次攻擊。",
         cooldownSeconds: 32,
-        effect:          .enemyAtkDown(reduction: 0.6)
+        effect:          .enemyAtkDown(reduction: 0.6),
+        maxLevel:        3
     )
 
     static let pl_consecration = SkillDef(
@@ -291,7 +341,8 @@ extension SkillDef {
         name:            "奉獻",
         description:     "以神聖之力奉獻攻擊並恢復自身。",
         cooldownSeconds: 34,
-        effect:          .damageAndHeal(dmgMultiplier: 1.6, healMultiplier: 0.12)
+        effect:          .damageAndHeal(dmgMultiplier: 1.6, healMultiplier: 0.12),
+        maxLevel:        3
     )
 
     static let pl_holy_light = SkillDef(
@@ -301,7 +352,8 @@ extension SkillDef {
         name:            "神聖之光",
         description:     "聖光籠罩全身，大量恢復生命值。",
         cooldownSeconds: 40,
-        effect:          .heal(multiplier: 0.25)
+        effect:          .heal(multiplier: 0.25),
+        maxLevel:        3
     )
 
     static let pl_judgment = SkillDef(
@@ -311,6 +363,7 @@ extension SkillDef {
         name:            "審判",
         description:     "以神之名降下審判，給予敵方毀滅性打擊。",
         cooldownSeconds: 55,
-        effect:          .damage(multiplier: 2.8)
+        effect:          .damage(multiplier: 2.8),
+        maxLevel:        3
     )
 }

@@ -60,4 +60,34 @@ extension HeroStats {
         )
     }
 
+    /// 套用天賦節點加成（疊加於職業加成之上）
+    func applying(talentNodes: [TalentNodeDef]) -> HeroStats {
+        var atk = Double(totalATK)
+        var def = Double(totalDEF)
+        var hp  = Double(totalHP)
+        var agi = Double(totalAGI)
+        var dex = Double(totalDEX)
+
+        for node in talentNodes {
+            for effect in node.effects {
+                switch effect {
+                case .atkPercent(let p):      atk *= (1.0 + p)
+                case .defPercent(let p):      def *= (1.0 + p)
+                case .hpPercent(let p):       hp  *= (1.0 + p)
+                case .critRatePercent(let p): dex += p / 0.035   // critRate = dex*0.035，逆推 DEX 等效
+                case .skillDmgPercent(let p): atk *= (1.0 + p)
+                case .healPercent(let p):     hp  *= (1.0 + p)
+                }
+            }
+        }
+
+        return HeroStats(
+            totalATK: Int(atk.rounded()),
+            totalDEF: Int(def.rounded()),
+            totalHP:  Int(hp.rounded()),
+            totalAGI: Int(agi.rounded()),
+            totalDEX: Int(dex.rounded())
+        )
+    }
+
 }

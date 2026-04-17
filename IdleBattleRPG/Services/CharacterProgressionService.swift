@@ -60,9 +60,11 @@ struct CharacterProgressionService {
             return .failure(.insufficientExp(required: required, have: player.heroExp))
         }
 
-        player.heroExp             -= required
-        player.heroLevel            = nextLevel
-        player.availableStatPoints += AppConstants.Game.statPointsPerLevel
+        player.heroExp               -= required
+        player.heroLevel              = nextLevel
+        player.availableStatPoints   += AppConstants.Game.statPointsPerLevel
+        player.availableTalentPoints += 1
+        player.availableSkillPoints  += 1
         save()
 
         print("[CharacterProgressionService] 升級至 Lv.\(nextLevel)，扣除 EXP \(required)")
@@ -80,9 +82,11 @@ struct CharacterProgressionService {
             guard next <= AppConstants.Game.heroMaxLevel,
                   let required = AppConstants.ExpThreshold.required(toLevel: next),
                   player.heroExp >= required else { break }
-            player.heroExp             -= required
-            player.heroLevel            = next
-            player.availableStatPoints += AppConstants.Game.statPointsPerLevel
+            player.heroExp               -= required
+            player.heroLevel              = next
+            player.availableStatPoints   += AppConstants.Game.statPointsPerLevel
+            player.availableTalentPoints += 1
+            player.availableSkillPoints  += 1
             leveled = true
             print("[CharacterProgressionService] 自動升級至 Lv.\(next)，扣除 EXP \(required)")
         }

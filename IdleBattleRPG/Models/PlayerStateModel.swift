@@ -53,6 +53,20 @@ final class PlayerStateModel {
     /// 已裝備的技能 key，逗號分隔，最多 4 個（e.g. "sw_slash_boost,sw_iron_will"）
     var equippedSkillKeysRaw: String = ""
 
+    // MARK: - 天賦（V6-2）
+
+    /// 可投入的天賦點數（升等 +1，初始 0）
+    var availableTalentPoints: Int = 0
+    /// 已投入的天賦節點 key，逗號分隔（e.g. "sw_berserker_1,sw_berserker_2"）
+    var investedTalentKeysRaw: String = ""
+
+    // MARK: - 技能升階（V6-2 T09）
+
+    /// 可投入的技能點數（升等 +1，初始 0）
+    var availableSkillPoints: Int = 0
+    /// 技能升階等級，格式 "key:level,key:level"（e.g. "sw_heavy_slash:2,sw_iron_will:1"）
+    var skillLevelsRaw: String = ""
+
     // MARK: - Init
 
     init(
@@ -102,7 +116,7 @@ final class PlayerStateModel {
     }
 }
 
-// MARK: - 技能便利存取
+// MARK: - 技能 & 天賦便利存取
 
 extension PlayerStateModel {
 
@@ -116,5 +130,42 @@ extension PlayerStateModel {
         set {
             equippedSkillKeysRaw = newValue.joined(separator: ",")
         }
+    }
+
+    /// 已投入天賦節點 key 陣列（由 investedTalentKeysRaw 解析）
+    var investedTalentKeys: [String] {
+        investedTalentKeysRaw
+            .split(separator: ",")
+            .map(String.init)
+            .filter { !$0.isEmpty }
+    }
+
+    /// 技能升階等級字典（key: skillKey, value: 升階次數）
+    var skillLevels: [String: Int] {
+        Dictionary(uniqueKeysWithValues:
+            skillLevelsRaw
+                .split(separator: ",")
+                .compactMap { pair -> (String, Int)? in
+                    let parts = pair.split(separator: ":")
+                    guard parts.count == 2, let lv = Int(parts[1]) else { return nil }
+                    return (String(parts[0]), lv)
+                }
+        )
+    }
+
+    /// 取得指定技能的升階次數（未升階回傳 0）
+    func level(of skillKey: String) -> Int {
+        skillLevels[skillKey] ?? 0
+    }
+
+    /// 更新指定技能的升階次數（寫回 skillLevelsRaw）
+    func setLevel(_ level: Int, of skillKey: String) {
+        var levels = skillLevels
+        if level <= 0 {
+            levels.removeValue(forKey: skillKey)
+        } else {
+            levels[skillKey] = level
+        }
+        skillLevelsRaw = levels.map { "\($0.key):\($0.value)" }.joined(separator: ",")
     }
 }

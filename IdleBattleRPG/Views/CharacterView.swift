@@ -20,7 +20,7 @@ import SwiftData
 private enum CharacterSegment: String, CaseIterable {
     case gear        = "裝備"
     case backpack    = "背包"
-    case skills      = "技能"
+    case skills      = "技能"    // 主動 + 被動合併
     case achievement = "成就"
 }
 
@@ -33,6 +33,8 @@ private enum BackpackTab: String, CaseIterable {
 // MARK: - CharacterView
 
 struct CharacterView: View {
+
+    let appState: AppState
 
     @Environment(\.modelContext) private var context
 
@@ -58,6 +60,8 @@ struct CharacterView: View {
     @State private var pendingDisassembleItem: EquipmentModel?
     // 屬性點重置確認
     @State private var showResetAlert = false
+    // 天賦重置確認（T06）
+    @State private var showResetTalentAlert = false
 
     // MARK: - 計算屬性
 
@@ -160,6 +164,17 @@ struct CharacterView: View {
                 Button("取消", role: .cancel) {}
             } message: {
                 Text("所有已分配的屬性點將全部退回，可重新分配。此操作不可復原。")
+            }
+            // 天賦重置確認（T06）
+            .alert("確認重置天賦？", isPresented: $showResetTalentAlert) {
+                Button("重置", role: .destructive) {
+                    if let p = player {
+                        try? appState.talentService.resetAllTalents(player: p)
+                    }
+                }
+                Button("取消", role: .cancel) {}
+            } message: {
+                Text("將退還所有已投入的天賦點，並解除路線鎖定。\n消耗 500 金幣，此操作不可復原。")
             }
             // 裝備選擇 Sheet
             .sheet(item: $equipSheetSlot) { slot in
@@ -483,31 +498,47 @@ struct CharacterView: View {
         }
     }
 
-    // MARK: - 技能 Segment
+    // MARK: - 技能 Segment（主動 + 被動合併）
 
     @ViewBuilder
     private var skillsSegment: some View {
         if let player {
-            skillsContent(player: player)
+            activeSkillsSection(player: player)
+            passiveSkillsSection(player: player)
         } else {
             Section { Text("—").foregroundStyle(.secondary) }
         }
     }
 
+    // MARK: - 主動技能 Section
+
     @ViewBuilder
-    private func skillsContent(player: PlayerStateModel) -> some View {
-        let classKey  = player.classKey
-        let heroLevel = player.heroLevel
+    private func activeSkillsSection(player: PlayerStateModel) -> some View {
+        let classKey       = player.classKey
+        let heroLevel      = player.heroLevel
         let allClassSkills = SkillDef.all.filter { $0.classKey == classKey }
         let unlockedSkills = allClassSkills.filter { $0.requiredLevel <= heroLevel }
         let lockedSkills   = allClassSkills.filter { $0.requiredLevel > heroLevel }
         let equipped       = player.equippedSkillKeys
 
-        // ── 嵌入格（最多 4 個）─────────────────────────────────────
+        // 可用技能點 badge
+        Section {
+            HStack {
+                Image(systemName: "bolt.circle.fill").foregroundStyle(.orange)
+                Text("可用技能點").foregroundStyle(.secondary)
+                Spacer()
+                Text("\(player.availableSkillPoints) 點")
+                    .fontWeight(.semibold)
+                    .foregroundStyle(player.availableSkillPoints > 0 ? .orange : .secondary)
+            }
+        } header: {
+            Text("主動技能")
+        }
+
+        // 配備欄（4 格）
         Section {
             ForEach(0..<4, id: \.self) { slotIdx in
-                if slotIdx < equipped.count,
-                   let def = SkillDef.find(key: equipped[slotIdx]) {
+                if slotIdx < equipped.count, let def = SkillDef.find(key: equipped[slotIdx]) {
                     HStack(spacing: 10) {
                         ZStack {
                             Circle()
@@ -520,10 +551,8 @@ struct CharacterView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(def.name).fontWeight(.medium)
                             Text(def.effectSummary)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(2)
-                                .minimumScaleFactor(0.85)
+                                .font(.caption).foregroundStyle(.secondary)
+                                .lineLimit(1).minimumScaleFactor(0.85)
                         }
                         Spacer()
                         Button("移除") {
@@ -532,9 +561,7 @@ struct CharacterView: View {
                             player.equippedSkillKeys = keys
                             try? context.save()
                         }
-                        .buttonStyle(.bordered)
-                        .tint(.secondary)
-                        .font(.caption)
+                        .font(.caption).buttonStyle(.bordered).tint(.secondary)
                         .disabled(isOnExpedition)
                     }
                 } else {
@@ -547,88 +574,37 @@ struct CharacterView: View {
                                 .font(.system(size: 14))
                                 .foregroundStyle(.tertiary)
                         }
-                        Text("空槽 \(slotIdx + 1)")
-                            .foregroundStyle(.tertiary)
+                        Text("空槽 \(slotIdx + 1)").foregroundStyle(.tertiary)
                     }
                 }
             }
         } header: {
             HStack {
-                Text("配備技能")
+                Text("配備欄")
                 Spacer()
-                Text("\(equipped.count) / 4")
-                    .foregroundStyle(.secondary)
+                Text("\(equipped.count) / 4").foregroundStyle(.secondary)
             }
         } footer: {
             if isOnExpedition {
                 Label("出征中，技能配置已鎖定", systemImage: "lock.fill")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(.secondary)
             } else {
-                Text("最多配備 4 個技能，出征時全程生效")
-                    .font(.caption)
+                Text("最多配備 4 個技能，出征時全程生效").font(.caption)
             }
         }
 
-        // ── 已解鎖（可配備）──────────────────────────────────────────
+        // 已解鎖技能（可收合）
         if !unlockedSkills.isEmpty {
-            Section {
-                ForEach(unlockedSkills, id: \.key) { def in
-                    let isEquipped = equipped.contains(def.key)
-                    HStack(spacing: 10) {
-                        ZStack {
-                            Circle()
-                                .fill(isEquipped ? Color.orange.opacity(0.15) : Color.secondary.opacity(0.08))
-                                .frame(width: 32, height: 32)
-                            Image(systemName: "bolt.fill")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(isEquipped ? .orange : .secondary)
-                        }
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 4) {
-                                Text(def.name).fontWeight(.medium)
-                                Text("Lv.\(def.requiredLevel)")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                                    .padding(.horizontal, 5)
-                                    .padding(.vertical, 1)
-                                    .background(Color.secondary.opacity(0.1))
-                                    .clipShape(Capsule())
-                            }
-                            Text(def.effectSummary)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(2)
-                                .minimumScaleFactor(0.85)
-                        }
-                        Spacer()
-                        if isEquipped {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.orange)
-                                .font(.system(size: 16))
-                        } else {
-                            Button("配備") {
-                                guard equipped.count < 4 else { return }
-                                var keys = player.equippedSkillKeys
-                                keys.append(def.key)
-                                player.equippedSkillKeys = keys
-                                try? context.save()
-                            }
-                            .buttonStyle(.bordered)
-                            .tint(.orange)
-                            .font(.caption)
-                            .disabled(isOnExpedition || equipped.count >= 4)
-                        }
-                    }
+            Section("已解鎖技能（\(unlockedSkills.count) 個）") {
+                ForEach(unlockedSkills, id: \.key) { skill in
+                    activeSkillDisclosure(skill: skill, player: player, equipped: equipped)
                 }
-            } header: {
-                Text("已解鎖技能（\(unlockedSkills.count) 個）")
             }
         }
 
-        // ── 尚未解鎖 ─────────────────────────────────────────────────
+        // 尚未解鎖
         if !lockedSkills.isEmpty {
-            Section {
+            Section("尚未解鎖") {
                 ForEach(lockedSkills, id: \.key) { def in
                     HStack(spacing: 10) {
                         ZStack {
@@ -636,39 +612,262 @@ struct CharacterView: View {
                                 .fill(Color.secondary.opacity(0.06))
                                 .frame(width: 32, height: 32)
                             Image(systemName: "lock.fill")
-                                .font(.system(size: 13))
-                                .foregroundStyle(.tertiary)
+                                .font(.system(size: 13)).foregroundStyle(.tertiary)
                         }
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(def.name)
-                                .fontWeight(.medium)
-                                .foregroundStyle(.secondary)
-                            Text(def.effectSummary)
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
-                                .lineLimit(2)
-                                .minimumScaleFactor(0.85)
+                            Text(def.name).fontWeight(.medium).foregroundStyle(.secondary)
+                            Text(def.effectSummary).font(.caption).foregroundStyle(.tertiary).lineLimit(1)
                         }
                         Spacer()
                         Text("需 Lv.\(def.requiredLevel)")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 3)
-                            .background(Color.secondary.opacity(0.1))
-                            .clipShape(Capsule())
+                            .font(.caption2).foregroundStyle(.tertiary)
+                            .padding(.horizontal, 7).padding(.vertical, 3)
+                            .background(Color.secondary.opacity(0.1)).clipShape(Capsule())
                     }
                 }
-            } header: {
-                Text("尚未解鎖")
             }
         }
 
-        // ── 尚未選擇職業 ─────────────────────────────────────────────
         if classKey.isEmpty {
             Section {
                 Label("請先選擇職業以解鎖技能", systemImage: "person.badge.shield.checkmark.fill")
                     .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func activeSkillDisclosure(
+        skill: SkillDef,
+        player: PlayerStateModel,
+        equipped: [String]
+    ) -> some View {
+        let currentLevel = player.level(of: skill.key)
+        let isEquipped   = equipped.contains(skill.key)
+        let canUpgrade   = appState.skillUpgradeService.canUpgrade(skillKey: skill.key, for: player)
+
+        DisclosureGroup {
+            // 每等效果文字
+            ForEach(0..<skill.maxLevel, id: \.self) { idx in
+                HStack {
+                    Text("Lv.\(idx + 1)")
+                        .frame(width: 36, alignment: .leading)
+                    Spacer()
+                    Text(skill.effectDescription(at: idx))
+                        .foregroundStyle(currentLevel > idx ? Color.primary : Color.secondary.opacity(0.5))
+                }
+                .font(.caption)
+            }
+
+            // 升階預覽（T07）
+            if canUpgrade {
+                HStack {
+                    Text("升階後").font(.caption2).foregroundStyle(.secondary)
+                    Spacer()
+                    Text(skill.effectDescription(at: currentLevel))
+                        .font(.caption2).foregroundStyle(.blue)
+                }
+                .padding(.top, 2)
+            }
+
+            // 升階 / 最高等級標示
+            if currentLevel >= skill.maxLevel {
+                Label("已達最高等級", systemImage: "checkmark.seal.fill")
+                    .font(.caption).foregroundStyle(.orange)
+            } else if canUpgrade {
+                Button("升階（-1 技能點）Lv.\(currentLevel) → \(currentLevel + 1)") {
+                    try? appState.skillUpgradeService.upgradeSkill(skillKey: skill.key, for: player)
+                }
+                .font(.caption).buttonStyle(.bordered).tint(.orange)
+            }
+
+        } label: {
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(isEquipped ? Color.orange.opacity(0.15) : Color.secondary.opacity(0.08))
+                        .frame(width: 32, height: 32)
+                    Image(systemName: isEquipped ? "bolt.fill" : "bolt")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(isEquipped ? .orange : .secondary)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(skill.name).fontWeight(.medium)
+                        Text("Lv.\(currentLevel)/\(skill.maxLevel)")
+                            .font(.caption2)
+                            .foregroundStyle(currentLevel > 0 ? .orange : .secondary)
+                            .padding(.horizontal, 5).padding(.vertical, 1)
+                            .background(Color.secondary.opacity(0.1)).clipShape(Capsule())
+                    }
+                    Text(skill.effectDescription(at: max(0, currentLevel - 1)))
+                        .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                }
+                Spacer()
+                if isEquipped {
+                    Button("移除") {
+                        var keys = player.equippedSkillKeys
+                        keys.removeAll { $0 == skill.key }
+                        player.equippedSkillKeys = keys
+                        try? context.save()
+                    }
+                    .font(.caption).buttonStyle(.bordered).tint(.secondary)
+                    .disabled(isOnExpedition)
+                } else {
+                    Button("配備") {
+                        guard equipped.count < 4 else { return }
+                        var keys = player.equippedSkillKeys
+                        keys.append(skill.key)
+                        player.equippedSkillKeys = keys
+                        try? context.save()
+                    }
+                    .font(.caption).buttonStyle(.bordered).tint(.orange)
+                    .disabled(isOnExpedition || equipped.count >= 4)
+                }
+            }
+        }
+    }
+
+    // MARK: - 被動技能（天賦）Section
+
+    @ViewBuilder
+    private func passiveSkillsSection(player: PlayerStateModel) -> some View {
+        // 天賦點 badge
+        Section {
+            HStack {
+                Image(systemName: "sparkles").foregroundStyle(.blue)
+                Text("可用天賦點").foregroundStyle(.secondary)
+                Spacer()
+                Text("\(player.availableTalentPoints) 點")
+                    .fontWeight(.semibold)
+                    .foregroundStyle(player.availableTalentPoints > 0 ? .blue : .secondary)
+            }
+        } header: {
+            Text("被動技能")
+        }
+
+        let routes = TalentRouteDef.all(for: player.classKey)
+
+        if routes.isEmpty {
+            Section {
+                Label("請先選擇職業以解鎖天賦", systemImage: "person.badge.shield.checkmark.fill")
+                    .foregroundStyle(.secondary)
+            }
+        } else {
+            ForEach(routes, id: \.key) { route in
+                let isLocked = appState.talentService.isRouteLocked(route, for: player)
+                passiveRouteSection(route: route, player: player, isLocked: isLocked)
+            }
+
+            // 天賦重置按鈕（T06）
+            if !player.investedTalentKeys.isEmpty {
+                Section {
+                    Button {
+                        showResetTalentAlert = true
+                    } label: {
+                        Label("重置所有天賦（-500 金幣）", systemImage: "arrow.uturn.backward")
+                            .font(.callout)
+                    }
+                    .buttonStyle(.bordered).tint(.secondary)
+                    .disabled(player.gold < 500)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                } footer: {
+                    if player.gold < 500 {
+                        Text("金幣不足，無法重置").font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func passiveRouteSection(
+        route: TalentRouteDef,
+        player: PlayerStateModel,
+        isLocked: Bool
+    ) -> some View {
+        Section {
+            Text(route.themeDescription)
+                .font(.caption).foregroundStyle(.secondary)
+            ForEach(route.nodes, id: \.key) { node in
+                passiveNodeDisclosure(node: node, player: player, isRouteLocked: isLocked)
+            }
+        } header: {
+            HStack {
+                Text(route.name).fontWeight(.semibold)
+                Spacer()
+                if isLocked {
+                    Label("互斥鎖定", systemImage: "lock.fill")
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
+            }
+        }
+        .disabled(isLocked)
+    }
+
+    @ViewBuilder
+    private func passiveNodeDisclosure(
+        node: TalentNodeDef,
+        player: PlayerStateModel,
+        isRouteLocked: Bool
+    ) -> some View {
+        let investedCount = node.currentLevel(in: player)
+        let isMaxed       = node.isMaxed(in: player)
+        let canInvest     = !isRouteLocked && appState.talentService.canInvest(nodeKey: node.key, for: player)
+
+        DisclosureGroup {
+            // 每等效果文字
+            ForEach(1...node.maxLevel, id: \.self) { lv in
+                HStack {
+                    Text("Lv.\(lv)").frame(width: 36, alignment: .leading)
+                    Spacer()
+                    Text(node.effectSummary)
+                        .foregroundStyle(investedCount >= lv ? Color.primary : Color.secondary.opacity(0.4))
+                }
+                .font(.caption)
+            }
+
+            // 戰力預覽（T07）
+            if canInvest, let current = heroStats {
+                let delta = current.applying(talentNodes: [node]).power - current.power
+                if delta > 0 {
+                    HStack {
+                        Text("投入後").font(.caption2).foregroundStyle(.secondary)
+                        Spacer()
+                        Text("+\(delta) 戰力")
+                            .font(.caption2).fontWeight(.semibold).foregroundStyle(.blue).monospacedDigit()
+                    }
+                    .padding(.top, 2)
+                }
+            }
+
+            // 投入 / 已達上限標示
+            if isMaxed {
+                Label("已達上限", systemImage: "checkmark.seal.fill")
+                    .font(.caption).foregroundStyle(.green)
+            } else if canInvest {
+                Button("投入（-1 天賦點）") {
+                    try? appState.talentService.investPoint(nodeKey: node.key, for: player)
+                }
+                .font(.caption).buttonStyle(.bordered).tint(.blue)
+            }
+
+        } label: {
+            HStack(spacing: 10) {
+                Circle()
+                    .fill(isMaxed ? Color.green : (canInvest ? Color.blue : Color.secondary.opacity(0.25)))
+                    .frame(width: 10, height: 10)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(node.name).fontWeight(.medium)
+                        .foregroundStyle(isMaxed || canInvest ? Color.primary : Color.secondary)
+                    Text(node.effectSummary).font(.caption)
+                        .foregroundStyle(isMaxed || canInvest ? Color.secondary : Color.secondary.opacity(0.4))
+                }
+                Spacer()
+                Text("\(investedCount)/\(node.maxLevel)")
+                    .font(.caption2)
+                    .foregroundStyle(isMaxed ? .green : (investedCount > 0 ? .blue : .secondary))
+                    .monospacedDigit()
             }
         }
     }
@@ -1118,9 +1317,11 @@ extension EquipmentSlot: Identifiable {
 // MARK: - Preview
 
 #Preview {
-    CharacterView()
-        .modelContainer(for: [
-            PlayerStateModel.self, MaterialInventoryModel.self,
-            EquipmentModel.self, TaskModel.self,
-        ], inMemory: true)
+    let config    = ModelConfiguration(isStoredInMemoryOnly: true)
+    let container = try! ModelContainer(for: PlayerStateModel.self, MaterialInventoryModel.self,
+                                        EquipmentModel.self, TaskModel.self,
+                                        configurations: config)
+    let appState  = AppState(context: container.mainContext)
+    return CharacterView(appState: appState)
+        .modelContainer(container)
 }

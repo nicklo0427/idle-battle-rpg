@@ -77,6 +77,7 @@ struct DungeonSettlementEngine {
 
         // 4. 技能快照
         let activeSkills = task.snapshotSkillKeys.compactMap { SkillDef.find(key: $0) }
+        let skillLevels  = task.snapshotSkillLevels
 
         // 5. task seed（同 BattleLogGenerator）
         let tBits    = task.startedAt.timeIntervalSinceReferenceDate.bitPattern
@@ -97,6 +98,7 @@ struct DungeonSettlementEngine {
             let outcome = BattleLogGenerator.runCombat(
                 seed:            combatSeed,
                 activeSkills:    activeSkills,
+                skillLevels:     skillLevels,
                 heroMaxHp:       heroMaxHp,
                 heroAtk:         heroAtk,
                 heroDef:         heroDef,
@@ -175,6 +177,7 @@ struct DungeonSettlementEngine {
 
         // 4. 技能快照
         let activeSkills = task.snapshotSkillKeys.compactMap { SkillDef.find(key: $0) }
+        let skillLevels  = task.snapshotSkillLevels
 
         // 5. task seed（同 BattleLogGenerator）
         let tBits    = task.startedAt.timeIntervalSinceReferenceDate.bitPattern
@@ -193,6 +196,7 @@ struct DungeonSettlementEngine {
             let outcome = BattleLogGenerator.runCombat(
                 seed:            combatSeed,
                 activeSkills:    activeSkills,
+                skillLevels:     skillLevels,
                 heroMaxHp:       heroMaxHp,
                 heroAtk:         heroAtk,
                 heroDef:         heroDef,

@@ -42,6 +42,13 @@ final class AppState {
     /// 公開讓 ViewModel 呼叫 upgrade / nextUpgradeCost。
     let npcUpgradeService: NpcUpgradeService
 
+    /// 天賦點投入服務（V6-2）。
+    /// 公開讓 ViewModel 呼叫 canInvest / investPoint。
+    let talentService: TalentService
+
+    /// 技能升階服務（V6-2 T09）。
+    let skillUpgradeService: SkillUpgradeService
+
     // MARK: - 播放模型（背景持續播放，關閉 Sheet 不中斷）
 
     /// 地下城戰鬥播放（全局共用一個，同時只有一個地下城任務）
@@ -75,6 +82,8 @@ final class AppState {
         self.progressionService  = DungeonProgressionService(context: context)
         self.enhancementService  = EnhancementService(context: context)
         self.npcUpgradeService   = NpcUpgradeService(context: context)
+        self.talentService       = TalentService(context: context)
+        self.skillUpgradeService = SkillUpgradeService(context: context)
     }
 
     // MARK: - Timer 生命週期（由 ContentView 管理）

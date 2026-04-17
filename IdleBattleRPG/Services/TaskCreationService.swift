@@ -195,7 +195,8 @@ struct TaskCreationService {
             snapshotAgi:      heroStats.totalAGI,
             snapshotDex:      heroStats.totalDEX
         )
-        task.snapshotSkillKeysRaw = equippedSkillKeys.joined(separator: ",")
+        task.snapshotSkillKeysRaw   = equippedSkillKeys.joined(separator: ",")
+        task.snapshotSkillLevelsRaw = player.skillLevelsRaw
         repository.insert(task)
     }
 
@@ -248,7 +249,8 @@ struct TaskCreationService {
             snapshotAgi:      heroStats.totalAGI,
             snapshotDex:      heroStats.totalDEX
         )
-        task.snapshotSkillKeysRaw = equippedSkillKeys.joined(separator: ",")
+        task.snapshotSkillKeysRaw   = equippedSkillKeys.joined(separator: ",")
+        task.snapshotSkillLevelsRaw = player.skillLevelsRaw
         repository.insert(task)
     }
 }

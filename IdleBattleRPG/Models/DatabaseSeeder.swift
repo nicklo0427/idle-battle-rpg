@@ -16,6 +16,8 @@ struct DatabaseSeeder {
         seedMaterialInventory(context: context)
         seedStartingEquipment(context: context)
         seedDungeonProgression(context: context)
+        backfillTalentPoints(context: context)
+        backfillSkillPoints(context: context)
 
         do {
             try context.save()
@@ -75,6 +77,28 @@ struct DatabaseSeeder {
             unlockedRegionKeysJSON: "[\"wildland\"]"
         )
         context.insert(progression)
+    }
+
+    /// 舊存檔補發天賦點：investedTalentKeysRaw 為空且 level > 1 時，按等級補發（幂等）
+    @MainActor
+    private static func backfillTalentPoints(context: ModelContext) {
+        let descriptor = FetchDescriptor<PlayerStateModel>()
+        guard let player = (try? context.fetch(descriptor))?.first else { return }
+        guard player.investedTalentKeysRaw.isEmpty,
+              player.availableTalentPoints == 0,
+              player.heroLevel > 1 else { return }
+        player.availableTalentPoints = player.heroLevel - 1
+    }
+
+    /// 舊存檔補發技能點：skillLevelsRaw 為空且 level > 1 時，按等級補發（幂等）
+    @MainActor
+    private static func backfillSkillPoints(context: ModelContext) {
+        let descriptor = FetchDescriptor<PlayerStateModel>()
+        guard let player = (try? context.fetch(descriptor))?.first else { return }
+        guard player.skillLevelsRaw.isEmpty,
+              player.availableSkillPoints == 0,
+              player.heroLevel > 1 else { return }
+        player.availableSkillPoints = player.heroLevel - 1
     }
 
     @MainActor

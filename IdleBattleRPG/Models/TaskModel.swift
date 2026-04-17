@@ -119,6 +119,11 @@ final class TaskModel {
     /// .dungeon 專用：出發時裝備的技能 key 快照，逗號分隔（空字串 = 無技能）
     var snapshotSkillKeysRaw: String = ""
 
+    // MARK: - 技能升階快照（V6-2 T09）
+
+    /// .dungeon 專用：出發時技能升階等級快照，格式 "key:level,key:level"
+    var snapshotSkillLevelsRaw: String = ""
+
     // MARK: - Init
 
     init(
@@ -299,5 +304,18 @@ extension TaskModel {
         set {
             snapshotSkillKeysRaw = newValue.joined(separator: ",")
         }
+    }
+
+    /// 出發時技能升階等級快照字典（key: skillKey, value: 升階次數）
+    var snapshotSkillLevels: [String: Int] {
+        Dictionary(uniqueKeysWithValues:
+            snapshotSkillLevelsRaw
+                .split(separator: ",")
+                .compactMap { pair -> (String, Int)? in
+                    let parts = pair.split(separator: ":")
+                    guard parts.count == 2, let lv = Int(parts[1]) else { return nil }
+                    return (String(parts[0]), lv)
+                }
+        )
     }
 }
