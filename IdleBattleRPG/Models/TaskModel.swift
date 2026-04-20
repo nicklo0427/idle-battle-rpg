@@ -124,6 +124,12 @@ final class TaskModel {
     /// .dungeon 專用：出發時技能升階等級快照，格式 "key:level,key:level"
     var snapshotSkillLevelsRaw: String = ""
 
+    // MARK: - 即時戰鬥標記（V6-3 T01）
+
+    /// .dungeon 專用：任務到期後戰鬥尚未發起時為 true
+    /// 戰鬥完成後由 DungeonBattleSheet 重設為 false
+    var battlePending: Bool = false
+
     // MARK: - Init
 
     init(

@@ -11,6 +11,19 @@
 
 import Foundation
 
+// MARK: - 狀態效果（V6-3 T05）
+
+enum StatusEffect: Equatable {
+    /// 燃燒：每回合固定傷害，持續 remainingTurns 回合
+    case burn(remainingTurns: Int, dpt: Int)
+    /// 中毒：可疊加，每回合 dptPerStack × stacks 傷害，戰鬥中不自動消退
+    case poison(stacks: Int, dptPerStack: Int)
+    /// 暈眩：跳過 remainingTurns 次行動
+    case stun(remainingTurns: Int)
+    /// 弱化：敵方攻擊傷害降低 atkReduction，持續 remainingTurns 回合
+    case weakened(atkReduction: Double, remainingTurns: Int)
+}
+
 // MARK: - 戰鬥事件型別（V4-1 + V4-2 共用）
 
 struct BattleEvent {
@@ -23,6 +36,9 @@ struct BattleEvent {
         case victory    // 英雄勝利 + 本場金幣
         case defeat     // 英雄落敗
         case heal       // 療傷恢復（失敗後，chargeTime > 0）
+        case statusApplied   // V6-3 T05：施加狀態效果（燃燒 / 中毒 / 暈眩 / 弱化）
+        case statusTick      // V6-3 T05：狀態效果觸發（傷害 / 跳過行動）
+        case statusExpired   // V6-3 T05：狀態效果消退
     }
 
     let type:         EventType
@@ -37,12 +53,15 @@ struct BattleEvent {
     let isCrit:       Bool
     /// heroATBProgress 的目標值（探索三階段用：0.33 / 0.67 / 1.0）
     let chargeTarget: Double
+    /// T07：施放的技能 key（僅 .skill 事件且為真實技能施放時有效，其餘為 nil）
+    let skillKey:     String?
 
     init(type: EventType, description: String,
          heroHpAfter: Int, enemyHpAfter: Int,
          heroMaxHp: Int, enemyMaxHp: Int,
          chargeTime: Double, isCrit: Bool,
-         chargeTarget: Double = 1.0) {
+         chargeTarget: Double = 1.0,
+         skillKey: String? = nil) {
         self.type         = type
         self.description  = description
         self.heroHpAfter  = heroHpAfter
@@ -52,6 +71,7 @@ struct BattleEvent {
         self.chargeTime   = chargeTime
         self.isCrit       = isCrit
         self.chargeTarget = chargeTarget
+        self.skillKey     = skillKey
     }
 }
 
@@ -113,9 +133,9 @@ struct BattleLogGenerator {
         // 暴擊率
         let critRate = min(0.35, Double(snapshotDex) * 0.035)
 
-        // 敵方數值
-        let enemyMaxHp = max(30, floor.recommendedPower * 2)
-        let enemyAtk   = max(8,  floor.recommendedPower / 4)
+        // 敵方數值（T11：血量 3× 提升，攻擊略微提升，讓戰鬥持續足夠回合以體現技能）
+        let enemyMaxHp = max(80, floor.recommendedPower * 6)
+        let enemyAtk   = max(10, floor.recommendedPower / 3)
         let enemyDef   = max(3,  floor.recommendedPower / 10)
 
         // 療傷時長：高 DEF 恢復更快
@@ -201,6 +221,7 @@ struct BattleLogGenerator {
         var heroHp  = heroMaxHp
         var enemyHp = enemyMaxHp
 
+        // T11：初始值為 cooldownSeconds，技能從冷卻開始，需完整等待一次 CD 才可觸發
         var skillNextFireTime: [String: Double] = Dictionary(
             uniqueKeysWithValues: activeSkills.map { ($0.key, Double($0.cooldownSeconds)) }
         )
@@ -208,8 +229,53 @@ struct BattleLogGenerator {
         var heroAtkMultiplier  = 1.0
         var enemyAtkMultiplier = 1.0
 
+        // T05: 敵方狀態效果追蹤
+        var enemyStatuses: [StatusEffect] = []
+
         combatLoop: for _ in 0..<50 {
             guard heroHp > 0, enemyHp > 0 else { break }
+
+            // T05: 每 tick 起始時，觸發燃燒 / 中毒傷害並倒數
+            var nextStatuses: [StatusEffect] = []
+            for status in enemyStatuses {
+                switch status {
+                case .burn(let turns, let dpt):
+                    enemyHp = max(0, enemyHp - dpt)
+                    onEvent?(BattleEvent(
+                        type: .statusTick,
+                        description: "🔥 \(enemyName) 燃燒傷害 \(dpt)（剩餘 \(max(0, turns - 1)) 回合）",
+                        heroHpAfter: heroHp, enemyHpAfter: enemyHp,
+                        heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
+                        chargeTime: 0, isCrit: false
+                    ))
+                    if turns > 1 {
+                        nextStatuses.append(.burn(remainingTurns: turns - 1, dpt: dpt))
+                    } else {
+                        onEvent?(BattleEvent(
+                            type: .statusExpired,
+                            description: "🔥 燃燒效果結束",
+                            heroHpAfter: heroHp, enemyHpAfter: enemyHp,
+                            heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
+                            chargeTime: 0, isCrit: false
+                        ))
+                    }
+                case .poison(let stacks, let dptPerStack):
+                    let poisonDmg = dptPerStack * stacks
+                    enemyHp = max(0, enemyHp - poisonDmg)
+                    onEvent?(BattleEvent(
+                        type: .statusTick,
+                        description: "☠️ \(enemyName) 中毒傷害 \(poisonDmg)（\(stacks) 層）",
+                        heroHpAfter: heroHp, enemyHpAfter: enemyHp,
+                        heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
+                        chargeTime: 0, isCrit: false
+                    ))
+                    nextStatuses.append(status)   // 中毒不自動消退
+                case .stun, .weakened:
+                    nextStatuses.append(status)   // 暈眩 / 弱化在行動時處理
+                }
+            }
+            enemyStatuses = nextStatuses
+            if enemyHp <= 0 { break }   // 狀態效果擊殺
 
             elapsedCombatTime += heroChargeTime
 
@@ -231,7 +297,7 @@ struct BattleLogGenerator {
                         description: "【\(skill.name)】對 \(enemyName) 造成 \(dmg) 傷害",
                         heroHpAfter: heroHp, enemyHpAfter: enemyHp,
                         heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
-                        chargeTime: 0, isCrit: false
+                        chargeTime: 0, isCrit: false, skillKey: skill.key
                     ))
                     if enemyHp <= 0 { break combatLoop }
 
@@ -243,7 +309,7 @@ struct BattleLogGenerator {
                         description: "【\(skill.name)】恢復 \(restored) HP（\(heroHp)/\(heroMaxHp)）",
                         heroHpAfter: heroHp, enemyHpAfter: enemyHp,
                         heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
-                        chargeTime: 0, isCrit: false
+                        chargeTime: 0, isCrit: false, skillKey: skill.key
                     ))
 
                 case .damageAndHeal(let dm, let hm):
@@ -256,7 +322,7 @@ struct BattleLogGenerator {
                         description: "【\(skill.name)】造成 \(dmg) 傷害，恢復 \(restored) HP",
                         heroHpAfter: heroHp, enemyHpAfter: enemyHp,
                         heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
-                        chargeTime: 0, isCrit: false
+                        chargeTime: 0, isCrit: false, skillKey: skill.key
                     ))
                     if enemyHp <= 0 { break combatLoop }
 
@@ -268,7 +334,7 @@ struct BattleLogGenerator {
                         description: "【\(skill.name)】下次攻擊傷害提升 \(Int(scaledB * 100))%",
                         heroHpAfter: heroHp, enemyHpAfter: enemyHp,
                         heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
-                        chargeTime: 0, isCrit: false
+                        chargeTime: 0, isCrit: false, skillKey: skill.key
                     ))
 
                 case .enemyAtkDown(let r):
@@ -279,7 +345,7 @@ struct BattleLogGenerator {
                         description: "【\(skill.name)】\(enemyName) 下次攻擊削弱 \(Int(scaledR * 100))%",
                         heroHpAfter: heroHp, enemyHpAfter: enemyHp,
                         heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
-                        chargeTime: 0, isCrit: false
+                        chargeTime: 0, isCrit: false, skillKey: skill.key
                     ))
 
                 case .damageAndEnemyAtkDown(let dm, let r):
@@ -290,6 +356,103 @@ struct BattleLogGenerator {
                     onEvent?(BattleEvent(
                         type: .skill,
                         description: "【\(skill.name)】造成 \(dmg) 傷害，\(enemyName) 下次攻擊削弱 \(Int(scaledR * 100))%",
+                        heroHpAfter: heroHp, enemyHpAfter: enemyHp,
+                        heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
+                        chargeTime: 0, isCrit: false, skillKey: skill.key
+                    ))
+                    if enemyHp <= 0 { break combatLoop }
+
+                // T05: 狀態效果技能
+                case .damageAndBurn(let dm, let dpt, let dur):
+                    let dmg = max(1, Int(Double(heroAtk) * dm * upgradeM))
+                    enemyHp = max(0, enemyHp - dmg)
+                    enemyStatuses.append(.burn(remainingTurns: dur, dpt: dpt))
+                    onEvent?(BattleEvent(
+                        type: .skill,
+                        description: "【\(skill.name)】造成 \(dmg) 傷害",
+                        heroHpAfter: heroHp, enemyHpAfter: enemyHp,
+                        heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
+                        chargeTime: 0, isCrit: false, skillKey: skill.key
+                    ))
+                    onEvent?(BattleEvent(
+                        type: .statusApplied,
+                        description: "🔥 \(enemyName) 陷入燃燒！每回合 \(dpt) 傷害，持續 \(dur) 回合",
+                        heroHpAfter: heroHp, enemyHpAfter: enemyHp,
+                        heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
+                        chargeTime: 0, isCrit: false
+                    ))
+                    if enemyHp <= 0 { break combatLoop }
+
+                case .damageAndPoison(let dm, let dptPerStack):
+                    let dmg = max(1, Int(Double(heroAtk) * dm * upgradeM))
+                    enemyHp = max(0, enemyHp - dmg)
+                    // 疊加中毒層數
+                    if let idx = enemyStatuses.firstIndex(where: { if case .poison = $0 { return true }; return false }) {
+                        if case .poison(let stacks, _) = enemyStatuses[idx] {
+                            let newStacks = stacks + 1
+                            enemyStatuses[idx] = .poison(stacks: newStacks, dptPerStack: dptPerStack)
+                            onEvent?(BattleEvent(
+                                type: .skill,
+                                description: "【\(skill.name)】造成 \(dmg) 傷害，中毒加深（\(newStacks) 層）",
+                                heroHpAfter: heroHp, enemyHpAfter: enemyHp,
+                                heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
+                                chargeTime: 0, isCrit: false, skillKey: skill.key
+                            ))
+                        }
+                    } else {
+                        enemyStatuses.append(.poison(stacks: 1, dptPerStack: dptPerStack))
+                        onEvent?(BattleEvent(
+                            type: .skill,
+                            description: "【\(skill.name)】造成 \(dmg) 傷害，施加中毒",
+                            heroHpAfter: heroHp, enemyHpAfter: enemyHp,
+                            heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
+                            chargeTime: 0, isCrit: false, skillKey: skill.key
+                        ))
+                        onEvent?(BattleEvent(
+                            type: .statusApplied,
+                            description: "☠️ \(enemyName) 中毒！每回合持續受到毒害",
+                            heroHpAfter: heroHp, enemyHpAfter: enemyHp,
+                            heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
+                            chargeTime: 0, isCrit: false
+                        ))
+                    }
+                    if enemyHp <= 0 { break combatLoop }
+
+                case .stunAndDamage(let dm, let dur):
+                    let dmg = max(1, Int(Double(heroAtk) * dm * upgradeM))
+                    enemyHp = max(0, enemyHp - dmg)
+                    enemyStatuses.append(.stun(remainingTurns: dur))
+                    onEvent?(BattleEvent(
+                        type: .skill,
+                        description: "【\(skill.name)】造成 \(dmg) 傷害",
+                        heroHpAfter: heroHp, enemyHpAfter: enemyHp,
+                        heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
+                        chargeTime: 0, isCrit: false, skillKey: skill.key
+                    ))
+                    onEvent?(BattleEvent(
+                        type: .statusApplied,
+                        description: "💫 \(enemyName) 被暈眩！跳過 \(dur) 次行動",
+                        heroHpAfter: heroHp, enemyHpAfter: enemyHp,
+                        heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
+                        chargeTime: 0, isCrit: false
+                    ))
+                    if enemyHp <= 0 { break combatLoop }
+
+                case .damageAndWeaken(let dm, let r, let dur):
+                    let dmg = max(1, Int(Double(heroAtk) * dm * upgradeM))
+                    let scaledR = min(0.99, r * upgradeM)
+                    enemyHp = max(0, enemyHp - dmg)
+                    enemyStatuses.append(.weakened(atkReduction: scaledR, remainingTurns: dur))
+                    onEvent?(BattleEvent(
+                        type: .skill,
+                        description: "【\(skill.name)】造成 \(dmg) 傷害",
+                        heroHpAfter: heroHp, enemyHpAfter: enemyHp,
+                        heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
+                        chargeTime: 0, isCrit: false, skillKey: skill.key
+                    ))
+                    onEvent?(BattleEvent(
+                        type: .statusApplied,
+                        description: "⬇️ \(enemyName) 被弱化！攻擊力降低 \(Int(scaledR * 100))%，持續 \(dur) 回合",
                         heroHpAfter: heroHp, enemyHpAfter: enemyHp,
                         heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
                         chargeTime: 0, isCrit: false
@@ -319,19 +482,76 @@ struct BattleLogGenerator {
 
             guard enemyHp > 0 else { break }
 
-            // 敵方反擊
-            var enemyDmg = max(1, enemyAtk - heroDef + rng.nextInt(in: -2...2))
-            enemyDmg = max(1, Int(Double(enemyDmg) * enemyAtkMultiplier))
-            enemyAtkMultiplier = 1.0
-            heroHp = max(0, heroHp - enemyDmg)
+            // T05: 暈眩檢查 — 敵方被暈眩時跳過反擊
+            var skipEnemyAttack = false
+            if let stIdx = enemyStatuses.firstIndex(where: { if case .stun = $0 { return true }; return false }) {
+                if case .stun(let turns) = enemyStatuses[stIdx] {
+                    skipEnemyAttack = true
+                    onEvent?(BattleEvent(
+                        type: .statusTick,
+                        description: "💫 \(enemyName) 被暈眩，無法行動！",
+                        heroHpAfter: heroHp, enemyHpAfter: enemyHp,
+                        heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
+                        chargeTime: 0, isCrit: false
+                    ))
+                    if turns <= 1 {
+                        enemyStatuses.remove(at: stIdx)
+                        onEvent?(BattleEvent(
+                            type: .statusExpired,
+                            description: "💫 暈眩效果結束",
+                            heroHpAfter: heroHp, enemyHpAfter: enemyHp,
+                            heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
+                            chargeTime: 0, isCrit: false
+                        ))
+                    } else {
+                        enemyStatuses[stIdx] = .stun(remainingTurns: turns - 1)
+                    }
+                }
+            }
 
-            onEvent?(BattleEvent(
-                type: .damage,
-                description: "\(enemyName) 反擊 → 受到 \(enemyDmg) 傷害",
-                heroHpAfter: heroHp, enemyHpAfter: enemyHp,
-                heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
-                chargeTime: enemyChargeTime, isCrit: false
-            ))
+            if !skipEnemyAttack {
+                // T05: 計算弱化折減（取第一個 weakened 狀態的折減值）
+                let weakenReduction = enemyStatuses.compactMap { s -> Double? in
+                    if case .weakened(let r, _) = s { return r }
+                    return nil
+                }.first ?? 0.0
+
+                // 敵方反擊
+                var enemyDmg = max(1, enemyAtk - heroDef + rng.nextInt(in: -2...2))
+                let effectiveMultiplier = (1.0 - weakenReduction) * enemyAtkMultiplier
+                enemyDmg = max(1, Int(Double(enemyDmg) * effectiveMultiplier))
+                enemyAtkMultiplier = 1.0
+                heroHp = max(0, heroHp - enemyDmg)
+
+                onEvent?(BattleEvent(
+                    type: .damage,
+                    description: "\(enemyName) 反擊 → 受到 \(enemyDmg) 傷害",
+                    heroHpAfter: heroHp, enemyHpAfter: enemyHp,
+                    heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
+                    chargeTime: enemyChargeTime, isCrit: false
+                ))
+
+                // T05: 弱化倒數（每次敵方攻擊後 -1 回合）
+                var tickedStatuses: [StatusEffect] = []
+                for s in enemyStatuses {
+                    if case .weakened(let r, let turns) = s {
+                        if turns <= 1 {
+                            onEvent?(BattleEvent(
+                                type: .statusExpired,
+                                description: "⬇️ 弱化效果結束，\(enemyName) 恢復正常攻擊力",
+                                heroHpAfter: heroHp, enemyHpAfter: enemyHp,
+                                heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
+                                chargeTime: 0, isCrit: false
+                            ))
+                        } else {
+                            tickedStatuses.append(.weakened(atkReduction: r, remainingTurns: turns - 1))
+                        }
+                    } else {
+                        tickedStatuses.append(s)
+                    }
+                }
+                enemyStatuses = tickedStatuses
+            }
         }
 
         // 失敗事件（記錄模式）

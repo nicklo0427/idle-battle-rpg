@@ -30,6 +30,16 @@ enum ActiveEffect {
 
     /// 傷害 + 下次敵方攻擊削弱組合（mg_frost_nova 用）
     case damageAndEnemyAtkDown(dmgMultiplier: Double, reduction: Double)
+
+    // T05：狀態效果型技能
+    /// 傷害 + 施加燃燒（每回合固定傷害，持續 N 回合）
+    case damageAndBurn(dmgMultiplier: Double, dpt: Int, duration: Int)
+    /// 傷害 + 施加中毒（可疊加；後續命中增加層數）
+    case damageAndPoison(dmgMultiplier: Double, dptPerStack: Int)
+    /// 傷害 + 暈眩（敵方跳過 N 次行動）
+    case stunAndDamage(dmgMultiplier: Double, stunDuration: Int)
+    /// 傷害 + 弱化（敵方攻擊力降低 reduction，持續 N 回合）
+    case damageAndWeaken(dmgMultiplier: Double, reduction: Double, duration: Int)
 }
 
 // MARK: - 技能定義
@@ -99,6 +109,15 @@ extension SkillDef {
         case .damageAndEnemyAtkDown(let dmg, let r):
             let scaledR = min(0.99, r * m)
             return String(format: "傷害 × %.2f · 敵攻 -%.0f%%", dmg * m, scaledR * 100)
+        case .damageAndBurn(let dm, let dpt, let dur):
+            return String(format: "傷害 × %.2f · 燃燒 %d 傷 ×%d 回合", dm * m, dpt, dur)
+        case .damageAndPoison(let dm, let dptPerStack):
+            return String(format: "傷害 × %.2f · 中毒 %d/層", dm * m, dptPerStack)
+        case .stunAndDamage(let dm, let dur):
+            return String(format: "傷害 × %.2f · 暈眩 %d 回合", dm * m, dur)
+        case .damageAndWeaken(let dm, let r, let dur):
+            let scaledR = min(0.99, r * m)
+            return String(format: "傷害 × %.2f · 弱化 -%.0f%% ×%d 回合", dm * m, scaledR * 100, dur)
         }
     }
 }
@@ -123,6 +142,14 @@ extension SkillDef {
             effectText = "敵方下次攻擊 -\(Int(r * 100))%"
         case .damageAndEnemyAtkDown(let dm, let r):
             effectText = "\(Int(dm * 100))% ATK 傷害 + 敵方下次攻擊 -\(Int(r * 100))%"
+        case .damageAndBurn(let dm, let dpt, let dur):
+            effectText = "\(Int(dm * 100))% ATK 傷害 + 燃燒 \(dpt)/回合 ×\(dur)"
+        case .damageAndPoison(let dm, let dpt):
+            effectText = "\(Int(dm * 100))% ATK 傷害 + 中毒 \(dpt)/層"
+        case .stunAndDamage(let dm, let dur):
+            effectText = "\(Int(dm * 100))% ATK 傷害 + 暈眩 \(dur) 回合"
+        case .damageAndWeaken(let dm, let r, let dur):
+            effectText = "\(Int(dm * 100))% ATK 傷害 + 弱化 -\(Int(r * 100))% ×\(dur) 回合"
         }
         return "\(effectText) · CD \(cooldownSeconds)s"
     }
@@ -136,10 +163,10 @@ extension SkillDef {
         key:             "sw_heavy_slash",
         classKey:        "swordsman",
         requiredLevel:   3,
-        name:            "重斬擊",
-        description:     "以全身之力揮下重斬，對敵造成巨大傷害。",
+        name:            "烈火斬",
+        description:     "炙熱斬擊引燃敵方，每回合持續造成燃燒傷害。",
         cooldownSeconds: 20,
-        effect:          .damage(multiplier: 1.5),
+        effect:          .damageAndBurn(dmgMultiplier: 1.2, dpt: 8, duration: 2),
         maxLevel:        3
     )
 
@@ -196,10 +223,10 @@ extension SkillDef {
         key:             "ar_rapid_shot",
         classKey:        "archer",
         requiredLevel:   3,
-        name:            "速射",
-        description:     "閃電般的快速射擊，短暫冷卻即可再次發動。",
+        name:            "毒箭",
+        description:     "塗抹劇毒的箭矢射出，中毒層數可疊加。",
         cooldownSeconds: 12,
-        effect:          .damage(multiplier: 1.2),
+        effect:          .damageAndPoison(dmgMultiplier: 1.0, dptPerStack: 5),
         maxLevel:        3
     )
 
@@ -268,9 +295,9 @@ extension SkillDef {
         classKey:        "mage",
         requiredLevel:   6,
         name:            "冰霜新星",
-        description:     "冰霜爆發同時傷害敵方並封凍其行動力。",
+        description:     "冰霜爆發令敵方身體凝固，跳過下一次行動。",
         cooldownSeconds: 28,
-        effect:          .damageAndEnemyAtkDown(dmgMultiplier: 1.2, reduction: 0.35),
+        effect:          .stunAndDamage(dmgMultiplier: 0.8, stunDuration: 1),
         maxLevel:        3
     )
 

@@ -1,6 +1,6 @@
 # V6-3 Ticket 02：SettlementSheet 路由 + AppState 觸發點
 
-**狀態：** 🔲 待實作
+**狀態：** ✅ 完成
 **版本：** V6-3
 **依賴：** T01
 

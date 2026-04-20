@@ -40,7 +40,7 @@ extension ClassDef {
 
     var iconName: String {
         switch key {
-        case "swordsman": return "sword"
+        case "swordsman": return "figure.fencing"
         case "archer":    return "arrow.up.right"
         case "mage":      return "flame.fill"
         case "paladin":   return "shield.fill"

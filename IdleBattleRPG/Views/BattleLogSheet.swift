@@ -45,20 +45,16 @@ struct BattleLogSheet: View {
         model.currentBattleEvents.prefix(model.displayedCount).last?.enemyHpAfter ?? enemyMaxHp
     }
 
-    // MARK: - 場次標籤
-
-    private var battleLabel: String? {
-        guard model.taskTotalBattles > 0 else { return nil }
-        let n = model.fromBattleIndex + model.currentBattleInSession + 1
-        return "第 \(n) 場 / 共 \(model.taskTotalBattles) 場"
-    }
-
     // MARK: - Body
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
                 hpBarsView
+                if !model.skillCooldownFractions.isEmpty {
+                    skillCooldownPanel
+                    Divider()
+                }
                 Divider()
                 eventScrollView
                 if let result = eliteResult {
@@ -89,7 +85,7 @@ struct BattleLogSheet: View {
 
             if model.isBattleActive {
                 Spacer().frame(height: 4)
-                hpBar(icon: "skull.fill", label: enemyLabel,
+                hpBar(icon: "skull", label: enemyLabel,
                       current: currentEnemyHp, maxHp: enemyMaxHp, color: .red)
                 atbBar(progress: model.enemyATBProgress, color: .orange)
             }
@@ -152,18 +148,43 @@ struct BattleLogSheet: View {
         }
     }
 
+    // MARK: - T09：技能 CD 面板
+
+    private var skillCooldownPanel: some View {
+        VStack(spacing: 4) {
+            ForEach(model.skillCooldownFractions, id: \.key) { item in
+                HStack(spacing: 8) {
+                    Image(systemName: "bolt.fill")
+                        .font(.caption2)
+                        .foregroundStyle(item.fraction >= 1.0 ? Color.orange : Color.secondary)
+                        .frame(width: 14)
+                    Text(item.name)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .frame(minWidth: 48, alignment: .leading)
+                        .lineLimit(1)
+                    ProgressView(value: item.fraction, total: 1.0)
+                        .tint(item.fraction >= 1.0 ? Color.orange : Color.gray)
+                        .frame(maxWidth: .infinity)
+                        .animation(.linear(duration: 0.1), value: item.fraction)
+                    Text(item.fraction >= 1.0 ? "就緒" : "CD")
+                        .font(.caption2)
+                        .foregroundStyle(item.fraction >= 1.0 ? Color.orange : Color.secondary)
+                        .frame(minWidth: 24, alignment: .trailing)
+                }
+            }
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        .background(Color(.systemGroupedBackground))
+    }
+
     // MARK: - 事件 ScrollView
 
     private var eventScrollView: some View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 6) {
-                    if let label = battleLabel {
-                        Text(label)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .padding(.bottom, 2)
-                    }
                     ForEach(Array(model.currentBattleEvents.prefix(model.displayedCount).enumerated()), id: \.offset) { idx, event in
                         eventRow(event).id(idx)
                     }
@@ -225,27 +246,33 @@ struct BattleLogSheet: View {
     @ViewBuilder
     private func eventIconView(_ type: BattleEvent.EventType) -> some View {
         switch type {
-        case .skill:     Image(systemName: "bolt.fill").foregroundStyle(Color.orange)
-        case .explore:   Image(systemName: "map.fill").foregroundStyle(Color.secondary)
-        case .encounter: Image(systemName: "exclamationmark.circle.fill").foregroundStyle(Color.orange)
-        case .attack:    Image(systemName: "sword").foregroundStyle(Color.primary)
-        case .damage:    Image(systemName: "shield.fill").foregroundStyle(Color.orange)
-        case .victory:   Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.green)
-        case .defeat:    Image(systemName: "xmark.circle.fill").foregroundStyle(Color.red)
-        case .heal:      Image(systemName: "heart.fill").foregroundStyle(Color.green)
+        case .skill:          Image(systemName: "bolt.fill").foregroundStyle(Color.orange)
+        case .explore:        Image(systemName: "map.fill").foregroundStyle(Color.secondary)
+        case .encounter:      Image(systemName: "exclamationmark.circle.fill").foregroundStyle(Color.orange)
+        case .attack:         Image(systemName: "figure.fencing").foregroundStyle(Color.primary)
+        case .damage:         Image(systemName: "shield.fill").foregroundStyle(Color.orange)
+        case .victory:        Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.green)
+        case .defeat:         Image(systemName: "xmark.circle.fill").foregroundStyle(Color.red)
+        case .heal:           Image(systemName: "heart.fill").foregroundStyle(Color.green)
+        case .statusApplied:  Image(systemName: "flame.fill").foregroundStyle(Color.orange)
+        case .statusTick:     Image(systemName: "drop.fill").foregroundStyle(Color.purple)
+        case .statusExpired:  Image(systemName: "wind").foregroundStyle(Color.secondary)
         }
     }
 
     private func eventColor(_ type: BattleEvent.EventType) -> Color {
         switch type {
-        case .skill:     return .orange
-        case .explore:   return .secondary
-        case .encounter: return .orange
-        case .attack:    return .primary
-        case .damage:    return .orange
-        case .victory:   return .green
-        case .defeat:    return .red
-        case .heal:      return .green
+        case .skill:          return .orange
+        case .explore:        return .secondary
+        case .encounter:      return .orange
+        case .attack:         return .primary
+        case .damage:         return .orange
+        case .victory:        return .green
+        case .defeat:         return .red
+        case .heal:           return .green
+        case .statusApplied:  return .orange
+        case .statusTick:     return .purple
+        case .statusExpired:  return .secondary
         }
     }
 }

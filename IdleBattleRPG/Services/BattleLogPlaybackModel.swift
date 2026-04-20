@@ -33,6 +33,8 @@ final class BattleLogPlaybackModel {
     var isExploring:             Bool   = false
     /// encounter 事件後為 true，控制 BattleLogSheet 顯示敵方血條
     var isBattleActive:          Bool   = false
+    /// T08：技能 CD 進度（key / name / fraction 0.0=CD中 1.0=就緒），供 BattleLogSheet CD 面板綁定
+    var skillCooldownFractions:  [(key: String, name: String, fraction: Double)] = []
 
     // MARK: - 內部
 
@@ -41,16 +43,27 @@ final class BattleLogPlaybackModel {
     private var nextBatchProvider:   (@MainActor (_ nextBattleIndex: Int) -> [BattleEvent]?)? = nil
     /// 最近一次 damage 事件的 chargeTime，供 kill shot 時敵方 ATB 比例填充
     private var lastEnemyChargeTime: Double = 1.5
+    /// V6-3 T04：每場戰鬥結束（victory / defeat）後呼叫，nil = 不使用（AFK / Elite 路徑）
+    private var onBattleEnded: ((Bool) -> Void)? = nil
+    // T08：CD 追蹤
+    private var equippedSkillDefs:     [SkillDef] = []
+    private var skillLastFireGameTime: [String: Double] = [:]
+    private var accumulatedCombatTime: Double = 0
 
     // MARK: - 公開方法
 
     /// 啟動播放。若已在播放相同任務則跳過（重開 Sheet 時不重啟）。
+    /// - Parameter activeSkills: T08。英雄裝備的技能定義陣列，用於 CD 進度追蹤。傳 [] 則不顯示 CD 面板。
+    /// - Parameter onBattleEnded: V6-3 T04。每場戰鬥結束（victory = true / defeat = false）後呼叫一次。
+    ///   AFK 回播 / EliteBattleSheet 路徑傳 nil，不影響既有行為。
     @MainActor
     func start(events: [BattleEvent],
                fromBattleIndex: Int,
                taskTotalBattles: Int,
                taskId: UUID,
-               nextBatchProvider: (@MainActor (_ nextBattleIndex: Int) -> [BattleEvent]?)? = nil) {
+               activeSkills: [SkillDef] = [],
+               nextBatchProvider: (@MainActor (_ nextBattleIndex: Int) -> [BattleEvent]?)? = nil,
+               onBattleEnded: ((Bool) -> Void)? = nil) {
         if isActive && associatedTaskId == taskId { return }
 
         playbackTask?.cancel()
@@ -60,6 +73,7 @@ final class BattleLogPlaybackModel {
         self.taskTotalBattles       = taskTotalBattles
         self.associatedTaskId       = taskId
         self.nextBatchProvider      = nextBatchProvider
+        self.onBattleEnded          = onBattleEnded
         self.battleGroups           = groupIntoBattles(events)
         self.currentBattleEvents    = []
         self.displayedCount         = 0
@@ -69,6 +83,11 @@ final class BattleLogPlaybackModel {
         self.isExploring            = false
         self.isBattleActive         = false
         self.isActive               = true
+        // T08：初始化 CD 追蹤
+        self.equippedSkillDefs      = activeSkills
+        self.skillLastFireGameTime  = [:]
+        self.accumulatedCombatTime  = 0
+        self.skillCooldownFractions = activeSkills.map { (key: $0.key, name: $0.name, fraction: 0.0) } // T12：從 0 開始，避免閃現「就緒」
 
         playbackTask = Task { @MainActor [weak self] in
             guard let self else { return }
@@ -81,10 +100,15 @@ final class BattleLogPlaybackModel {
     func stop() {
         playbackTask?.cancel()
         playbackTask = nil
-        nextBatchProvider = nil
-        isExploring     = false
-        isBattleActive  = false
-        isActive        = false
+        nextBatchProvider      = nil
+        onBattleEnded          = nil
+        isExploring            = false
+        isBattleActive         = false
+        isActive               = false
+        skillCooldownFractions = []
+        equippedSkillDefs      = []
+        skillLastFireGameTime  = [:]
+        accumulatedCombatTime  = 0
     }
 
     // MARK: - 播放核心
@@ -109,6 +133,7 @@ final class BattleLogPlaybackModel {
                 isExploring            = false
                 isBattleActive         = false
                 lastEnemyChargeTime    = 1.5
+                var heroCarryOver: Double = 0   // 英雄 ATB 跨回合的剩餘進度（連續填充用）
 
                 var i = 0
                 while i < battleEvents.count {
@@ -154,9 +179,14 @@ final class BattleLogPlaybackModel {
                     // MARK: encounter
                     case .encounter:
                         isBattleActive = true          // ← 此刻才顯示敵方血條
+                        heroCarryOver  = 0             // 新場戰鬥，英雄 ATB 重置
                         snapZero(hero: true, enemy: true)
                         currentBattleEvents.append(event)
                         displayedCount += 1
+                        // T08: 每場新戰鬥重置 CD 追蹤
+                        accumulatedCombatTime = 0
+                        skillLastFireGameTime = [:]
+                        updateSkillCooldowns()
                         try? await Task.sleep(nanoseconds: 300_000_000)
                         i += 1
 
@@ -166,17 +196,27 @@ final class BattleLogPlaybackModel {
                         let heroTime    = attackEvent.chargeTime
 
                         if i + 1 < battleEvents.count && battleEvents[i + 1].type == .damage {
-                            // ── 一般回合：英雄 & 敵方 ATB 同時獨立填充 ──
+                            // ── 一般回合：英雄 & 敵方 ATB 同時獨立填充（carry-over 版）──
                             let damageEvent = battleEvents[i + 1]
                             let enemyTime   = damageEvent.chargeTime
-                            lastEnemyChargeTime = enemyTime   // ← 記錄供 kill shot 使用
+                            lastEnemyChargeTime = enemyTime
 
-                            let total   = max(heroTime, enemyTime)
+                            // 英雄本回合起始進度（來自上一回合 carry-over）
+                            let startHeroProgress = heroCarryOver
+                            // 英雄在此動畫中實際觸發的時刻
+                            let heroFiringAt = heroTime * (1.0 - startHeroProgress)
+
+                            let total   = max(heroFiringAt, enemyTime)
                             let steps   = max(1, Int(total * 20)) // ~20 fps
                             let stepDur = total / Double(steps)
                             let stepNs  = UInt64(stepDur * 1_000_000_000)
 
-                            snapZero(hero: true, enemy: true)
+                            // 英雄從 carry-over 位置開始（無動畫跳變），敵方歸零
+                            var tx = Transaction(); tx.disablesAnimations = true
+                            withTransaction(tx) {
+                                heroATBProgress  = startHeroProgress
+                                enemyATBProgress = 0
+                            }
 
                             var heroShown  = false
                             var enemyShown = false
@@ -185,10 +225,22 @@ final class BattleLogPlaybackModel {
                             for _ in 0..<steps {
                                 if Task.isCancelled { return }
                                 elapsed += stepDur
-                                if !heroShown  { heroATBProgress  = min(1.0, elapsed / heroTime)  }
+
+                                if !heroShown {
+                                    // 英雄填充：從 carry-over 起點往 1.0 推進
+                                    heroATBProgress = min(1.0, startHeroProgress + elapsed / heroTime)
+                                } else {
+                                    // 英雄已出手：立刻開始下一輪填充（不等敵方）
+                                    heroATBProgress = min(1.0, (elapsed - heroFiringAt) / heroTime)
+                                }
                                 if !enemyShown { enemyATBProgress = min(1.0, elapsed / enemyTime) }
+
+                                // CD：最多推進 heroTime（防止 commit 後跳回）
+                                updateSkillCooldowns(extraTime: min(elapsed, heroTime))
+
                                 try? await Task.sleep(nanoseconds: stepNs)
                                 if Task.isCancelled { return }
+
                                 if !heroShown && heroATBProgress >= 1.0 {
                                     snapZero(hero: true)
                                     currentBattleEvents.append(attackEvent)
@@ -203,25 +255,51 @@ final class BattleLogPlaybackModel {
                                 }
                                 if heroShown && enemyShown { break }
                             }
-                            i += 2   // attack + damage 一起消耗
+                            // FP 安全補齊
+                            if !heroShown {
+                                snapZero(hero: true)
+                                currentBattleEvents.append(attackEvent)
+                                displayedCount += 1
+                            }
+                            if !enemyShown {
+                                snapZero(enemy: true)
+                                currentBattleEvents.append(damageEvent)
+                                displayedCount += 1
+                            }
+
+                            // carry-over：英雄出手後到敵方完成攻擊之間，英雄已充了多少下一輪的進度
+                            let carryTime = max(0.0, enemyTime - heroFiringAt)
+                            heroCarryOver = carryTime.truncatingRemainder(dividingBy: heroTime) / heroTime
+
+                            i += 2
+                            accumulatedCombatTime += heroTime
+                            updateSkillCooldowns()
 
                         } else {
-                            // ── Kill shot：敵方即將死亡，兩條 bar 並行 ──
-                            // 敵方填到 heroTime/lastEnemyChargeTime 比例後停下（英雄先出手）
+                            // ── Kill shot：敵方即將死亡，英雄從 carry-over 起點出手 ──
+                            let startHeroProgress = heroCarryOver
+                            heroCarryOver = 0   // 戰鬥結束，carry-over 清零
+
+                            let heroFiringAt   = heroTime * (1.0 - startHeroProgress)
                             let enemyFillRatio = lastEnemyChargeTime > 0
-                                ? min(1.0, heroTime / lastEnemyChargeTime)
+                                ? min(1.0, heroFiringAt / lastEnemyChargeTime)
                                 : 0.5
 
-                            let steps  = max(1, Int(heroTime * 20))
-                            let stepNs = UInt64(heroTime / Double(steps) * 1_000_000_000)
+                            let steps  = max(1, Int(max(heroFiringAt, 0.1) * 20))
+                            let stepNs = UInt64(max(heroFiringAt, 0.1) / Double(steps) * 1_000_000_000)
 
-                            snapZero(hero: true, enemy: true)
+                            var tx = Transaction(); tx.disablesAnimations = true
+                            withTransaction(tx) {
+                                heroATBProgress  = startHeroProgress
+                                enemyATBProgress = 0
+                            }
 
                             for step in 1...steps {
                                 if Task.isCancelled { return }
                                 let t = Double(step) / Double(steps)
-                                heroATBProgress  = t
+                                heroATBProgress  = min(1.0, startHeroProgress + t * (1.0 - startHeroProgress))
                                 enemyATBProgress = t * enemyFillRatio
+                                updateSkillCooldowns(extraTime: min(t * heroFiringAt, heroTime))
                                 try? await Task.sleep(nanoseconds: stepNs)
                             }
                             if Task.isCancelled { return }
@@ -229,6 +307,8 @@ final class BattleLogPlaybackModel {
                             currentBattleEvents.append(attackEvent)
                             displayedCount += 1
                             i += 1
+                            accumulatedCombatTime += heroTime
+                            updateSkillCooldowns()
                         }
 
                     // MARK: damage（獨立出現時 fallback，正常應被 attack 消耗）
@@ -243,6 +323,8 @@ final class BattleLogPlaybackModel {
                         currentBattleEvents.append(event)
                         displayedCount += 1
                         try? await Task.sleep(nanoseconds: 1_500_000_000)
+                        // V6-3 T04：通知每場勝負結果（DungeonBattleSheet 用，AFK / Elite 為 nil）
+                        if !Task.isCancelled { onBattleEnded?(true) }
                         i += 1
 
                     // MARK: defeat
@@ -251,6 +333,8 @@ final class BattleLogPlaybackModel {
                         currentBattleEvents.append(event)
                         displayedCount += 1
                         try? await Task.sleep(nanoseconds: 500_000_000)
+                        // V6-3 T04：通知每場勝負結果（DungeonBattleSheet 用，AFK / Elite 為 nil）
+                        if !Task.isCancelled { onBattleEnded?(false) }
                         i += 1
 
                     // MARK: heal — 手動步進（同 explore 策略）
@@ -274,7 +358,31 @@ final class BattleLogPlaybackModel {
                     case .skill:
                         currentBattleEvents.append(event)
                         displayedCount += 1
+                        // T08: 記錄技能觸發時刻，CD 從此刻起算
+                        if let key = event.skillKey {
+                            skillLastFireGameTime[key] = accumulatedCombatTime
+                            updateSkillCooldowns()
+                        }
                         try? await Task.sleep(nanoseconds: 400_000_000)
+                        i += 1
+
+                    // MARK: statusApplied / statusTick / statusExpired — V6-3 T05 狀態效果（瞬間顯示）
+                    case .statusApplied:
+                        currentBattleEvents.append(event)
+                        displayedCount += 1
+                        try? await Task.sleep(nanoseconds: 350_000_000)
+                        i += 1
+
+                    case .statusTick:
+                        currentBattleEvents.append(event)
+                        displayedCount += 1
+                        try? await Task.sleep(nanoseconds: 250_000_000)
+                        i += 1
+
+                    case .statusExpired:
+                        currentBattleEvents.append(event)
+                        displayedCount += 1
+                        try? await Task.sleep(nanoseconds: 200_000_000)
                         i += 1
                     }
                 }
@@ -308,6 +416,24 @@ final class BattleLogPlaybackModel {
         withTransaction(t) {
             if hero  { heroATBProgress  = 0 }
             if enemy { enemyATBProgress = 0 }
+        }
+    }
+
+    /// T08：根據已裝備技能 + 當前遊戲時間更新所有技能的 CD 進度
+    /// T08 CD 追蹤。extraTime：ATB 動畫中尚未 commit 的時間偏移，供動畫迴圈即時更新用。
+    @MainActor
+    private func updateSkillCooldowns(extraTime: Double = 0) {
+        guard !equippedSkillDefs.isEmpty else { return }
+        let t = accumulatedCombatTime + extraTime
+        skillCooldownFractions = equippedSkillDefs.map { skill in
+            let fraction: Double
+            if let lastFire = skillLastFireGameTime[skill.key] {
+                fraction = min(1.0, (t - lastFire) / Double(skill.cooldownSeconds))
+            } else {
+                // T12（T11 連動）：技能從冷卻開始，按已累積時間計算進度（0 → 1.0）
+                fraction = min(1.0, t / Double(skill.cooldownSeconds))
+            }
+            return (key: skill.key, name: skill.name, fraction: fraction)
         }
     }
 

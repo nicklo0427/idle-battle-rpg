@@ -65,6 +65,7 @@ struct CharacterProgressionService {
         player.availableStatPoints   += AppConstants.Game.statPointsPerLevel
         player.availableTalentPoints += 1
         player.availableSkillPoints  += 1
+        autoEquipNewSkills(at: nextLevel, player: player)   // T06
         save()
 
         print("[CharacterProgressionService] 升級至 Lv.\(nextLevel)，扣除 EXP \(required)")
@@ -87,6 +88,7 @@ struct CharacterProgressionService {
             player.availableStatPoints   += AppConstants.Game.statPointsPerLevel
             player.availableTalentPoints += 1
             player.availableSkillPoints  += 1
+            autoEquipNewSkills(at: next, player: player)    // T06
             leveled = true
             print("[CharacterProgressionService] 自動升級至 Lv.\(next)，扣除 EXP \(required)")
         }
@@ -148,6 +150,19 @@ struct CharacterProgressionService {
     }
 
     // MARK: - Private
+
+    /// T06：升級後自動裝備該等級新解鎖的技能（不超過 4 槽，不重複）
+    private func autoEquipNewSkills(at newLevel: Int, player: PlayerStateModel) {
+        let newSkills = SkillDef.all.filter {
+            $0.classKey == player.classKey && $0.requiredLevel == newLevel
+        }
+        guard !newSkills.isEmpty else { return }
+        var equipped = player.equippedSkillKeys
+        for skill in newSkills where !equipped.contains(skill.key) && equipped.count < 4 {
+            equipped.append(skill.key)
+        }
+        player.equippedSkillKeys = equipped
+    }
 
     private func save() {
         try? context.save()

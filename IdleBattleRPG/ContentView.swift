@@ -46,6 +46,8 @@ struct ContentView: View {
             appState = state
             // 啟動後首次掃描，補跑離線期間到期的任務
             state.scanAndSettle()
+            // V6-3 T02：補查現有 battlePending 任務（舊存檔離線期間已到期但尚未戰鬥）
+            state.checkForPendingBattles()
             state.startForegroundTimer()
         }
         .onChange(of: scenePhase) { _, newPhase in
@@ -53,6 +55,8 @@ struct ContentView: View {
             case .active:
                 // App 回到前景：先補跑離線到期任務，再啟動 Timer
                 appState?.scanAndSettle()
+                // V6-3 T02：補查現有 battlePending 任務
+                appState?.checkForPendingBattles()
                 appState?.startForegroundTimer()
             case .inactive, .background:
                 // App 進入背景：停止 Timer，節省資源
@@ -92,6 +96,13 @@ struct ContentView: View {
                     .animation(.easeInOut(duration: 0.3), value: appState.toastMessage)
                     .padding(.top, 8)
             }
+        }
+        // V6-3 T02：即時地下城戰鬥 Sheet（從 SettlementSheet 內「開始戰鬥」按鈕觸發）
+        .sheet(item: Binding(
+            get: { appState.pendingDungeonBattleTask },
+            set: { task in if task == nil { appState.clearDungeonBattle() } }
+        )) { task in
+            DungeonBattleSheet(task: task, appState: appState)
         }
     }
 }

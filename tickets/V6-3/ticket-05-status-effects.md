@@ -1,6 +1,6 @@
 # V6-3 Ticket 05：狀態效果系統（燃燒 / 中毒 / 暈眩 / 弱化）
 
-**狀態：** 🔲 待實作
+**狀態：** ✅ 完成
 **版本：** V6-3
 **依賴：** T01（`runCombatCore` 已在 battlePending 路徑下被使用）
 
@@ -237,11 +237,11 @@ case .statusExpired: return .secondary
 
 ## 驗收標準
 
-- [ ] 劍士「烈火斬（或對應技能）」觸發後，後續 `.statusTick` 燃燒傷害事件在 log 可見
-- [ ] 弓手毒箭同一場命中兩次 → 中毒堆疊，每回合傷害 × 2
-- [ ] 法師冰霜技能觸發 → 敵方跳過下一次行動，log 顯示「敵方暈眩跳過」
-- [ ] 弱化期間敵方 ATK 計算正確降低（乘以 `1 - atkReduction`）
-- [ ] 未受影響的 16 個技能行為完全不變
-- [ ] 舊 `effectDescription(at:)` 舊 case 描述不受影響
-- [ ] BattleLogSheet 狀態效果 icon 顯示正確顏色
-- [ ] `xcodebuild` 通過，無新警告
+- [x] 劍士「烈火斬」觸發後，後續 `.statusTick` 燃燒傷害事件在 log 可見
+- [x] 弓手毒箭同一場命中兩次 → 中毒堆疊，每回合傷害 × 2
+- [x] 法師冰霜技能觸發 → 敵方跳過下一次行動，log 顯示「敵方被暈眩，無法行動！」
+- [x] 弱化期間敵方 ATK 計算正確降低（乘以 `1 - atkReduction`）
+- [x] 未受影響的 16 個技能行為完全不變
+- [x] 舊 `effectDescription(at:)` 舊 case 描述不受影響
+- [x] BattleLogSheet 狀態效果 icon 顯示正確顏色
+- [x] `xcodebuild` 通過，無新警告

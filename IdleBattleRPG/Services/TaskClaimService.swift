@@ -59,7 +59,8 @@ struct TaskClaimService {
     /// 一次收下所有 completed 任務，入帳所有獎勵，刪除任務，統一 save。
     @discardableResult
     func claimAllCompleted() -> ClaimResult {
-        let completed = repository.fetchCompleted()
+        // V6-3 T02：battlePending 任務尚未戰鬥，不收下，戰鬥後再入帳
+        let completed = repository.fetchCompleted().filter { !$0.battlePending }
         guard !completed.isEmpty else {
             return ClaimResult(goldGained: 0, materialsGained: [:], equipmentsAdded: 0, tasksDeleted: 0)
         }

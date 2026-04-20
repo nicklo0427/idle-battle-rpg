@@ -1,6 +1,6 @@
 # V6-3 Ticket 01：TaskModel battlePending + SettlementService 分離
 
-**狀態：** 🔲 待實作
+**狀態：** ✅ 完成
 **版本：** V6-3
 **依賴：** 無
 

@@ -3,28 +3,16 @@
 //
 // 責任：
 //   scanAndSettle()  — 找出所有「inProgress + 已到期」的任務，
-//                      填入獎勵結果欄位，並標記為 completed。
+//                      填入獎勵結果欄位（非 dungeon），並標記為 completed。
 //
-// Phase 7 結算邏輯：
+// 結算邏輯：
 //   ✅ gather  — 確定性 RNG（DeterministicRNG，seed = startedAt.bitPattern XOR taskId.hashValue）
 //   ✅ craft   — resultCraftedEquipKey 在任務建立時已填入，此處不再更動
-//   ✅ dungeon — 委派 DungeonSettlementEngine（確定性 RNG，勝率公式正式接入）
+//   ✅ dungeon — V6-3 T01 起：只標記 battlePending = true，戰鬥結果由 DungeonBattleSheet 即時計算
+//               （原 DungeonSettlementEngine / markDungeonProgression 移至 DungeonBattleSheet）
 //
-// V2-1 Ticket 02 新增：
-//   ✅ dungeon V2-1 路徑 — 若 definitionKey 對應 DungeonFloorDef，
-//                          使用 settle(task:floor:) 並寫入 12 個區域素材 result 欄位
-//
-// V2-1 Ticket 03 新增：
-//   ✅ dungeon — 若為 V2-1 floor 任務，結算後標記樓層首通（DungeonProgressionService）
-//
-// V2-1 Ticket 07 新增：
-//   ✅ dungeon — 首通時將 floor.key 寫入 task.resultFirstClearedFloorKey（SettlementSheet 解鎖提示用）
-//
-// V2-1 Ticket 08 新增：
-//   ✅ dungeon Boss 層 — battlesWon >= 1 時寫入 resultCraftedEquipKey + resultRolledAtk（浮動 ATK）
-//
-// 注意：獎勵「入帳」（寫入玩家資料）由 TaskClaimService 負責，
-//       SettlementService 只負責「計算結果並標記 completed」。
+// 注意：獎勵「入帳」（寫入玩家資料）由 TaskClaimService / DungeonBattleSheet 負責，
+//       SettlementService 只負責「計算非戰鬥結果並標記 completed」。
 
 import Foundation
 import SwiftData
@@ -65,8 +53,9 @@ struct SettlementService {
         case .gather:  fillGatherResults(task)
         case .craft:   break   // resultCraftedEquipKey 在建立時已填入
         case .dungeon:
-            fillDungeonResults(task)
-            markDungeonProgression(task)
+            // V6-3 T01：不預算戰鬥結果，改由玩家即時發起（DungeonBattleSheet）
+            // fillDungeonResults / markDungeonProgression 移至 DungeonBattleSheet.finalizeBattle()
+            task.battlePending = true
         }
         task.status = .completed
     }

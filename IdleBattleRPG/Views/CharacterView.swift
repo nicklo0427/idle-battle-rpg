@@ -241,7 +241,7 @@ struct CharacterView: View {
             if let stats = heroStats {
                 powerRow(stats.power)
                 if let player {
-                    statAllocRow(icon: "sword",    label: "ATK", value: stats.totalATK, pending: viewModel.pendingAtk, stat: .atk, player: player)
+                    statAllocRow(icon: "figure.fencing",    label: "ATK", value: stats.totalATK, pending: viewModel.pendingAtk, stat: .atk, player: player)
                     statAllocRow(icon: "shield.fill",   label: "DEF", value: stats.totalDEF, pending: viewModel.pendingDef, stat: .def, player: player)
                     statAllocRow(icon: "heart.fill",    label: "HP",  value: stats.totalHP,  pending: viewModel.pendingHp,  stat: .hp,  player: player)
                     statAllocRow(icon: "figure.run",    label: "AGI", hint: "ATB 速度", value: stats.totalAGI, pending: viewModel.pendingAgi, stat: .agi, player: player)
@@ -339,7 +339,7 @@ struct CharacterView: View {
         if let player {
             Section("累計統計") {
                 statRow("coins",       label: "累計金幣收入", value: "\(player.totalGoldEarned)")
-                statRow("sword",       label: "地下城勝場",   value: "\(player.totalBattlesWon)")
+                statRow("figure.fencing",       label: "地下城勝場",   value: "\(player.totalBattlesWon)")
                 statRow("shield.fill",      label: "地下城敗場",   value: "\(player.totalBattlesLost)")
                 statRow("hammer.fill",      label: "裝備獲得件數", value: "\(player.totalItemsCrafted)")
                 statRow("bolt.fill",        label: "歷史最高戰力", value: "\(player.highestPowerReached)")
@@ -1168,7 +1168,7 @@ struct CharacterView: View {
     private func diffBadge(_ diff: StatDiff) -> some View {
         HStack(spacing: 5) {
             if diff.atk != 0 {
-                diffItem(icon: "sword", value: diff.atk)
+                diffItem(icon: "figure.fencing", value: diff.atk)
             }
             if diff.def != 0 {
                 diffItem(icon: "shield.fill", value: diff.def)
@@ -1232,7 +1232,7 @@ private struct EquipSelectSheet: View {
                                 HStack(spacing: 8) {
                                     if item.totalAtk > 0 {
                                         HStack(spacing: 3) {
-                                            Image(systemName: "sword").frame(width: 11, height: 11)
+                                            Image(systemName: "figure.fencing").frame(width: 11, height: 11)
                                             Text("\(item.totalAtk)")
                                         }
                                         .font(.caption2)
@@ -1283,7 +1283,7 @@ private struct EquipSelectSheet: View {
         HStack(spacing: 5) {
             if diff.atk != 0 {
                 HStack(spacing: 2) {
-                    Image(systemName: "sword").frame(width: 10, height: 10)
+                    Image(systemName: "figure.fencing").frame(width: 10, height: 10)
                     Text(diff.atk > 0 ? "+\(diff.atk)" : "\(diff.atk)")
                 }
                 .foregroundStyle(diff.atk > 0 ? Color.green : Color.red)

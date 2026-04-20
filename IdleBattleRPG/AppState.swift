@@ -69,6 +69,9 @@ final class AppState {
     /// 輕量 Toast 訊息（非阻擋，2.5 秒後自動清除）
     private(set) var toastMessage: String?
 
+    /// 待即時戰鬥的地下城任務（非 nil 時從 SettlementSheet 彈出 DungeonBattleSheet）
+    var pendingDungeonBattleTask: TaskModel? = nil
+
     // MARK: - Timer
 
     private var timer: Timer?
@@ -139,6 +142,27 @@ final class AppState {
     /// 僅關閉 Sheet，不觸發 claim（edge case 備用）
     func dismissSettlement() {
         shouldShowSettlement = false
+    }
+
+    /// 設定待即時戰鬥任務，觸發 DungeonBattleSheet（V6-3 T02）。
+    func startDungeonBattle(task: TaskModel) {
+        pendingDungeonBattleTask = task
+    }
+
+    /// 清除待即時戰鬥狀態（戰鬥完成或取消後呼叫）（V6-3 T02）。
+    func clearDungeonBattle() {
+        pendingDungeonBattleTask = nil
+    }
+
+    /// 回到前景時補查是否有未戰鬥的 battlePending 任務，若有則自動開啟 Sheet（V6-3 T02）。
+    /// 只在 Sheet 未開啟時才觸發，避免重複開啟。
+    func checkForPendingBattles() {
+        guard !shouldShowSettlement else { return }
+        let descriptor = FetchDescriptor<TaskModel>()
+        let all = (try? modelContext.fetch(descriptor)) ?? []
+        if all.contains(where: { $0.status == .completed && $0.battlePending }) {
+            shouldShowSettlement = true
+        }
     }
 
     // MARK: - Private

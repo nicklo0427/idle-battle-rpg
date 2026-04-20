@@ -679,4 +679,78 @@ winRate = 0.50 + 0.40 × tanh(2×0.16) ≈ 0.62 → 約 62%
 ### 目前狀態
 
 V6-1 全部 Tickets（T01–T10）✅ 完成，`xcodebuild` 通過。
-下一步：V6-2 天賦樹。
+
+---
+
+## V6-2 — 技能升階 + UI 重構（已完成）
+
+### 設計概覽
+
+T01–T04（天賦樹骨架：TalentDef / 模型 / 服務 / UI）評估後延後，  
+轉為聚焦技能點升階系統與 CharacterView 技能 Tab 重構。
+
+### 完成 Tickets
+
+| Ticket | 說明 | 狀態 |
+|---|---|---|
+| T01–T04 | TalentDef / 模型 / 服務 / UI（天賦樹骨架，評估後延後）| 📋 延後 |
+| T05 | critRatePercent 百分比顯示修正 | ✅ |
+| T06 | 天賦重置功能 | ✅ |
+| T07 | 技能戰力預覽 | ✅ |
+| T08 | 天賦路線互斥 | ✅ |
+| T09 | 技能點系統 + 主動技能升階 | ✅ |
+| T10 | 技能 Tab 重構（主動 / 被動合併 + 可收合 UI）| ✅ |
+
+### 關鍵決策
+
+- 技能升階消耗技能點（`skillPoints`），每等級 1 點；升階提升效果係數（`level * multiplier`）
+- 主動 / 被動技能合併至同一 Tab，以可收合 Section 區分，介面更清爽
+- 天賦樹（TalentDef）因複雜度高、UI 設計待確定，整批延後至後續版本
+
+### 目前狀態
+
+V6-2 T05–T10 ✅ 完成，`xcodebuild` 通過。
+
+---
+
+## V6-3 — 地下城即時戰鬥播放系統（已完成）
+
+### 設計概覽
+
+地下城 AFK 出征完成後，玩家可即時觀看每場戰鬥的完整過程：  
+ATB 讀條動畫、技能 CD 面板、狀態效果 log、逐場勝敗結算。  
+播放引擎（`BattleLogPlaybackModel`）在背景持續執行，關閉 Sheet 不中斷。
+
+### 完成 Tickets
+
+| Ticket | 說明 | 狀態 |
+|---|---|---|
+| T01 | `TaskModel.battlePending` + `SettlementService` 分離（到期只標記，不結算）| ✅ |
+| T02 | `SettlementSheet` 路由 + `AppState` 觸發點（battlePending → DungeonBattleSheet）| ✅ |
+| T03 | `DungeonBattleSheet`（多場即時戰鬥控制器，逐場產生事件 + 回呼累計勝敗）| ✅ |
+| T04 | `BattleLogPlaybackModel.onBattleEnded` callback（每場結束後通知控制器）| ✅ |
+| T05 | 狀態效果系統（燃燒 / 中毒 / 暈眩 / 弱化，`statusApplied / Tick / Expired` 事件）| ✅ |
+| T06 | 升等時自動裝備新解鎖技能（`CharacterProgressionService`）| ✅ |
+| T07 | `BattleEvent` 新增 `skillKey` 欄位（供 CD 追蹤辨識觸發技能）| ✅ |
+| T08 | `BattleLogPlaybackModel` 技能 CD 追蹤（`accumulatedCombatTime` + `skillLastFireGameTime`）| ✅ |
+| T09 | 技能 CD 面板 UI（`skillCooldownPanel`，fraction 0→1 進度條）| ✅ |
+| T10 | 修正技能永不觸發（`skillNextFireTime` 初始值從 `cooldownSeconds` 改為 `0.0`）| ✅ |
+| T11 | 敵方難度 3× 提升（`enemyMaxHp = recommendedPower * 6`）+ 技能從冷卻開始（反轉 T10）| ✅ |
+| T12 | 戰鬥介面 Bug 修正 + ATB carry-over + CD 平滑動畫 + SF Symbol 修正 | ✅ |
+
+### T12 重點修正
+
+- **FP 精度 bug**：`elapsed += stepDur` 迴圈結束後因捨入略小於 `enemyTime`，敵方攻擊事件系統性遺失 → 迴圈後加 FP 安全補齊
+- **ATB carry-over**：英雄出手後 ATB 條立即開始填充下一輪，不等敵方完成 → `heroCarryOver` 機制
+- **CD 平滑動畫**：`updateSkillCooldowns(extraTime:)` 在每個 animation step 即時更新 CD 進度，不再只在攻擊結束後跳動
+- **SF Symbol 修正**：`skull.fill` → `skull`；`sword` → `figure.fencing`（全域 6 個檔案）
+
+### 關鍵決策
+
+- `BattleLogPlaybackModel` 為 `@Observable` 單例，由 `AppState` 持有（AFK 路徑）或由各 Sheet 本地持有（Dungeon 路徑），兩者互不干擾
+- 確定性 seed：`combatRng = taskSeed ^ UInt64(battleIndex+1) ^ 0x434F4D42`，播放引擎與 `DungeonSettlementEngine` seed 完全相同 → 勝負一致
+- 關閉 Sheet 不停止播放（`onDisappear` 刻意不呼叫 `stop()`），重開時從當前位置繼續
+
+### 目前狀態
+
+V6-3 全部 T01–T12 ✅ 完成，`xcodebuild` 通過，無警告。

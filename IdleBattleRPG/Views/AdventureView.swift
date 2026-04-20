@@ -410,11 +410,15 @@ struct AdventureView: View {
             fromBattleIndex: fromIdx, maxBattles: batchSize
         )
 
+        // T09：傳入裝備技能定義，啟用 CD 面板
+        let activeSkills = task.snapshotSkillKeys.compactMap { SkillDef.find(key: $0) }
+
         appState.battleLogPlayback.start(
             events:           events,
             fromBattleIndex:  fromIdx,
             taskTotalBattles: totalBattles,
             taskId:           task.id,
+            activeSkills:     activeSkills,
             nextBatchProvider: { nextIdx in
                 guard Date.now < task.endsAt, nextIdx < totalBattles else { return nil }
                 return BattleLogGenerator.generate(

@@ -69,9 +69,9 @@ struct DungeonSettlementEngine {
         let critRate       = min(0.35, Double(snapshotDex) * 0.035)
         let healChargeTime = max(1.0, min(3.0, 3.0 / (1.0 + Double(heroDef) * 0.1)))
 
-        // 3. 敵方數值
-        let enemyMaxHp      = max(30, area.recommendedPower * 2)
-        let enemyAtk        = max(8,  area.recommendedPower / 4)
+        // 3. 敵方數值（T11：血量 3× 提升，攻擊略微提升，與 BattleLogGenerator 同步）
+        let enemyMaxHp      = max(80, area.recommendedPower * 6)
+        let enemyAtk        = max(10, area.recommendedPower / 3)
         let enemyDef        = max(3,  area.recommendedPower / 10)
         let enemyChargeTime = max(0.8, 2.0 - Double(area.recommendedPower) * 0.001)
 
@@ -169,9 +169,9 @@ struct DungeonSettlementEngine {
         let critRate       = min(0.35, Double(snapshotDex) * 0.035)
         let healChargeTime = max(1.0, min(3.0, 3.0 / (1.0 + Double(heroDef) * 0.1)))
 
-        // 3. 敵方數值
-        let enemyMaxHp      = max(30, floor.recommendedPower * 2)
-        let enemyAtk        = max(8,  floor.recommendedPower / 4)
+        // 3. 敵方數值（T11：血量 3× 提升，攻擊略微提升，與 BattleLogGenerator 同步）
+        let enemyMaxHp      = max(80, floor.recommendedPower * 6)
+        let enemyAtk        = max(10, floor.recommendedPower / 3)
         let enemyDef        = max(3,  floor.recommendedPower / 10)
         let enemyChargeTime = max(0.8, 2.0 - Double(floor.recommendedPower) * 0.001)
 
