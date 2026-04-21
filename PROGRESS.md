@@ -754,3 +754,33 @@ ATB 讀條動畫、技能 CD 面板、狀態效果 log、逐場勝敗結算。
 ### 目前狀態
 
 V6-3 全部 T01–T12 ✅ 完成，`xcodebuild` 通過，無警告。
+
+---
+
+## V6-4 — 高等內容擴充（已完成）
+
+### 設計概覽
+
+在 V6-1/V6-2 職業 + 技能系統的基礎上，擴充英雄成長上限與地下城終盤內容，
+並補齊成就、菁英戰鬥、天賦樹三個玩家深度玩法系統。
+
+### 完成 Tickets
+
+| Ticket | 說明 | 狀態 |
+|---|---|---|
+| T01 | 英雄等級上限 10→20；Lv.15 / Lv.20 技能解鎖 | ✅ |
+| T02 | 第 4 地下城區域「沉落王城」(sunken_city)：4 樓層 + 新素材 + 新裝備 | ✅ |
+| T03 | 成就系統：10 個成就、`AchievementService`、CharacterView 成就 Tab | ✅ |
+| T04 | 菁英戰鬥系統：16 個菁英（4 區 × 4 層）、`EliteBattleSheet`、FloorDetailSheet 入口 | ✅ |
+| T05 | 天賦樹：8 路線 × 5 節點、路線互斥、`TalentService`、CharacterView 天賦 UI | ✅ |
+
+### 關鍵決策
+
+- **成就觸發雙路徑**：`TaskClaimService.claimAllCompleted()` 觸發累計型成就（金幣 / 勝場 / 鑄造件數 / 等級），`DungeonProgressionService.markFloorCleared()` 觸發首通型成就，`AchievementService.checkAll()` 冪等設計不重複解鎖
+- **菁英戰鬥即時化**：`EliteBattleSheet` 持有本地 `BattleLogPlaybackModel`（不干擾 AFK 播放），以單場即時戰鬥呈現，共用 `BattleLogSheet` ATB 動畫層
+- **天賦路線互斥**：同職業兩條路線只能選一條，`TalentService.isRouteLocked()` 於 CharacterView 視覺鎖定，重置需消耗 500 金幣
+- **sunken_city 解鎖**：透過首通古代遺跡菁英觸發 `markEliteCleared()`，自動解鎖第 4 區域
+
+### 目前狀態
+
+V6-4 全部 T01–T05 ✅ 完成，`xcodebuild` 通過，無警告。
