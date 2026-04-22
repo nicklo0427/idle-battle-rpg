@@ -1,6 +1,6 @@
 # V6-1 Ticket 07：SkillDef 主動技能重設計（靜態資料）
 
-**狀態：** 🔲 待實作
+**狀態：** ✅ 已完成
 **版本：** V6-1（修訂）
 **依賴：** T01–T05 已完成
 **修改檔案：** `IdleBattleRPG/StaticData/SkillDef.swift`

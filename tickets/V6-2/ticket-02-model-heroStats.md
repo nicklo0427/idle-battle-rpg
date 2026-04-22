@@ -1,6 +1,6 @@
 # V6-2 Ticket 02：PlayerStateModel + HeroStats + Seeder
 
-**狀態：** 🔲 待實作
+**狀態：** 📋 延後（天賦樹設計待確認）
 **版本：** V6-2
 **依賴：** T01
 
