@@ -155,6 +155,58 @@ struct TaskCreationService {
         repository.insert(task)
     }
 
+    // MARK: - 料理任務（V7-3）
+
+    /// 建立料理任務。
+    /// 驗證：配方存在、廚師閒置、金幣足夠、素材足夠。
+    /// 建立前立即扣除金幣和素材，resultCuisineKey 在建立時填入。
+    func createCuisineTask(recipeKey: String) throws {
+        guard let def = CuisineDef.find(recipeKey) else {
+            throw TaskCreationError.recipeNotFound(recipeKey)
+        }
+
+        // 廚師是否閒置
+        let inProgress = repository.fetchInProgress()
+        if inProgress.contains(where: { $0.actorKey == AppConstants.Actor.chef }) {
+            throw TaskCreationError.actorBusy(AppConstants.Actor.chef)
+        }
+
+        // 讀取玩家與庫存
+        let playerDesc    = FetchDescriptor<PlayerStateModel>()
+        let inventoryDesc = FetchDescriptor<MaterialInventoryModel>()
+        guard let player    = (try? context.fetch(playerDesc))?.first    else { throw TaskCreationError.noPlayerState }
+        guard let inventory = (try? context.fetch(inventoryDesc))?.first else { throw TaskCreationError.noInventory }
+
+        // 驗證資源
+        guard player.gold >= def.goldCost else { throw TaskCreationError.insufficientGold }
+        for (material, amount) in def.ingredients {
+            guard inventory.amount(of: material) >= amount else {
+                throw TaskCreationError.insufficientMaterials
+            }
+        }
+
+        // 扣除資源
+        player.gold -= def.goldCost
+        for (material, amount) in def.ingredients {
+            inventory.deduct(amount, of: material)
+        }
+
+        // 廚師 tier 縮短烹飪時間（複用 craftDurationMultiplier）
+        let multiplier = NpcUpgradeDef.craftDurationMultiplier(tier: player.chefTier)
+        let duration   = max(30, Int(Double(def.cookMinutes * 60) * multiplier))
+
+        let now = Date.now
+        let task = TaskModel(
+            kind:          .cuisine,
+            actorKey:      AppConstants.Actor.chef,
+            definitionKey: recipeKey,
+            startedAt:     now,
+            endsAt:        now.addingTimeInterval(TimeInterval(duration))
+        )
+        task.resultCuisineKey = def.key
+        repository.insert(task)
+    }
+
     // MARK: - 地下城任務
 
     /// 建立 V2-1 地下城（樓層）任務。

@@ -11,6 +11,7 @@ enum TaskKind: String, Codable {
     case gather  = "gather"
     case craft   = "craft"
     case dungeon = "dungeon"
+    case cuisine = "cuisine"    // V7-3 廚師 NPC
 }
 
 // MARK: - 任務狀態
@@ -143,6 +144,11 @@ final class TaskModel {
 
     /// .gather 專用：nil = 無事件 / "bumper_harvest" / "rare_find" / "gold_vein"
     var gatherEventKey: String? = nil
+
+    // MARK: - 料理任務（V7-3）
+
+    /// .cuisine 專用：建立任務時就填入的料理 key（對應 CuisineDef.key）
+    var resultCuisineKey: String = ""
 
     // MARK: - Init
 

@@ -12,6 +12,7 @@ enum NpcKind: String, CaseIterable {
     case blacksmith
     case herbalist    // 採藥師
     case fisherman    // 漁夫
+    case chef         // 廚師（V7-3）
 }
 
 // MARK: - 升級成本定義
@@ -77,6 +78,17 @@ enum NpcUpgradeDef {
         .init(fromTier: 2, expCost: 700, materialCosts: [(.ancientFragment,   3)], goldCost: 2500),
     ]
 
+    // MARK: 廚師升級成本（EXP + 魚類素材 + 金幣）
+    //
+    // 廚師 Tier 縮短烹飪時間（複用 craftDurationMultiplier）：
+    // Tier 0：1.0x，Tier 1：0.85x，Tier 2：0.75x，Tier 3：0.65x
+
+    static let chefCosts: [NpcUpgradeCostDef] = [
+        .init(fromTier: 0, expCost:  80, materialCosts: [(.freshFish, 20)],                          goldCost:  400),
+        .init(fromTier: 1, expCost: 250, materialCosts: [(.abyssFish, 10)],                          goldCost:  800),
+        .init(fromTier: 2, expCost: 700, materialCosts: [(.abyssFish, 20), (.spiritHerb, 10)],       goldCost: 1500),
+    ]
+
     // MARK: 採集者每 Tier 加成
     //
     // Tier 0：+0（基礎）
@@ -111,11 +123,12 @@ enum NpcUpgradeDef {
     /// 從 `fromTier` 升一級的完整成本；超出範圍時回傳 `nil`
     static func upgradeCost(npcKind: NpcKind, fromTier: Int) -> NpcUpgradeCostDef? {
         switch npcKind {
-        case .woodcutter:  return woodcutterCosts.first { $0.fromTier == fromTier }
-        case .miner:       return minerCosts.first       { $0.fromTier == fromTier }
+        case .woodcutter:  return woodcutterCosts.first  { $0.fromTier == fromTier }
+        case .miner:       return minerCosts.first        { $0.fromTier == fromTier }
         case .blacksmith:  return blacksmithCosts.first  { $0.fromTier == fromTier }
         case .herbalist:   return herbalistCosts.first   { $0.fromTier == fromTier }
         case .fisherman:   return fishermanCosts.first   { $0.fromTier == fromTier }
+        case .chef:        return chefCosts.first        { $0.fromTier == fromTier }
         }
     }
 }

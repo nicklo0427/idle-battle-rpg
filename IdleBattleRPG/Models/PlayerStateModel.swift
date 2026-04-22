@@ -69,6 +69,16 @@ final class PlayerStateModel {
     /// 技能升階等級，格式 "key:level,key:level"（e.g. "sw_heavy_slash:2,sw_iron_will:1"）
     var skillLevelsRaw: String = ""
 
+    // MARK: - 料理 Buff（V7-3）
+
+    /// 目前生效的料理 key（空字串 = 無 buff）
+    var activeCuisineKey: String = ""
+    /// Buff 到期時間（timeIntervalSinceReferenceDate；0 = 無 buff）
+    var cuisineBuffExpiresAt: Double = 0
+
+    // MARK: - 廚師升級 Tier（V7-3）
+    var chefTier: Int = 0
+
     // MARK: - 採集者技能（V7-1 T02）
 
     var gatherer1SkillPoints: Int = 0
@@ -116,6 +126,7 @@ final class PlayerStateModel {
         case "blacksmith":  return blacksmithTier
         case "gatherer_3": return gatherer3Tier
         case "gatherer_4": return gatherer4Tier
+        case "chef":        return chefTier
         default:            return 0
         }
     }
@@ -128,6 +139,7 @@ final class PlayerStateModel {
         case "blacksmith":  return .blacksmith
         case "gatherer_3": return .herbalist
         case "gatherer_4": return .fisherman
+        case "chef":        return .chef
         default:            return nil
         }
     }

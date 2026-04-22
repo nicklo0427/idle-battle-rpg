@@ -82,6 +82,7 @@ struct NpcUpgradeService {
         case "blacksmith":  player.blacksmithTier += 1
         case "gatherer_3": player.gatherer3Tier  += 1
         case "gatherer_4": player.gatherer4Tier  += 1
+        case "chef":        player.chefTier       += 1
         default: break
         }
 

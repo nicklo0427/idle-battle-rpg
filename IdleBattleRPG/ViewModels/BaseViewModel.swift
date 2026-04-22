@@ -45,6 +45,24 @@ final class BaseViewModel {
         tasks.first { $0.actorKey == AppConstants.Actor.blacksmith && $0.status == .inProgress }
     }
 
+    /// 廚師的進行中任務（nil = 閒置）
+    func cuisineTask(from tasks: [TaskModel]) -> TaskModel? {
+        tasks.first { $0.actorKey == AppConstants.Actor.chef && $0.status == .inProgress }
+    }
+
+    /// 玩家目前是否可以負擔指定料理（素材 + 金幣都足夠）
+    func canAffordCuisine(
+        _ cuisine: CuisineDef,
+        player: PlayerStateModel?,
+        inventory: MaterialInventoryModel?
+    ) -> Bool {
+        guard let player, let inventory else { return false }
+        guard player.gold >= cuisine.goldCost else { return false }
+        return cuisine.ingredients.allSatisfy { (material, amount) in
+            inventory.amount(of: material) >= amount
+        }
+    }
+
     /// 玩家目前是否可以負擔指定配方（素材 + 金幣都足夠）
     func canAffordRecipe(
         _ recipe: CraftRecipeDef,
@@ -118,6 +136,22 @@ final class BaseViewModel {
     ) -> Result<Void, TaskCreationError> {
         do {
             try TaskCreationService(context: context).createCraftTask(recipeKey: recipeKey)
+            return .success(())
+        } catch let e as TaskCreationError {
+            return .failure(e)
+        } catch {
+            return .failure(.recipeNotFound("unknown"))
+        }
+    }
+
+    /// 建立料理任務（V7-3）
+    @discardableResult
+    func startCuisineTask(
+        recipeKey: String,
+        context: ModelContext
+    ) -> Result<Void, TaskCreationError> {
+        do {
+            try TaskCreationService(context: context).createCuisineTask(recipeKey: recipeKey)
             return .success(())
         } catch let e as TaskCreationError {
             return .failure(e)

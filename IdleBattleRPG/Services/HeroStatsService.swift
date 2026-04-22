@@ -27,6 +27,16 @@ struct HeroStatsService {
             hp  += equip.hpBonus
         }
 
+        // V7-3：套用料理 buff（限時；到期後自動失效）
+        let now = Date().timeIntervalSinceReferenceDate
+        if !player.activeCuisineKey.isEmpty,
+           player.cuisineBuffExpiresAt > now,
+           let cuisine = CuisineDef.find(player.activeCuisineKey) {
+            atk += cuisine.atkBonus
+            def += cuisine.defBonus
+            hp  += cuisine.hpBonus
+        }
+
         let base = HeroStats(totalATK: atk, totalDEF: def, totalHP: hp,
                              totalAGI: player.agiPoints, totalDEX: player.dexPoints)
 

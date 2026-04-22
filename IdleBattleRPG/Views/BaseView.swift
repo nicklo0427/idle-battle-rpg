@@ -25,6 +25,7 @@ struct BaseView: View {
     // Sheet 狀態
     @State private var selectedGathererDef: GathererNpcDef?
     @State private var showCraftSheet    = false
+    @State private var showCuisineSheet  = false   // V7-3
     @State private var showMerchantSheet = false
 
     // NPC 升級確認 Alert
@@ -79,6 +80,7 @@ struct BaseView: View {
                         npcGathererRow(def: npc, player: players.first)
                     }
                     npcBlacksmithRow(player: players.first)
+                    npcChefRow(player: players.first)
                     npcMerchantRow()
                 }
 
@@ -161,6 +163,14 @@ struct BaseView: View {
                     inventory: inventories.first,
                     progressionService: appState.progressionService,
                     isPresented: $showCraftSheet
+                )
+            }
+            .sheet(isPresented: $showCuisineSheet) {
+                CuisineSheet(
+                    viewModel: viewModel,
+                    player: players.first,
+                    inventory: inventories.first,
+                    isPresented: $showCuisineSheet
                 )
             }
             .sheet(isPresented: $showMerchantSheet) {
@@ -342,6 +352,103 @@ struct BaseView: View {
         }
     }
 
+    // MARK: - NPC Row: 廚師（V7-3）
+
+    @ViewBuilder
+    private func npcChefRow(player: PlayerStateModel?) -> some View {
+        let activeTask = viewModel.cuisineTask(from: tasks)
+        let isBusy = activeTask != nil
+        let tier = player?.tier(for: AppConstants.Actor.chef) ?? 0
+
+        // Buff 狀態
+        let hasBuff: Bool = {
+            guard let player, !player.activeCuisineKey.isEmpty else { return false }
+            return player.cuisineBuffExpiresAt > Date().timeIntervalSinceReferenceDate
+        }()
+
+        Button(action: { if !isBusy { showCuisineSheet = true } }) {
+            HStack(spacing: 12) {
+                Image(systemName: "fork.knife")
+                    .symbolEffect(.pulse, isActive: isBusy)
+                    .foregroundStyle(Color.purple.opacity(isBusy ? 0.7 : 1.0))
+                    .frame(width: 24)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text("廚師")
+                            .fontWeight(.medium)
+                            .foregroundStyle(.primary)
+                        if hasBuff {
+                            Text("✨ Buff 生效中")
+                                .font(.caption2)
+                                .padding(.horizontal, 6).padding(.vertical, 2)
+                                .background(Color.purple.opacity(0.12))
+                                .foregroundStyle(.purple)
+                                .clipShape(Capsule())
+                        }
+                    }
+
+                    if let task = activeTask, let def = CuisineDef.find(task.definitionKey) {
+                        Text("烹飪中：\(def.icon) \(def.name)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(TaskCountdown.remaining(for: task, relativeTo: appState.tick))
+                            .font(.caption)
+                            .foregroundStyle(.purple)
+                        ProgressView(value: task.progress(relativeTo: appState.tick))
+                            .tint(.purple)
+                            .scaleEffect(y: 0.7)
+                            .padding(.top, 1)
+                    } else {
+                        Text("閒置中，點擊委派")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Spacer()
+
+                TierBadgeView(tier: tier)
+
+                if isBusy {
+                    Text("烹飪中")
+                        .font(.caption)
+                        .padding(.horizontal, 8).padding(.vertical, 3)
+                        .background(Color.purple.opacity(0.12))
+                        .foregroundStyle(.purple)
+                        .clipShape(Capsule())
+                } else {
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .padding(.vertical, 2)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(NPCDispatchButtonStyle(enabled: !isBusy))
+        .contextMenu {
+            if let player,
+               let cost = appState.npcUpgradeService.nextUpgradeCost(
+                   npcKind: .chef, actorKey: AppConstants.Actor.chef, player: player) {
+                let inventory   = inventories.first
+                let canExp      = player.heroExp >= cost.expCost
+                let canMat      = cost.materialCosts.allSatisfy { (mat, req) in (inventory?.amount(of: mat) ?? 0) >= req }
+                let canGold     = player.gold >= cost.goldCost
+                let canUpgrade  = canExp && canMat && canGold
+                let matDesc     = cost.materialCosts.map { "\($0.0.icon)×\($0.1)" }.joined(separator: " ")
+                let label       = "升級到 T\(tier + 1)（EXP \(cost.expCost) · \(matDesc) · \(cost.goldCost)金）"
+                Button(canUpgrade ? label : label + "（資源不足）") {
+                    pendingUpgradeInfo = NpcUpgradeRequest(
+                        npcKind: .chef, actorKey: AppConstants.Actor.chef, label: "廚師", cost: cost)
+                }
+                .disabled(!canUpgrade)
+            } else {
+                Text("已達升級上限").foregroundStyle(.secondary)
+            }
+        }
+    }
+
     // MARK: - NPC Row: 商人
 
     @ViewBuilder
@@ -428,6 +535,7 @@ struct BaseView: View {
         player.blacksmithTier = 0
         player.gatherer3Tier  = 0
         player.gatherer4Tier  = 0
+        player.chefTier       = 0
         player.gatherer1SkillPoints = 0;  player.gatherer1SkillsRaw = ""
         player.gatherer2SkillPoints = 0;  player.gatherer2SkillsRaw = ""
         player.gatherer3SkillPoints = 0;  player.gatherer3SkillsRaw = ""

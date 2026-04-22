@@ -12,6 +12,7 @@ enum AppConstants {
         static let gatherer2  = "gatherer_2"
         static let blacksmith = "blacksmith"
         static let player     = "player"
+        static let chef       = "chef"       // V7-3 廚師 NPC
     }
 
     // MARK: - 初始狀態

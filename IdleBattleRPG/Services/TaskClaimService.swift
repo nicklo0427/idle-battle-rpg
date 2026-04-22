@@ -99,6 +99,14 @@ struct TaskClaimService {
                 context.insert(newEquip)
                 equipmentCount += 1
             }
+
+            // cuisine 任務（V7-3）：將 buff 寫入玩家，新 buff 覆蓋舊 buff
+            if task.kind == .cuisine, !task.resultCuisineKey.isEmpty,
+               let cuisine = CuisineDef.find(task.resultCuisineKey),
+               let player {
+                player.activeCuisineKey     = cuisine.key
+                player.cuisineBuffExpiresAt = Date().timeIntervalSinceReferenceDate + cuisine.buffDuration
+            }
         }
 
         let totalExp = completed.reduce(0) { $0 + $1.resultExp }

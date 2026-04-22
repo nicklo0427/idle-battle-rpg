@@ -52,6 +52,7 @@ struct SettlementService {
         switch task.kind {
         case .gather:  fillGatherResults(task)
         case .craft:   break   // resultCraftedEquipKey 在建立時已填入
+        case .cuisine: break   // resultCuisineKey 在建立時已填入（V7-3）
         case .dungeon:
             // V6-3 T01：不預算戰鬥結果，改由玩家即時發起（DungeonBattleSheet）
             // fillDungeonResults / markDungeonProgression 移至 DungeonBattleSheet.finalizeBattle()
