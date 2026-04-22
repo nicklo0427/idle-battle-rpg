@@ -69,9 +69,17 @@ struct TaskCreationService {
             throw TaskCreationError.actorBusy(actorKey)
         }
 
-        let duration = def.durationOptions.contains(durationSeconds)
+        let baseDuration = def.durationOptions.contains(durationSeconds)
             ? durationSeconds
             : def.shortestDuration   // 防呆：不在選項內時退回最短
+
+        // 採集速度技能縮減（V7-1 T02）
+        let player = (try? context.fetch(FetchDescriptor<PlayerStateModel>()))?.first
+        let speedNode = GathererSkillNodeDef.nodes(for: actorKey).first { $0.speedReductionPerPoint > 0 }
+        let speedLevel = speedNode.map { player?.skillLevel(nodeKey: $0.key, actorKey: actorKey) ?? 0 } ?? 0
+        let speedMultiplier = 1.0 - Double(speedLevel) * (speedNode?.speedReductionPerPoint ?? 0)
+        let duration = max(60, Int(Double(baseDuration) * speedMultiplier))
+
         let now = Date.now
         let task = TaskModel(
             kind:          .gather,

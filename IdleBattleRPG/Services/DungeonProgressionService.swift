@@ -89,6 +89,13 @@ struct DungeonProgressionService {
         isFloorCleared(regionKey: regionKey, floorIndex: 4)
     }
 
+    /// 直接用 floor key 查詢菁英是否已擊敗（供採集地點解鎖判斷）
+    func isEliteCleared(floorKey: String) -> Bool {
+        let model = repository.fetch()
+        migrateIfNeeded(model)
+        return decodeKeys(model?.clearedEliteKeysJSON).contains(floorKey)
+    }
+
     // MARK: - 變更：標記 AFK 首通
 
     /// 標記 AFK 任務完成（冪等）。

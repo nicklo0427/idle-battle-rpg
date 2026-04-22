@@ -18,73 +18,82 @@
 
 ---
 
-## 背包列表（Inventory List）
+## 各位置狀態
 
-精良裝備 row 左側加金色 indicator：
+| 位置 | 功能 | 狀態 |
+|---|---|---|
+| 背包列表 | 名稱 + 稀有度文字金色 | ✅ 已完成 |
+| 背包列表 | 左側金色 3px indicator | 🔲 未完成 |
+| EquipSelectSheet | 名稱 + 稀有度文字金色 | ✅ 已完成 |
+| EquipSelectSheet | 精良裝備 ★ 前綴 | 🔲 未完成 |
+| 裝備槽（已裝備） | 名稱 + 稀有度文字金色 | ✅ 已完成 |
+| 裝備槽（已裝備） | 金色 strokeBorder 外框 | 🔲 未完成 |
+
+---
+
+## 已完成：文字金色
+
+`CharacterView.swift` 多處已套用 `Color.rarityRefined`：
 
 ```swift
-HStack {
-    // 金色 indicator（精良裝備）
-    if equipment.rarity == .refined {
-        Rectangle()
-            .fill(Color.yellow.opacity(0.8))
-            .frame(width: 3)
-            .clipShape(Capsule())
-    }
+.foregroundStyle(item.rarity == .refined ? Color.rarityRefined : Color.primary)
+```
 
-    VStack(alignment: .leading) {
-        Text(def.name)
-            .foregroundStyle(equipment.rarity == .refined ? .yellow : .primary)
-        Text(equipment.rarity.displayName)
-            .font(.caption)
-            .foregroundStyle(.secondary)
-    }
-    // ...
+---
+
+## 待實作：背包列表左側 indicator
+
+`backpackItemRow(_:)` 約 line 1128，在 `HStack` 開頭插入：
+
+```swift
+if item.rarity == .refined {
+    Rectangle()
+        .fill(Color.rarityRefined.opacity(0.8))
+        .frame(width: 3)
+        .clipShape(Capsule())
 }
 ```
 
 ---
 
-## EquipSelectSheet（裝備選擇）
+## 待實作：EquipSelectSheet ★ 前綴
 
-精良裝備名稱加金色 + 星號前綴：
+`EquipSelectSheet` 約 line 1218，在 `isRolledBossWeapon` 判斷之前插入：
 
 ```swift
-HStack {
-    Text(equipment.rarity == .refined ? "★ " : "")
-        .foregroundStyle(.yellow)
-    + Text(def.name)
-        .foregroundStyle(equipment.rarity == .refined ? .yellow : .primary)
+if item.rarity == .refined && !item.isRolledBossWeapon {
+    Text("★").font(.caption2).foregroundStyle(Color.rarityRefined)
 }
 ```
 
+> Boss 武器（`isRolledBossWeapon == true`）保留原有 `✦`，不疊加 ★。
+
 ---
 
-## 裝備槽（已裝備精良裝備）
+## 待實作：裝備槽金色外框
 
-裝備槽外框微光效果：
+`equippedSlotRow(slot:item:)` 約 line 1120，在 `.contentShape(Rectangle())` 之後加 `.overlay`：
 
 ```swift
-// 裝備槽容器
-RoundedRectangle(cornerRadius: 8)
-    .fill(Color(.systemBackground))
-    .overlay(
-        RoundedRectangle(cornerRadius: 8)
-            .strokeBorder(
-                equippedItem?.rarity == .refined
-                    ? Color.yellow.opacity(0.6)
-                    : Color.secondary.opacity(0.2),
-                lineWidth: equippedItem?.rarity == .refined ? 1.5 : 1
-            )
-    )
+.overlay(
+    RoundedRectangle(cornerRadius: 8)
+        .strokeBorder(
+            item?.rarity == .refined
+                ? Color.rarityRefined.opacity(0.6)
+                : Color.clear,
+            lineWidth: 1.5
+        )
+)
 ```
 
 ---
 
 ## 驗收標準
 
-- [x] 背包列表：精良裝備顯示金色左側 indicator + 金色名稱
-- [x] EquipSelectSheet：精良裝備名稱前有 ★ + 金色
-- [x] 裝備槽：已裝備精良裝備顯示金色邊框
+- [x] 背包列表：精良裝備名稱 + 稀有度標籤呈金色
+- [x] 背包列表：精良裝備左側顯示金色 3px 細線
+- [x] EquipSelectSheet：精良裝備名稱呈金色
+- [x] EquipSelectSheet：精良裝備名稱前有 ★ 金色（Boss 武器除外）
+- [x] 裝備槽：已裝備精良裝備顯示金色外框
 - [x] 普通裝備視覺不受影響
 - [x] 不影響現有 UI 佈局或互動

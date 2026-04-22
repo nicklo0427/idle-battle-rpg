@@ -45,6 +45,8 @@ final class PlayerStateModel {
     var gatherer1Tier: Int = 0
     var gatherer2Tier: Int = 0
     var blacksmithTier: Int = 0
+    var gatherer3Tier: Int = 0   // 採藥師
+    var gatherer4Tier: Int = 0   // 漁夫
 
     // MARK: - 職業 & 技能（V6-1）
 
@@ -66,6 +68,17 @@ final class PlayerStateModel {
     var availableSkillPoints: Int = 0
     /// 技能升階等級，格式 "key:level,key:level"（e.g. "sw_heavy_slash:2,sw_iron_will:1"）
     var skillLevelsRaw: String = ""
+
+    // MARK: - 採集者技能（V7-1 T02）
+
+    var gatherer1SkillPoints: Int = 0
+    var gatherer1SkillsRaw:   String = ""
+    var gatherer2SkillPoints: Int = 0
+    var gatherer2SkillsRaw:   String = ""
+    var gatherer3SkillPoints: Int = 0
+    var gatherer3SkillsRaw:   String = ""
+    var gatherer4SkillPoints: Int = 0
+    var gatherer4SkillsRaw:   String = ""
 
     // MARK: - Init
 
@@ -101,6 +114,8 @@ final class PlayerStateModel {
         case "gatherer_1": return gatherer1Tier
         case "gatherer_2": return gatherer2Tier
         case "blacksmith":  return blacksmithTier
+        case "gatherer_3": return gatherer3Tier
+        case "gatherer_4": return gatherer4Tier
         default:            return 0
         }
     }
@@ -111,6 +126,8 @@ final class PlayerStateModel {
         case "gatherer_1": return .woodcutter
         case "gatherer_2": return .miner
         case "blacksmith":  return .blacksmith
+        case "gatherer_3": return .herbalist
+        case "gatherer_4": return .fisherman
         default:            return nil
         }
     }
@@ -167,5 +184,64 @@ extension PlayerStateModel {
             levels[skillKey] = level
         }
         skillLevelsRaw = levels.map { "\($0.key):\($0.value)" }.joined(separator: ",")
+    }
+}
+
+// MARK: - 採集者技能便利存取（V7-1 T02）
+
+extension PlayerStateModel {
+
+    /// 指定採集者已投入技能 key 陣列
+    func investedSkillKeys(for actorKey: String) -> [String] {
+        rawSkills(for: actorKey)
+            .split(separator: ",")
+            .compactMap { s in s.isEmpty ? nil : String(s) }
+    }
+
+    /// 指定採集者可用技能點數
+    func skillPoints(for actorKey: String) -> Int {
+        switch actorKey {
+        case "gatherer_1": return gatherer1SkillPoints
+        case "gatherer_2": return gatherer2SkillPoints
+        case "gatherer_3": return gatherer3SkillPoints
+        case "gatherer_4": return gatherer4SkillPoints
+        default: return 0
+        }
+    }
+
+    /// 指定節點的已投入次數（即等級）
+    func skillLevel(nodeKey: String, actorKey: String) -> Int {
+        investedSkillKeys(for: actorKey).filter { $0 == nodeKey }.count
+    }
+
+    func decrementSkillPoints(for actorKey: String) {
+        switch actorKey {
+        case "gatherer_1": gatherer1SkillPoints = max(0, gatherer1SkillPoints - 1)
+        case "gatherer_2": gatherer2SkillPoints = max(0, gatherer2SkillPoints - 1)
+        case "gatherer_3": gatherer3SkillPoints = max(0, gatherer3SkillPoints - 1)
+        case "gatherer_4": gatherer4SkillPoints = max(0, gatherer4SkillPoints - 1)
+        default: break
+        }
+    }
+
+    func appendSkillKey(_ key: String, for actorKey: String) {
+        let updated = (investedSkillKeys(for: actorKey) + [key]).joined(separator: ",")
+        switch actorKey {
+        case "gatherer_1": gatherer1SkillsRaw = updated
+        case "gatherer_2": gatherer2SkillsRaw = updated
+        case "gatherer_3": gatherer3SkillsRaw = updated
+        case "gatherer_4": gatherer4SkillsRaw = updated
+        default: break
+        }
+    }
+
+    private func rawSkills(for actorKey: String) -> String {
+        switch actorKey {
+        case "gatherer_1": return gatherer1SkillsRaw
+        case "gatherer_2": return gatherer2SkillsRaw
+        case "gatherer_3": return gatherer3SkillsRaw
+        case "gatherer_4": return gatherer4SkillsRaw
+        default: return ""
+        }
     }
 }

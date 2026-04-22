@@ -14,20 +14,22 @@
 
 ## 修改檔案
 
-- `Views/BaseView.swift`（Tab Bar 圖示）
-- `Views/AdventureView.swift`（出征圖示）
-- `Views/GatherView.swift` 或 NPC 列表（採集圖示）
+- `Views/BaseView.swift`（採集者 / 鑄造師圖示）
+- `Views/ContentView.swift`（Tab Bar 圖示）
+- `Views/AdventureView.swift`（出征圖示）— ✅ 已完成
 
 ---
 
 ## 動畫規格
 
-| 位置 | 條件 | 動畫 | SF Symbol |
-|---|---|---|---|
-| 採集者 NPC 圖示 | 任一採集者任務進行中 | `.symbolEffect(.breathe)` | `person.fill` |
-| 地下城出征圖示 | 英雄任務進行中 | `.symbolEffect(.pulse)` | `map.fill` / `bolt.fill` |
-| Tab Bar 地圖圖示 | 英雄任務進行中 | `.symbolEffect(.pulse)` | `map.fill` |
-| Tab Bar 採集圖示 | 任一採集進行中 | `.symbolEffect(.breathe)` | `person.2.fill` |
+| 位置 | 條件 | 動畫 | SF Symbol | 狀態 |
+|---|---|---|---|---|
+| 採集者 NPC 圖示 | 任一採集者任務進行中 | `.symbolEffect(.breathe)` | `person.fill` | 🔲 未完成（目前誤用 `.pulse`）|
+| 地下城出征圖示 | 英雄任務進行中 | `.symbolEffect(.pulse)` | `map.fill` | ✅ 已完成 |
+| Tab Bar 冒險圖示 | 英雄任務進行中 | `.symbolEffect(.pulse)` | `map.fill` | 🔲 未完成 |
+| Tab Bar 基地圖示 | 任一採集進行中 | `.symbolEffect(.breathe)` | `house.fill` | 🔲 未完成 |
+
+> 鑄造師保持 `.pulse`（鑄造與採集視覺語義不同）。
 
 ---
 
@@ -44,44 +46,72 @@ Image(systemName: "person.fill")
 
 ---
 
-## 實作位置
+## 實作細節
 
-### AdventureView — 出征進行中
+### 1. BaseView — 採集者圖示（`.pulse` → `.breathe`）
+
+`Views/BaseView.swift` 約 line 214：
 
 ```swift
-// 樓層卡片或進行中 banner 的圖示
-Image(systemName: "bolt.fill")
-    .symbolEffect(.pulse, isActive: task?.status == .inProgress)
+// 改前：
+.symbolEffect(.pulse, isActive: isBusy)
+
+// 改後：
+.symbolEffect(.breathe, isActive: isBusy)
 ```
 
-### NPC 列表 — 採集進行中
+### 2. ContentView — Tab Bar 動畫
+
+`Views/ContentView.swift` → `mainTabView`：
+
+需在 `mainTabView` 中以 `@Query` 讀取 `TaskModel`，計算兩個 computed property：
 
 ```swift
-// 每個採集者行的圖示
-Image(systemName: "figure.walk")
-    .symbolEffect(.breathe, isActive: gathererTask?.status == .inProgress)
-```
+// 英雄出征中
+private var hasDungeonTask: Bool {
+    tasks.contains { $0.kind == .dungeon && $0.status == .inProgress }
+}
 
-### BaseView Tab Bar — 狀態反映
-
-```swift
-// Tab label
-Label {
-    Text("地下城")
-} icon: {
-    Image(systemName: "map.fill")
-        .symbolEffect(.pulse, isActive: appState.hasDungeonTaskInProgress)
+// 任一採集進行中
+private var hasGatherTask: Bool {
+    tasks.contains { $0.kind == .gather && $0.status == .inProgress }
 }
 ```
 
-`appState.hasDungeonTaskInProgress` 為 computed property，查詢是否有 `.dungeon` + `.inProgress` 任務。
+Tab item 改為自訂 Label icon：
+
+```swift
+BaseView(appState: appState)
+    .tabItem {
+        Label {
+            Text("基地")
+        } icon: {
+            Image(systemName: "house.fill")
+                .symbolEffect(.breathe, isActive: hasGatherTask)
+        }
+    }
+
+AdventureView(appState: appState)
+    .tabItem {
+        Label {
+            Text("冒險")
+        } icon: {
+            Image(systemName: "map.fill")
+                .symbolEffect(.pulse, isActive: hasDungeonTask)
+        }
+    }
+```
+
+> ⚠️ 注意：`.tabItem` 的 `symbolEffect` 在 iOS 17 可運作，但需實機測試確認渲染行為。
 
 ---
 
 ## 驗收標準
 
-- [x] 採集進行中：採集者圖示播放呼吸動畫
-- [x] 出征進行中：地下城圖示播放脈衝動畫
+- [x] 出征進行中：地下城圖示播放脈衝動畫（AdventureView 內）
+- [x] 採集進行中：採集者圖示播放**呼吸**動畫（非脈衝）
+- [x] Tab Bar 冒險標籤：英雄出征時播放脈衝
+- [x] Tab Bar 基地標籤：採集進行時播放呼吸
 - [x] 任務結束後動畫停止（`isActive: false`）
 - [x] 使用 iOS 17 原生 `symbolEffect`，無第三方依賴
 - [x] 不影響現有 UI 佈局

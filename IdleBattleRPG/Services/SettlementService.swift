@@ -77,19 +77,28 @@ struct SettlementService {
             amount += rng.nextInt(in: def.outputRange)
         }
 
-        switch def.outputMaterial {
-        case .wood:            task.resultWood            = amount
-        case .ore:             task.resultOre             = amount
-        case .hide:            task.resultHide            = amount
-        case .crystalShard:    task.resultCrystalShard    = amount
-        case .ancientFragment: task.resultAncientFragment = amount
-        // V2-1 / V4-3 區域素材：採集地點不會輸出這些素材，此 case 不會觸發
-        case .oldPostBadge, .driedHideBundle, .splitHornBone, .riftFangRoyalBadge,
-             .mineLampCopperClip, .tunnelIronClip, .veinStoneSlab, .stoneSwallowCore,
-             .relicSealRing, .oathInscriptionShard, .foreShrineClip, .ancientKingCore,
-             .sunkenRuneShard, .abyssalCrystalDrop, .drownedCrownFragment, .sunkenKingSeal:
-            break
+        // 隨機事件（V7-1 T03）：同一 rng 繼續 roll，保持確定性
+        let player = (try? context.fetch(FetchDescriptor<PlayerStateModel>()))?.first
+        let rareNode  = GathererSkillNodeDef.nodes(for: task.actorKey).first { $0.rareChancePerPoint > 0 }
+        let rareLevel = rareNode.map { player?.skillLevel(nodeKey: $0.key, actorKey: task.actorKey) ?? 0 } ?? 0
+        let rareBonus = rareLevel * 5          // 每點 +5%
+        let threshold = max(75, 90 - rareBonus) // 最低降至 75%（稀有系最高 25%）
+
+        let roll = rng.nextInt(in: 0...99)
+        switch roll {
+        case 0 ..< threshold:
+            task.gatherEventKey = nil
+        case threshold ..< (threshold + 6):
+            task.gatherEventKey = "bumper_harvest"
+            amount *= 2
+        case (threshold + 6) ..< (threshold + 9):
+            task.gatherEventKey = "rare_find"
+        default:
+            task.gatherEventKey = "gold_vein"
+            task.resultGold    += rng.nextInt(in: 30...100)
         }
+
+        task.setResult(amount, of: def.outputMaterial)
     }
 
     // MARK: - Dungeon 結算（V1 + V2-1 雙路徑）

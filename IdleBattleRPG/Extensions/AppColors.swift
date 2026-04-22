@@ -8,6 +8,20 @@
 
 import SwiftUI
 
+// MARK: - SF Symbols 動畫輔助
+
+extension View {
+    /// 採集任務進行中的動畫：iOS 18+ .breathe，iOS 17 fallback .pulse
+    @ViewBuilder
+    func gatheringSymbolEffect(isActive: Bool) -> some View {
+        if #available(iOS 18, *) {
+            self.symbolEffect(.breathe, isActive: isActive)
+        } else {
+            self.symbolEffect(.pulse, isActive: isActive)
+        }
+    }
+}
+
 extension Color {
 
     // MARK: - 地下城區域主題色（T01 差異化色調）

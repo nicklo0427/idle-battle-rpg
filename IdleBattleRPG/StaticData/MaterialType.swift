@@ -46,6 +46,15 @@ enum MaterialType: String, CaseIterable, Codable {
     case drownedCrownFragment  = "drowned_crown_fragment"   // 溺冕殘片（王室深淵 F3）
     case sunkenKingSeal        = "sunken_king_seal"         // 沉王印璽（Boss 特材 F4）
 
+    // MARK: - V7-1 採集專屬素材
+
+    case ancientWood  = "ancient_wood"   // 古木材（伐木工高階地點）
+    case refinedOre   = "refined_ore"    // 精煉礦石（採礦工高階地點）
+    case herb         = "herb"           // 草藥（採藥師）
+    case spiritHerb   = "spirit_herb"    // 靈草（採藥師高階地點）
+    case freshFish    = "fresh_fish"     // 鮮魚（漁夫）
+    case abyssFish    = "abyss_fish"     // 深淵魚（漁夫高階地點）
+
     // MARK: - 顯示名稱
 
     var displayName: String {
@@ -76,6 +85,13 @@ enum MaterialType: String, CaseIterable, Codable {
         case .abyssalCrystalDrop:    return "深淵晶滴"
         case .drownedCrownFragment:  return "溺冕殘片"
         case .sunkenKingSeal:        return "沉王印璽"
+        // V7-1
+        case .ancientWood:           return "古木材"
+        case .refinedOre:            return "精煉礦石"
+        case .herb:                  return "草藥"
+        case .spiritHerb:            return "靈草"
+        case .freshFish:             return "鮮魚"
+        case .abyssFish:             return "深淵魚"
         }
     }
 
@@ -109,6 +125,13 @@ enum MaterialType: String, CaseIterable, Codable {
         case .abyssalCrystalDrop:    return "🔵"
         case .drownedCrownFragment:  return "🫧"
         case .sunkenKingSeal:        return "🔮"
+        // V7-1
+        case .ancientWood:           return "🌳"
+        case .refinedOre:            return "⚙️"
+        case .herb:                  return "🌿"
+        case .spiritHerb:            return "🍃"
+        case .freshFish:             return "🐟"
+        case .abyssFish:             return "🦑"
         }
     }
 

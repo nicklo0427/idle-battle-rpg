@@ -79,6 +79,23 @@ final class BaseViewModel {
         }
     }
 
+    /// 採集者技能投點，回傳錯誤訊息（nil = 成功）
+    @discardableResult
+    func investGathererSkillPoint(
+        nodeKey:  String,
+        actorKey: String,
+        player:   PlayerStateModel,
+        context:  ModelContext
+    ) -> String? {
+        do {
+            try GathererSkillService(context: context)
+                .investPoint(nodeKey: nodeKey, actorKey: actorKey, player: player)
+            return nil
+        } catch {
+            return (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
     // MARK: - Onboarding 步驟推進
 
     /// 若 player.onboardingStep == expectedStep，推進到下一步並儲存。

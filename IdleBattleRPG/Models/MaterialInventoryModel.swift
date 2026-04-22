@@ -47,6 +47,15 @@ final class MaterialInventoryModel {
     var drownedCrownFragment: Int   // 溺冕殘片（王室深淵 F3）
     var sunkenKingSeal:       Int   // 沉王印璽（Boss 特材 F4）
 
+    // MARK: - V7-1 採集專屬素材
+
+    var ancientWood:  Int = 0
+    var refinedOre:   Int = 0
+    var herb:         Int = 0
+    var spiritHerb:   Int = 0
+    var freshFish:    Int = 0
+    var abyssFish:    Int = 0
+
     // MARK: - Init
 
     init(
@@ -131,6 +140,13 @@ final class MaterialInventoryModel {
         case .abyssalCrystalDrop:   return abyssalCrystalDrop
         case .drownedCrownFragment: return drownedCrownFragment
         case .sunkenKingSeal:       return sunkenKingSeal
+        // V7-1
+        case .ancientWood:  return ancientWood
+        case .refinedOre:   return refinedOre
+        case .herb:         return herb
+        case .spiritHerb:   return spiritHerb
+        case .freshFish:    return freshFish
+        case .abyssFish:    return abyssFish
         }
     }
 
@@ -162,6 +178,13 @@ final class MaterialInventoryModel {
         case .abyssalCrystalDrop:   abyssalCrystalDrop   += amount
         case .drownedCrownFragment: drownedCrownFragment += amount
         case .sunkenKingSeal:       sunkenKingSeal       += amount
+        // V7-1
+        case .ancientWood:  ancientWood  += amount
+        case .refinedOre:   refinedOre   += amount
+        case .herb:         herb         += amount
+        case .spiritHerb:   spiritHerb   += amount
+        case .freshFish:    freshFish    += amount
+        case .abyssFish:    abyssFish    += amount
         }
     }
 
@@ -197,6 +220,13 @@ final class MaterialInventoryModel {
         case .abyssalCrystalDrop:   abyssalCrystalDrop   -= amount
         case .drownedCrownFragment: drownedCrownFragment -= amount
         case .sunkenKingSeal:       sunkenKingSeal       -= amount
+        // V7-1
+        case .ancientWood:  ancientWood  -= amount
+        case .refinedOre:   refinedOre   -= amount
+        case .herb:         herb         -= amount
+        case .spiritHerb:   spiritHerb   -= amount
+        case .freshFish:    freshFish    -= amount
+        case .abyssFish:    abyssFish    -= amount
         }
         return true
     }

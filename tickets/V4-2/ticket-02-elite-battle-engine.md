@@ -1,6 +1,6 @@
 # V4-2 Ticket 02：EliteBattleEngine（純計算層）
 
-**狀態：** 🔲 待實作
+**狀態：** ✅ 已完成
 
 **依賴：** T01 EliteDef
 

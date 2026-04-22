@@ -9,6 +9,8 @@ import Foundation
 enum GathererRole: String {
     case woodcutter  // 伐木工
     case miner       // 採礦工
+    case herbalist   // 採藥師
+    case fisherman   // 漁夫
 }
 
 // MARK: - GathererNpcDef
@@ -35,7 +37,7 @@ extension GathererNpcDef {
             icon:         "tree.fill",
             role:         .woodcutter,
             npcKind:      .woodcutter,
-            locationKeys: ["forest"]
+            locationKeys: ["forest", "misty_jungle", "ancient_tree_reserve", "sunken_mangrove"]
         ),
         GathererNpcDef(
             actorKey:     "gatherer_2",
@@ -43,7 +45,23 @@ extension GathererNpcDef {
             icon:         "mountain.2.fill",
             role:         .miner,
             npcKind:      .miner,
-            locationKeys: ["mine_pit"]
+            locationKeys: ["mine_pit", "deep_mine_shaft", "lava_vein", "sunken_ore_deposit"]
+        ),
+        GathererNpcDef(
+            actorKey:     "gatherer_3",
+            name:         "採藥師",
+            icon:         "leaf.fill",
+            role:         .herbalist,
+            npcKind:      .herbalist,
+            locationKeys: ["herb_meadow", "highland_herb_field", "ruins_herb_garden", "sunken_bloom_grove"]
+        ),
+        GathererNpcDef(
+            actorKey:     "gatherer_4",
+            name:         "漁夫",
+            icon:         "fish.fill",
+            role:         .fisherman,
+            npcKind:      .fisherman,
+            locationKeys: ["border_stream", "highland_river_bend", "abyss_lake", "sunken_harbor"]
         ),
     ]
 

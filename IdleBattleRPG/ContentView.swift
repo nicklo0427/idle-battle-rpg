@@ -21,6 +21,15 @@ struct ContentView: View {
 
     @State private var appState: AppState?
     @Query private var players:  [PlayerStateModel]
+    @Query private var tasks:    [TaskModel]
+
+    private var hasDungeonTask: Bool {
+        tasks.contains { $0.kind == .dungeon && $0.status == .inProgress }
+    }
+
+    private var hasGatherTask: Bool {
+        tasks.contains { $0.kind == .gather && $0.status == .inProgress }
+    }
 
     // MARK: - Body
 
@@ -74,12 +83,22 @@ struct ContentView: View {
         TabView {
             BaseView(appState: appState)
                 .tabItem {
-                    Label("基地", systemImage: "house.fill")
+                    Label {
+                        Text("基地")
+                    } icon: {
+                        Image(systemName: "house.fill")
+                            .gatheringSymbolEffect(isActive: hasGatherTask)
+                    }
                 }
 
             AdventureView(appState: appState)
                 .tabItem {
-                    Label("冒險", systemImage: "map.fill")
+                    Label {
+                        Text("冒險")
+                    } icon: {
+                        Image(systemName: "map.fill")
+                            .symbolEffect(.pulse, isActive: hasDungeonTask)
+                    }
                 }
 
             CharacterView(appState: appState)

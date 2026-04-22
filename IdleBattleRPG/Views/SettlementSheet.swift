@@ -289,6 +289,19 @@ struct SettlementSheet: View {
                 Text("戰鬥 \(won) 勝 \(lost) 敗").font(.body)
                 Spacer()
             }
+        case .gatherEvent(let text, let eventKey):
+            let color: Color = eventKey == "bumper_harvest" ? .orange : .yellow
+            HStack {
+                Text(text)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(color.opacity(0.15))
+                    .foregroundStyle(color)
+                    .clipShape(Capsule())
+                Spacer()
+            }
         case .firstClear, .regionUnlock:
             EmptyView()
         }

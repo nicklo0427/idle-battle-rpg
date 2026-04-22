@@ -1,6 +1,6 @@
 # V4-4 Ticket 02：PlayerStateModel 成就欄位 + AchievementService
 
-**狀態：** 🔲 待實作
+**狀態：** ✅ 已完成
 
 **依賴：** T01 AchievementDef
 

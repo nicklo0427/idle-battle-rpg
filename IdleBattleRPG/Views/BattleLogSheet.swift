@@ -85,7 +85,7 @@ struct BattleLogSheet: View {
 
             if model.isBattleActive {
                 Spacer().frame(height: 4)
-                hpBar(icon: "skull", label: enemyLabel,
+                hpBar(icon: "skull.fill", label: enemyLabel,
                       current: currentEnemyHp, maxHp: enemyMaxHp, color: .red)
                 atbBar(progress: model.enemyATBProgress, color: .orange)
             }

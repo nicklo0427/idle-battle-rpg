@@ -1,6 +1,6 @@
 # V4-2 Ticket 05：FloorDetailSheet 菁英整合
 
-**狀態：** 🔲 待實作
+**狀態：** ✅ 已完成
 
 **依賴：** T03 DungeonProgressionModel、T04 EliteBattleSheet
 

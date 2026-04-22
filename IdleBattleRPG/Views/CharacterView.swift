@@ -1122,11 +1122,26 @@ struct CharacterView: View {
             guard !isOnExpedition else { return }
             equipSheetSlot = slot
         }
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(
+                    item?.rarity == .refined
+                        ? Color.rarityRefined.opacity(0.6)
+                        : Color.clear,
+                    lineWidth: 1.5
+                )
+        )
     }
 
     @ViewBuilder
     private func backpackItemRow(_ item: EquipmentModel) -> some View {
         HStack {
+            if item.rarity == .refined {
+                Rectangle()
+                    .fill(Color.rarityRefined.opacity(0.8))
+                    .frame(width: 3)
+                    .clipShape(Capsule())
+            }
             Text(item.slot.icon).frame(width: 28)
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 2) {
@@ -1218,6 +1233,8 @@ private struct EquipSelectSheet: View {
                                 HStack {
                                     if item.isRolledBossWeapon {
                                         Text("✦").font(.caption2).foregroundStyle(.yellow)
+                                    } else if item.rarity == .refined {
+                                        Text("★").font(.caption2).foregroundStyle(Color.rarityRefined)
                                     }
                                     Text(item.displayName)
                                         .fontWeight(.medium)

@@ -58,6 +58,19 @@ struct GathererDetailSheet: View {
         GatherLocationDef.all.filter { npcDef.locationKeys.contains($0.key) }
     }
 
+    private func isLocationUnlocked(_ loc: GatherLocationDef) -> Bool {
+        guard let key = loc.requiredBossFloorKey else { return true }
+        return appState.progressionService.isEliteCleared(floorKey: key)
+    }
+
+    private var unlockedLocations: [GatherLocationDef] {
+        filteredLocations.filter { isLocationUnlocked($0) }
+    }
+
+    private var lockedLocations: [GatherLocationDef] {
+        filteredLocations.filter { !isLocationUnlocked($0) }
+    }
+
     // MARK: - Body
 
     var body: some View {
@@ -65,6 +78,7 @@ struct GathererDetailSheet: View {
             List {
                 statusSection
                 upgradeSection
+                skillSection
                 dispatchSection
             }
             .navigationTitle(npcDef.name)
@@ -83,7 +97,7 @@ struct GathererDetailSheet: View {
                 Text(alertMsg ?? "")
             }
             .onAppear {
-                for loc in filteredLocations where selectedDurations[loc.key] == nil {
+                for loc in unlockedLocations where selectedDurations[loc.key] == nil {
                     selectedDurations[loc.key] = loc.shortestDuration
                 }
             }
@@ -145,6 +159,98 @@ struct GathererDetailSheet: View {
         }
     }
 
+    // MARK: - Section：技能
+
+    @ViewBuilder
+    private var skillSection: some View {
+        let availPts = player?.skillPoints(for: npcDef.actorKey) ?? 0
+        Section {
+            ForEach(GathererSkillNodeDef.nodes(for: npcDef.actorKey), id: \.key) { node in
+                skillNodeRow(node, availPoints: availPts)
+            }
+        } header: {
+            HStack {
+                Text("技能")
+                Spacer()
+                if availPts > 0 {
+                    Text("可用點數：\(availPts)")
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                        .fontWeight(.semibold)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func skillNodeRow(_ node: GathererSkillNodeDef, availPoints: Int) -> some View {
+        let level     = player?.skillLevel(nodeKey: node.key, actorKey: npcDef.actorKey) ?? 0
+        let isMaxed   = level >= node.maxLevel
+        let prereqMet: Bool = {
+            guard let prereqKey = node.prerequisiteKey, let p = player else { return true }
+            return p.skillLevel(nodeKey: prereqKey, actorKey: npcDef.actorKey) >= node.prerequisiteLevel
+        }()
+        let canInvest = !isMaxed && prereqMet && availPoints > 0
+
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    Text(node.name)
+                        .fontWeight(.medium)
+                        .foregroundStyle(prereqMet ? .primary : .secondary)
+
+                    Text("Lv.\(level)/\(node.maxLevel)")
+                        .font(.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+
+                    if isMaxed {
+                        Text("已滿")
+                            .font(.caption2)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(Color.green.opacity(0.15))
+                            .foregroundStyle(.green)
+                            .clipShape(Capsule())
+                    }
+                }
+
+                if !prereqMet, let prereqKey = node.prerequisiteKey,
+                   let prereqNode = GathererSkillNodeDef.find(key: prereqKey) {
+                    Text("需先點「\(prereqNode.name)」達 \(node.prerequisiteLevel) 級")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                } else {
+                    Text(node.description)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer()
+
+            if canInvest {
+                Button {
+                    guard let player else { return }
+                    if let errMsg = viewModel.investGathererSkillPoint(
+                        nodeKey:  node.key,
+                        actorKey: npcDef.actorKey,
+                        player:   player,
+                        context:  context
+                    ) {
+                        alertMsg = errMsg
+                    }
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(.green)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
     // MARK: - Section：派遣
 
     @ViewBuilder
@@ -166,8 +272,11 @@ struct GathererDetailSheet: View {
                     .scaleEffect(y: 0.7)
                     .padding(.top, 1)
             } else {
-                ForEach(filteredLocations, id: \.key) { location in
+                ForEach(unlockedLocations, id: \.key) { location in
                     locationRow(location)
+                }
+                ForEach(lockedLocations, id: \.key) { location in
+                    lockedLocationRow(location)
                 }
             }
         }
@@ -246,6 +355,39 @@ struct GathererDetailSheet: View {
             }
             .padding(.leading, 48)
             .padding(.bottom, 4)
+        }
+        .padding(.vertical, 4)
+    }
+
+    // MARK: - Locked Location Row
+
+    @ViewBuilder
+    private func lockedLocationRow(_ location: GatherLocationDef) -> some View {
+        let bossName = DungeonRegionDef.all
+            .flatMap { $0.floors }
+            .first { $0.key == location.requiredBossFloorKey }?
+            .bossName ?? "Boss"
+
+        HStack(spacing: 12) {
+            Text(location.outputMaterial.icon)
+                .font(.title2)
+                .frame(width: 36, height: 36)
+                .background(Color(uiColor: .systemGray5))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(location.name)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary)
+                Text("需通關：\(bossName)")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+
+            Spacer()
+
+            Image(systemName: "lock.fill")
+                .foregroundStyle(.tertiary)
         }
         .padding(.vertical, 4)
     }

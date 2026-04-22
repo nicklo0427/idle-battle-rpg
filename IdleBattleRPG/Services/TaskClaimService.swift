@@ -146,7 +146,10 @@ struct TaskClaimService {
     private func accumulateMaterials(from task: TaskModel, player: PlayerStateModel?, into materials: inout [MaterialType: Int]) {
         let bonus: Int
         if task.kind == .gather, let player {
-            bonus = NpcUpgradeDef.gatherBonus(tier: player.tier(for: task.actorKey))
+            let tierBonus  = NpcUpgradeDef.gatherBonus(tier: player.tier(for: task.actorKey))
+            let yieldNode  = GathererSkillNodeDef.nodes(for: task.actorKey).first { $0.yieldBonusPerPoint > 0 }
+            let yieldLevel = yieldNode.map { player.skillLevel(nodeKey: $0.key, actorKey: task.actorKey) } ?? 0
+            bonus = tierBonus + yieldLevel * (yieldNode?.yieldBonusPerPoint ?? 0)
         } else {
             bonus = 0
         }
@@ -155,6 +158,19 @@ struct TaskClaimService {
             let amount = task.resultAmount(of: mat)
             guard amount > 0 else { continue }
             materials[mat, default: 0] += amount + bonus
+        }
+
+        // rare_find 額外進階素材（V7-1 T03）
+        if task.kind == .gather, task.gatherEventKey == "rare_find" {
+            let rareMat: MaterialType
+            switch task.actorKey {
+            case "gatherer_1": rareMat = .ancientWood
+            case "gatherer_2": rareMat = .refinedOre
+            case "gatherer_3": rareMat = .spiritHerb
+            case "gatherer_4": rareMat = .abyssFish
+            default:           rareMat = .wood
+            }
+            materials[rareMat, default: 0] += 1
         }
     }
 

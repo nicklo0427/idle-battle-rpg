@@ -94,6 +94,15 @@ final class TaskModel {
     var resultDrownedCrownFragment: Int   // 溺冕殘片
     var resultSunkenKingSeal:       Int   // 沉王印璽
 
+    // MARK: - 結果欄位：V7-1 採集專屬素材
+
+    var resultAncientWood: Int = 0
+    var resultRefinedOre:  Int = 0
+    var resultHerb:        Int = 0
+    var resultSpiritHerb:  Int = 0
+    var resultFreshFish:   Int = 0
+    var resultAbyssFish:   Int = 0
+
     // MARK: - 結果欄位：特殊
 
     /// .dungeon 專用
@@ -129,6 +138,11 @@ final class TaskModel {
     /// .dungeon 專用：任務到期後戰鬥尚未發起時為 true
     /// 戰鬥完成後由 DungeonBattleSheet 重設為 false
     var battlePending: Bool = false
+
+    // MARK: - 採集隨機事件（V7-1 T03）
+
+    /// .gather 專用：nil = 無事件 / "bumper_harvest" / "rare_find" / "gold_vein"
+    var gatherEventKey: String? = nil
 
     // MARK: - Init
 
@@ -265,6 +279,13 @@ final class TaskModel {
         case .abyssalCrystalDrop:   return resultAbyssalCrystalDrop
         case .drownedCrownFragment: return resultDrownedCrownFragment
         case .sunkenKingSeal:       return resultSunkenKingSeal
+        // V7-1
+        case .ancientWood:  return resultAncientWood
+        case .refinedOre:   return resultRefinedOre
+        case .herb:         return resultHerb
+        case .spiritHerb:   return resultSpiritHerb
+        case .freshFish:    return resultFreshFish
+        case .abyssFish:    return resultAbyssFish
         }
     }
 
@@ -292,6 +313,13 @@ final class TaskModel {
         case .abyssalCrystalDrop:   resultAbyssalCrystalDrop   = amount
         case .drownedCrownFragment: resultDrownedCrownFragment = amount
         case .sunkenKingSeal:       resultSunkenKingSeal       = amount
+        // V7-1
+        case .ancientWood:  resultAncientWood = amount
+        case .refinedOre:   resultRefinedOre  = amount
+        case .herb:         resultHerb        = amount
+        case .spiritHerb:   resultSpiritHerb  = amount
+        case .freshFish:    resultFreshFish   = amount
+        case .abyssFish:    resultAbyssFish   = amount
         }
     }
 }

@@ -1,6 +1,6 @@
 # V4-2 Ticket 04：EliteBattleSheet UI
 
-**狀態：** 🔲 待實作
+**狀態：** ✅ 已完成
 
 **依賴：** T02 EliteBattleEngine、V4-1 T03 BattleLogSheet
 

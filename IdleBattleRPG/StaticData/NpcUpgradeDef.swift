@@ -10,6 +10,8 @@ enum NpcKind: String, CaseIterable {
     case woodcutter   // 伐木工
     case miner        // 採礦工
     case blacksmith
+    case herbalist    // 採藥師
+    case fisherman    // 漁夫
 }
 
 // MARK: - 升級成本定義
@@ -49,6 +51,22 @@ enum NpcUpgradeDef {
         .init(fromTier: 0, expCost:  60, materialCosts: [(.ore, 10)], goldCost:  300),
         .init(fromTier: 1, expCost: 180, materialCosts: [(.ore, 20)], goldCost:  800),
         .init(fromTier: 2, expCost: 450, materialCosts: [(.ore, 40)], goldCost: 1800),
+    ]
+
+    // MARK: 採藥師升級成本（EXP + 草藥 + 金幣）
+
+    static let herbalistCosts: [NpcUpgradeCostDef] = [
+        .init(fromTier: 0, expCost:  60, materialCosts: [(.herb, 10)], goldCost:  300),
+        .init(fromTier: 1, expCost: 180, materialCosts: [(.herb, 20)], goldCost:  800),
+        .init(fromTier: 2, expCost: 450, materialCosts: [(.herb, 40)], goldCost: 1800),
+    ]
+
+    // MARK: 漁夫升級成本（EXP + 鮮魚 + 金幣）
+
+    static let fishermanCosts: [NpcUpgradeCostDef] = [
+        .init(fromTier: 0, expCost:  60, materialCosts: [(.freshFish, 10)], goldCost:  300),
+        .init(fromTier: 1, expCost: 180, materialCosts: [(.freshFish, 20)], goldCost:  800),
+        .init(fromTier: 2, expCost: 450, materialCosts: [(.freshFish, 40)], goldCost: 1800),
     ]
 
     // MARK: 鑄造師升級成本（EXP + 素材 + 金幣）
@@ -96,6 +114,8 @@ enum NpcUpgradeDef {
         case .woodcutter:  return woodcutterCosts.first { $0.fromTier == fromTier }
         case .miner:       return minerCosts.first       { $0.fromTier == fromTier }
         case .blacksmith:  return blacksmithCosts.first  { $0.fromTier == fromTier }
+        case .herbalist:   return herbalistCosts.first   { $0.fromTier == fromTier }
+        case .fisherman:   return fishermanCosts.first   { $0.fromTier == fromTier }
         }
     }
 }

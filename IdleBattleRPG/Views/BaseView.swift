@@ -211,7 +211,7 @@ struct BaseView: View {
         Button(action: { selectedGathererDef = def }) {
             HStack(spacing: 12) {
                 Image(systemName: def.icon)
-                    .symbolEffect(.pulse, isActive: isBusy)    // T02 動畫
+                    .gatheringSymbolEffect(isActive: isBusy)   // T02 採集動畫（iOS 18 呼吸 / iOS 17 脈衝）
                     .foregroundStyle(Color.green.opacity(isBusy ? 0.7 : 1.0))
                     .frame(width: 24)
 
@@ -387,6 +387,12 @@ struct BaseView: View {
         inv.hide             += amount
         inv.crystalShard     += amount
         inv.ancientFragment  += amount
+        inv.ancientWood      += amount
+        inv.refinedOre       += amount
+        inv.herb             += amount
+        inv.spiritHerb       += amount
+        inv.freshFish        += amount
+        inv.abyssFish        += amount
         try? context.save()
     }
 
@@ -420,6 +426,12 @@ struct BaseView: View {
         player.gatherer1Tier  = 0
         player.gatherer2Tier  = 0
         player.blacksmithTier = 0
+        player.gatherer3Tier  = 0
+        player.gatherer4Tier  = 0
+        player.gatherer1SkillPoints = 0;  player.gatherer1SkillsRaw = ""
+        player.gatherer2SkillPoints = 0;  player.gatherer2SkillsRaw = ""
+        player.gatherer3SkillPoints = 0;  player.gatherer3SkillsRaw = ""
+        player.gatherer4SkillPoints = 0;  player.gatherer4SkillsRaw = ""
         try? context.save()
     }
 

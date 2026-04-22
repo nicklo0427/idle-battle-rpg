@@ -30,6 +30,7 @@ struct SettlementRow: Identifiable {
         case battle(won: Int, lost: Int)
         case firstClear(floorName: String)
         case regionUnlock(regionName: String)
+        case gatherEvent(text: String, eventKey: String)  // V7-1 T03
     }
     let id = UUID()
     let kind: RowKind
@@ -52,8 +53,8 @@ struct SettlementSummary {
     var rewardRows: [SettlementRow] {
         rows.filter {
             switch $0.kind {
-            case .gold, .exp, .material, .equipment, .battle: return true
-            case .firstClear, .regionUnlock:                   return false
+            case .gold, .exp, .material, .equipment, .battle, .gatherEvent: return true
+            case .firstClear, .regionUnlock:                                  return false
             }
         }
     }
@@ -151,6 +152,15 @@ final class SettlementViewModel {
 
         let expTotal = tasks.reduce(0) { $0 + $1.resultExp }
 
+        // 採集事件 badge（V7-1 T03）
+        var eventRows: [SettlementRow] = []
+        for task in tasks where task.kind == .gather {
+            if let eventKey = task.gatherEventKey {
+                let text = gatherEventText(eventKey: eventKey, task: task)
+                eventRows.append(.init(kind: .gatherEvent(text: text, eventKey: eventKey)))
+            }
+        }
+
         var rows: [SettlementRow] = []
         if goldTotal > 0 { rows.append(.init(kind: .gold(goldTotal))) }
         if expTotal  > 0 { rows.append(.init(kind: .exp(expTotal))) }
@@ -160,6 +170,7 @@ final class SettlementViewModel {
             }
         }
         rows.append(contentsOf: equipRows)
+        rows.append(contentsOf: eventRows)
         if battleWon + battleLost > 0 {
             rows.append(.init(kind: .battle(won: battleWon, lost: battleLost)))
         }
@@ -168,6 +179,27 @@ final class SettlementViewModel {
     }
 
     // MARK: - Helpers
+
+    private func gatherEventText(eventKey: String, task: TaskModel) -> String {
+        switch eventKey {
+        case "bumper_harvest":
+            return "✨ 豐收！產出 ×2"
+        case "rare_find":
+            let rareMat: MaterialType
+            switch task.actorKey {
+            case "gatherer_1": rareMat = .ancientWood
+            case "gatherer_2": rareMat = .refinedOre
+            case "gatherer_3": rareMat = .spiritHerb
+            case "gatherer_4": rareMat = .abyssFish
+            default:           rareMat = .wood
+            }
+            return "🔍 稀有發現 +1 \(rareMat.displayName)"
+        case "gold_vein":
+            return "💰 珍貴發現 +\(task.resultGold) 金幣"
+        default:
+            return eventKey
+        }
+    }
 
     private func statsString(def: EquipmentDef) -> String {
         var parts: [String] = []

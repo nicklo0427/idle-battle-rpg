@@ -1,6 +1,6 @@
 # V4-4 Ticket 03：CharacterView 成就 UI
 
-**狀態：** 🔲 待實作
+**狀態：** ✅ 已完成
 
 **依賴：** T01 AchievementDef、T02 AchievementService
 

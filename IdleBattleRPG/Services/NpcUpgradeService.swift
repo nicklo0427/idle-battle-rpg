@@ -77,9 +77,20 @@ struct NpcUpgradeService {
 
         // 遞增 Tier
         switch actorKey {
-        case "gatherer_1": player.gatherer1Tier += 1
-        case "gatherer_2": player.gatherer2Tier += 1
+        case "gatherer_1": player.gatherer1Tier  += 1
+        case "gatherer_2": player.gatherer2Tier  += 1
         case "blacksmith":  player.blacksmithTier += 1
+        case "gatherer_3": player.gatherer3Tier  += 1
+        case "gatherer_4": player.gatherer4Tier  += 1
+        default: break
+        }
+
+        // 採集者升 Tier 獲得技能點（V7-1 T02）
+        switch actorKey {
+        case "gatherer_1": player.gatherer1SkillPoints += 1
+        case "gatherer_2": player.gatherer2SkillPoints += 1
+        case "gatherer_3": player.gatherer3SkillPoints += 1
+        case "gatherer_4": player.gatherer4SkillPoints += 1
         default: break
         }
 
