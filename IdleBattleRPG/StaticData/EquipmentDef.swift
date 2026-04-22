@@ -312,6 +312,53 @@ extension EquipmentDef {
             hpBonus:  0,
             atkRange: 82...108  // Boss 掉落浮動範圍；下限 = 鑄造 +2，最高 216 power
         ),
+
+        // ── V7-2 採集系裝備 ──────────────────────────────────────────────
+        // 設計：用採集者帶回的素材鑄造，填補地下城套裝之間的戰力空隙
+        // gather_talisman：草藥 + 鮮魚，無解鎖門檻（基礎採集素材）
+        //   power: 6×2 + 4×1.5 + 16 = 34  (V1 common 19 → 此件 → wildland 36)
+        EquipmentDef(
+            key:      "gather_talisman",
+            name:     "草藥護身符",
+            slot:     .accessory,
+            rarity:   .common,
+            atkBonus: 6,
+            defBonus: 4,
+            hpBonus:  16
+        ),
+        // gather_shield：古木 + 精煉礦石，需通關廢棄礦坑菁英
+        //   power: 20×1.5 + 46 = 76  (mine_offhand 58 → 此件 → ruins_offhand 77)
+        EquipmentDef(
+            key:      "gather_shield",
+            name:     "古木護盾",
+            slot:     .offhand,
+            rarity:   .refined,
+            atkBonus: 0,
+            defBonus: 20,
+            hpBonus:  46
+        ),
+        // gather_armor：靈草 + 古木，需通關廢棄礦坑菁英
+        //   power: 30×1.5 + 68 = 113  (mine_armor 91 → 此件 → ruins_armor 126)
+        EquipmentDef(
+            key:      "gather_armor",
+            name:     "靈草護甲",
+            slot:     .armor,
+            rarity:   .refined,
+            atkBonus: 0,
+            defBonus: 30,
+            hpBonus:  68
+        ),
+        // gather_spear：深淵魚 + 精煉礦石 + 靈草，需通關廢棄礦坑菁英
+        //   power: 52×2 = 104  (mine_weapon 80 → 此件 → ruins_weapon 124)
+        EquipmentDef(
+            key:      "gather_spear",
+            name:     "深淵魚叉",
+            slot:     .weapon,
+            rarity:   .refined,
+            atkBonus: 52,
+            defBonus: 0,
+            hpBonus:  0
+        ),
     ]
 
     static func find(key: String) -> EquipmentDef? {

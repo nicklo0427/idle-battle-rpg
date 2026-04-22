@@ -48,7 +48,7 @@ struct CraftRecipeDef {
 
 extension CraftRecipeDef {
 
-    static let all: [CraftRecipeDef] = v1Recipes + v2Recipes
+    static let all: [CraftRecipeDef] = v1Recipes + v2Recipes + v7Recipes
 
     static let v1Recipes: [CraftRecipeDef] = [
 
@@ -397,6 +397,82 @@ private extension CraftRecipeDef {
             goldCost:          1500,
             outputEquipmentKey: "sunken_city_weapon",
             unlockedByFloorKey: "sunken_floor_4"
+        ),
+    ]
+}
+
+// MARK: - V7-2 採集系配方靜態資料
+
+private extension CraftRecipeDef {
+
+    static let v7Recipes: [CraftRecipeDef] = [
+
+        // ── 草藥護身符（飾品，普通，無解鎖門檻）──────────────────────────
+        // 使用基礎採集素材，適合中前期補強飾品欄
+        CraftRecipeDef(
+            key:               "recipe_gather_talisman",
+            name:              "鑄造草藥護身符",
+            slot:              .accessory,
+            rarity:            .common,
+            durationSeconds:   20 * 60,
+            requiredMaterials: [
+                MaterialRequirement(material: .herb,      amount: 12),
+                MaterialRequirement(material: .freshFish, amount: 10),
+            ],
+            goldCost:           50,
+            outputEquipmentKey: "gather_talisman"
+        ),
+
+        // ── 古木護盾（副手，精良，需通關廢棄礦坑菁英）───────────────────
+        // 古木 + 精煉礦石，採集解鎖後可製作，填補礦坑→遺跡副手空隙
+        CraftRecipeDef(
+            key:               "recipe_gather_shield",
+            name:              "鑄造古木護盾",
+            slot:              .offhand,
+            rarity:            .refined,
+            durationSeconds:   35 * 60,
+            requiredMaterials: [
+                MaterialRequirement(material: .ancientWood, amount: 8),
+                MaterialRequirement(material: .refinedOre,  amount: 5),
+            ],
+            goldCost:           150,
+            outputEquipmentKey: "gather_shield",
+            unlockedByFloorKey: "mine_floor_4"
+        ),
+
+        // ── 靈草護甲（防具，精良，需通關廢棄礦坑菁英）───────────────────
+        // 靈草 + 古木，採集高地解鎖後製作，填補礦坑→遺跡防具空隙
+        CraftRecipeDef(
+            key:               "recipe_gather_armor",
+            name:              "鑄造靈草護甲",
+            slot:              .armor,
+            rarity:            .refined,
+            durationSeconds:   50 * 60,
+            requiredMaterials: [
+                MaterialRequirement(material: .spiritHerb,  amount: 8),
+                MaterialRequirement(material: .ancientWood, amount: 6),
+            ],
+            goldCost:           200,
+            outputEquipmentKey: "gather_armor",
+            unlockedByFloorKey: "mine_floor_4"
+        ),
+
+        // ── 深淵魚叉（武器，精良，需通關廢棄礦坑菁英）───────────────────
+        // 深淵魚 + 精煉礦石 + 靈草，高階採集素材，填補礦坑→遺跡武器空隙
+        CraftRecipeDef(
+            key:               "recipe_gather_spear",
+            name:              "鑄造深淵魚叉",
+            slot:              .weapon,
+            rarity:            .refined,
+            durationSeconds:   60 * 60,
+            requiredMaterials: [
+                MaterialRequirement(material: .abyssFish,  amount: 5),
+                MaterialRequirement(material: .refinedOre, amount: 4),
+                MaterialRequirement(material: .spiritHerb, amount: 3),
+            ],
+            goldCost:           250,
+            outputEquipmentKey: "gather_spear",
+            unlockedByFloorKey: "mine_floor_4"
         ),
     ]
 }

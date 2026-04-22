@@ -16,6 +16,7 @@ enum TradeReceive {
 enum TradeCategory {
     case basicMaterial   // V1 通用素材 → 金幣
     case areaMaterial    // V2-1 區域素材 → 金幣
+    case gatherMaterial  // V7-1 採集專屬素材 → 金幣
 }
 
 // MARK: - 兌換項目定義
@@ -166,14 +167,57 @@ extension MerchantTradeDef {
             category:     .areaMaterial
         ),
 
-        // ── 補給方向（金幣 → 稀有素材，需另外以 gold 欄位處理）
-        // 這兩筆以 ancientFragment 為目標；UI 顯示時用 giveAmount=0 + key 識別
-        // ── 注意：此方向在 MerchantService 以 key 特判，非標準素材對素材交換
+        // ── V7-1 採集素材出售（素材 → 金幣）──────────────────────────────────
+
+        MerchantTradeDef(
+            key:          "sell_herb",
+            giveMaterial: .herb,
+            giveAmount:   10,
+            receive:      .gold(35),
+            category:     .gatherMaterial
+        ),
+        MerchantTradeDef(
+            key:          "sell_fresh_fish",
+            giveMaterial: .freshFish,
+            giveAmount:   10,
+            receive:      .gold(35),
+            category:     .gatherMaterial
+        ),
+        MerchantTradeDef(
+            key:          "sell_ancient_wood",
+            giveMaterial: .ancientWood,
+            giveAmount:   5,
+            receive:      .gold(60),
+            category:     .gatherMaterial
+        ),
+        MerchantTradeDef(
+            key:          "sell_refined_ore",
+            giveMaterial: .refinedOre,
+            giveAmount:   5,
+            receive:      .gold(60),
+            category:     .gatherMaterial
+        ),
+        MerchantTradeDef(
+            key:          "sell_spirit_herb",
+            giveMaterial: .spiritHerb,
+            giveAmount:   3,
+            receive:      .gold(80),
+            category:     .gatherMaterial
+        ),
+        MerchantTradeDef(
+            key:          "sell_abyss_fish",
+            giveMaterial: .abyssFish,
+            giveAmount:   3,
+            receive:      .gold(80),
+            category:     .gatherMaterial
+        ),
     ]
 
     /// 補給選項（金幣 → 稀有素材）——獨立清單，避免誤用出售邏輯
     static let goldTrades: [(key: String, goldCost: Int, receiveMaterial: MaterialType, receiveAmount: Int)] = [
-        ("buy_ancient_fragment", 800, .ancientFragment, 1),
+        ("buy_ancient_fragment", 800,  .ancientFragment, 1),
+        ("buy_spirit_herb",      400,  .spiritHerb,      1),
+        ("buy_abyss_fish",       400,  .abyssFish,       1),
     ]
 
     static func find(key: String) -> MerchantTradeDef? {

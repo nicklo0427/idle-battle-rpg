@@ -94,6 +94,18 @@ struct MerchantSheet: View {
                         .font(.caption)
                 }
 
+                // ── 採集素材出售（V7-1 採集素材 → 金幣）────────────────
+                Section {
+                    ForEach(MerchantTradeDef.all.filter { $0.category == .gatherMaterial }, id: \.key) { trade in
+                        tradeRow(trade)
+                    }
+                } header: {
+                    Text("採集素材出售")
+                } footer: {
+                    Text("採集者帶回的素材，可出售換取金幣。")
+                        .font(.caption)
+                }
+
                 // ── 補給（金幣 → 稀有素材）──────────────────────────
                 Section {
                     ForEach(MerchantTradeDef.goldTrades, id: \.key) { trade in
