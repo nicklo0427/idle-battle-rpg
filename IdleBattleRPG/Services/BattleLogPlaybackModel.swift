@@ -384,6 +384,13 @@ final class BattleLogPlaybackModel {
                         displayedCount += 1
                         try? await Task.sleep(nanoseconds: 200_000_000)
                         i += 1
+
+                    // MARK: potionUsed — V7-4 T05 藥水觸發（瞬間顯示）
+                    case .potionUsed:
+                        currentBattleEvents.append(event)
+                        displayedCount += 1
+                        try? await Task.sleep(nanoseconds: 400_000_000)
+                        i += 1
                     }
                 }
 

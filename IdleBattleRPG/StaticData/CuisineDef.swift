@@ -103,4 +103,15 @@ extension CuisineDef {
     static func find(_ key: String) -> CuisineDef? {
         all.first { $0.key == key }
     }
+
+    /// 對應的 ConsumableType（snake_case key → camelCase enum）
+    var consumableType: ConsumableType? {
+        switch key {
+        case "fish_stew":         return .fishStew
+        case "herb_fish_soup":    return .herbFishSoup
+        case "abyss_soup":        return .abyssSoup
+        case "smoked_abyss_fish": return .smokedAbyssFish
+        default:                  return nil
+        }
+    }
 }

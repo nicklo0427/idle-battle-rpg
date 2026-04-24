@@ -13,6 +13,7 @@ struct IdleBattleRPGApp: App {
         let schema = Schema([
             PlayerStateModel.self,
             MaterialInventoryModel.self,
+            ConsumableInventoryModel.self,
             EquipmentModel.self,
             TaskModel.self,
             DungeonProgressionModel.self,

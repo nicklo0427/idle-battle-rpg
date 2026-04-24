@@ -27,6 +27,7 @@ enum TaskCreationError: Error, LocalizedError {
     case playerAlreadyInDungeon
     case noPlayerState
     case noInventory
+    case insufficientConsumable(String)
 
     var errorDescription: String? {
         switch self {
@@ -39,6 +40,7 @@ enum TaskCreationError: Error, LocalizedError {
         case .playerAlreadyInDungeon: return "英雄已在地下城中"
         case .noPlayerState:         return "找不到玩家資料"
         case .noInventory:           return "找不到素材庫存"
+        case .insufficientConsumable: return "消耗品庫存不足"
         }
     }
 }
@@ -207,6 +209,95 @@ struct TaskCreationService {
         repository.insert(task)
     }
 
+    // MARK: - 農田任務（V7-4）
+
+    /// 建立農田種植任務。
+    /// 驗證：農田閒置、玩家持有該種子 ≥ 1。
+    /// 建立前立即扣除種子 1 顆（與鑄造扣素材邏輯相同）。
+    func createFarmTask(plotKey: String, seedType: MaterialType, durationSeconds: Int) throws {
+        // 1. 農田是否閒置
+        let inProgress = repository.fetchInProgress()
+        if inProgress.contains(where: { $0.actorKey == plotKey && $0.kind == .farming }) {
+            throw TaskCreationError.actorBusy(plotKey)
+        }
+
+        // 2. 讀取庫存
+        let inventoryDesc = FetchDescriptor<MaterialInventoryModel>()
+        guard let inventory = (try? context.fetch(inventoryDesc))?.first else {
+            throw TaskCreationError.noInventory
+        }
+
+        // 3. 驗證種子庫存 ≥ 1
+        guard inventory.amount(of: seedType) >= 1 else {
+            throw TaskCreationError.insufficientMaterials
+        }
+
+        // 4. 扣除種子
+        inventory.deduct(1, of: seedType)
+
+        // 5. 建立任務（definitionKey = seedType.rawValue，供結算時判斷農作物種類）
+        let now = Date.now
+        let task = TaskModel(
+            kind:          .farming,
+            actorKey:      plotKey,
+            definitionKey: seedType.rawValue,
+            startedAt:     now,
+            endsAt:        now.addingTimeInterval(TimeInterval(durationSeconds))
+        )
+        repository.insert(task)
+    }
+
+    // MARK: - 煉藥任務（V7-4）
+
+    /// 建立煉藥任務。
+    /// 驗證：配方存在、製藥師閒置、金幣足夠、素材足夠。
+    /// 建立前立即扣除金幣和素材。
+    func createAlchemyTask(recipeKey: String) throws {
+        guard let def = PotionDef.find(recipeKey) else {
+            throw TaskCreationError.recipeNotFound(recipeKey)
+        }
+
+        // 製藥師是否閒置
+        let inProgress = repository.fetchInProgress()
+        if inProgress.contains(where: { $0.actorKey == AppConstants.Actor.pharmacist }) {
+            throw TaskCreationError.actorBusy(AppConstants.Actor.pharmacist)
+        }
+
+        // 讀取玩家與庫存
+        let playerDesc    = FetchDescriptor<PlayerStateModel>()
+        let inventoryDesc = FetchDescriptor<MaterialInventoryModel>()
+        guard let player    = (try? context.fetch(playerDesc))?.first    else { throw TaskCreationError.noPlayerState }
+        guard let inventory = (try? context.fetch(inventoryDesc))?.first else { throw TaskCreationError.noInventory }
+
+        // 驗證資源
+        guard player.gold >= def.goldCost else { throw TaskCreationError.insufficientGold }
+        for (mat, amount) in def.ingredients {
+            guard inventory.amount(of: mat) >= amount else {
+                throw TaskCreationError.insufficientMaterials
+            }
+        }
+
+        // 扣除資源
+        player.gold -= def.goldCost
+        for (mat, amount) in def.ingredients {
+            inventory.deduct(amount, of: mat)
+        }
+
+        // 製藥師 tier 縮短釀製時間（複用 craftDurationMultiplier）
+        let multiplier = NpcUpgradeDef.craftDurationMultiplier(tier: player.pharmacistTier)
+        let duration   = max(30, Int(Double(def.brewMinutes * 60) * multiplier))
+
+        let now = Date.now
+        let task = TaskModel(
+            kind:          .alchemy,
+            actorKey:      AppConstants.Actor.pharmacist,
+            definitionKey: def.key,
+            startedAt:     now,
+            endsAt:        now.addingTimeInterval(TimeInterval(duration))
+        )
+        repository.insert(task)
+    }
+
     // MARK: - 地下城任務
 
     /// 建立 V2-1 地下城（樓層）任務。
@@ -216,7 +307,9 @@ struct TaskCreationService {
         floorKey: String,
         durationSeconds: Int,
         heroStats: HeroStats,
-        equippedSkillKeys: [String] = []  // V6-1：已裝備技能 key
+        equippedSkillKeys: [String] = [],  // V6-1：已裝備技能 key
+        cuisineKey: String = "",           // V7-4：攜帶的料理 ConsumableType rawValue
+        potionKey:  String = ""            // V7-4：攜帶的藥水 ConsumableType rawValue
     ) throws {
         guard DungeonFloorDef.find(key: floorKey) != nil else {
             throw TaskCreationError.areaNotFound(floorKey)
@@ -232,6 +325,19 @@ struct TaskCreationService {
             throw TaskCreationError.noPlayerState
         }
 
+        // V7-4：扣除消耗品（出發前立即扣）
+        let consumable = fetchConsumableInventory()
+        if !cuisineKey.isEmpty, let type = ConsumableType(rawValue: cuisineKey) {
+            guard consumable?.use(of: type) == true else {
+                throw TaskCreationError.insufficientConsumable(cuisineKey)
+            }
+        }
+        if !potionKey.isEmpty, let type = ConsumableType(rawValue: potionKey) {
+            guard consumable?.use(of: type) == true else {
+                throw TaskCreationError.insufficientConsumable(potionKey)
+            }
+        }
+
         var durationOverride: Int? = nil
         var forcedBattles: Int? = nil
         if !player.hasUsedFirstDungeonBoost && durationSeconds == AppConstants.DungeonDuration.short {
@@ -240,7 +346,6 @@ struct TaskCreationService {
             player.hasUsedFirstDungeonBoost = true
         }
 
-        // V6-1：技能改為主動觸發，snapshotPower 只含職業加成 + 裝備 + 屬性點
         let duration = durationOverride ?? durationSeconds
         let now = Date.now
         let task = TaskModel(
@@ -257,7 +362,14 @@ struct TaskCreationService {
         )
         task.snapshotSkillKeysRaw   = equippedSkillKeys.joined(separator: ",")
         task.snapshotSkillLevelsRaw = player.skillLevelsRaw
+        task.snapshotCuisineKey     = cuisineKey
+        task.snapshotPotionKey      = potionKey
         repository.insert(task)
+    }
+
+    private func fetchConsumableInventory() -> ConsumableInventoryModel? {
+        let descriptor = FetchDescriptor<ConsumableInventoryModel>()
+        return (try? context.fetch(descriptor))?.first
     }
 
     /// 建立地下城任務（V1 路徑，以 DungeonAreaDef key 為 definitionKey）。

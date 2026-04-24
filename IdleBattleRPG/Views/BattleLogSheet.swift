@@ -257,6 +257,7 @@ struct BattleLogSheet: View {
         case .statusApplied:  Image(systemName: "flame.fill").foregroundStyle(Color.orange)
         case .statusTick:     Image(systemName: "drop.fill").foregroundStyle(Color.purple)
         case .statusExpired:  Image(systemName: "wind").foregroundStyle(Color.secondary)
+        case .potionUsed:     Image(systemName: "pills.fill").foregroundStyle(Color.teal)  // V7-4
         }
     }
 
@@ -273,6 +274,7 @@ struct BattleLogSheet: View {
         case .statusApplied:  return .orange
         case .statusTick:     return .purple
         case .statusExpired:  return .secondary
+        case .potionUsed:     return .teal  // V7-4
         }
     }
 }

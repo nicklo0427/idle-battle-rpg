@@ -66,8 +66,9 @@ struct AdventureView: View {
                     activeDungeonTask: activeDungeonTask,
                     appState:          appState,
                     tick:              appState.tick,
-                    onStart: { duration in
-                        if let task = launchFloor(floor: floor, durationSeconds: duration) {
+                    onStart: { duration, cuisineKey, potionKey in
+                        if let task = launchFloor(floor: floor, durationSeconds: duration,
+                                                  cuisineKey: cuisineKey, potionKey: potionKey) {
                             startBattleLogModel(task: task, floor: floor)
                             selectedFloor = nil
                             showBattleLog = true
@@ -368,7 +369,12 @@ struct AdventureView: View {
 
     /// 建立地下城任務。成功時回傳已建立的 TaskModel；失敗時設定錯誤訊息並回傳 nil。
     @discardableResult
-    private func launchFloor(floor: DungeonFloorDef, durationSeconds: Int) -> TaskModel? {
+    private func launchFloor(
+        floor: DungeonFloorDef,
+        durationSeconds: Int,
+        cuisineKey: String = "",   // V7-4
+        potionKey:  String = ""    // V7-4
+    ) -> TaskModel? {
         guard let stats = heroStats else {
             errorMessage = "找不到英雄資料"
             showError = true
@@ -379,6 +385,8 @@ struct AdventureView: View {
             durationSeconds: durationSeconds,
             heroStats: stats,
             equippedSkillKeys: players.first?.equippedSkillKeys ?? [],
+            cuisineKey: cuisineKey,
+            potionKey:  potionKey,
             context: context
         )
         if case .failure(let error) = result {
@@ -405,9 +413,19 @@ struct AdventureView: View {
         let totalBattles = task.forcedBattles ?? max(1, Int(totalDur / 60))
         let batchSize    = 5
 
+        // V7-4：從快照 key 還原消耗品定義
+        let cuisineDef: CuisineDef? = ConsumableType(rawValue: task.snapshotCuisineKey)
+            .flatMap { $0.cuisineDefKey }
+            .flatMap { CuisineDef.find($0) }
+        let potionDef: PotionDef? = {
+            guard let type = ConsumableType(rawValue: task.snapshotPotionKey) else { return nil }
+            return PotionDef.all.first { $0.consumableType == type }
+        }()
+
         let events = BattleLogGenerator.generate(
             task: task, floor: floor,
-            fromBattleIndex: fromIdx, maxBattles: batchSize
+            fromBattleIndex: fromIdx, maxBattles: batchSize,
+            cuisineDef: cuisineDef, potionDef: potionDef
         )
 
         // T09：傳入裝備技能定義，啟用 CD 面板
@@ -423,7 +441,8 @@ struct AdventureView: View {
                 guard Date.now < task.endsAt, nextIdx < totalBattles else { return nil }
                 return BattleLogGenerator.generate(
                     task: task, floor: floor,
-                    fromBattleIndex: nextIdx, maxBattles: batchSize
+                    fromBattleIndex: nextIdx, maxBattles: batchSize,
+                    cuisineDef: cuisineDef, potionDef: potionDef
                 )
             }
         )
@@ -439,13 +458,16 @@ private struct FloorDetailSheet: View {
     let activeDungeonTask: TaskModel?
     let appState:          AppState
     let tick:              Date
-    let onStart:           (Int) -> Void
+    let onStart:           (Int, String, String) -> Void   // V7-4: (duration, cuisineKey, potionKey)
 
-    @State private var selectedDuration = AppConstants.DungeonDuration.short
-    @State private var showEliteBattle  = false
-    @State private var eliteCleared     = false
+    @State private var selectedDuration  = AppConstants.DungeonDuration.short
+    @State private var showEliteBattle   = false
+    @State private var eliteCleared      = false
+    @State private var selectedCuisineKey = ""   // V7-4
+    @State private var selectedPotionKey  = ""   // V7-4
     @Environment(\.dismiss) private var dismiss
-    @Query private var players: [PlayerStateModel]
+    @Query private var players:     [PlayerStateModel]
+    @Query private var consumables: [ConsumableInventoryModel]   // V7-4
 
     private var equippedSkills: [SkillDef] {
         (players.first?.equippedSkillKeys ?? []).compactMap { SkillDef.find(key: $0) }
@@ -465,6 +487,7 @@ private struct FloorDetailSheet: View {
                 dropTableSection
                 unlockPreviewSection
                 eliteSection
+                consumableSection   // V7-4
                 launchSection
             }
             .navigationTitle(floor.name)
@@ -678,6 +701,40 @@ private struct FloorDetailSheet: View {
         }
     }
 
+    // V7-4：消耗品 Picker section（選填）
+    @ViewBuilder
+    private var consumableSection: some View {
+        let inv = consumables.first
+        let cuisineOptions = ConsumableType.allCases.filter {
+            $0.isCuisine && (inv?.amount(of: $0) ?? 0) > 0
+        }
+        let potionOptions = ConsumableType.allCases.filter {
+            $0.isPotion && (inv?.amount(of: $0) ?? 0) > 0
+        }
+        if !cuisineOptions.isEmpty || !potionOptions.isEmpty {
+            Section("攜帶消耗品（選填）") {
+                if !cuisineOptions.isEmpty {
+                    Picker("料理", selection: $selectedCuisineKey) {
+                        Text("不攜帶").tag("")
+                        ForEach(cuisineOptions, id: \.rawValue) { type in
+                            Text("\(type.icon) \(type.displayName) ×\(inv?.amount(of: type) ?? 0)")
+                                .tag(type.rawValue)
+                        }
+                    }
+                }
+                if !potionOptions.isEmpty {
+                    Picker("藥水", selection: $selectedPotionKey) {
+                        Text("不攜帶").tag("")
+                        ForEach(potionOptions, id: \.rawValue) { type in
+                            Text("\(type.icon) \(type.displayName) ×\(inv?.amount(of: type) ?? 0)")
+                                .tag(type.rawValue)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private var launchSection: some View {
         Section {
             if isBusy, let task = activeDungeonTask {
@@ -702,7 +759,7 @@ private struct FloorDetailSheet: View {
                 .pickerStyle(.segmented)
 
                 Button {
-                    onStart(selectedDuration)
+                    onStart(selectedDuration, selectedCuisineKey, selectedPotionKey)
                 } label: {
                     Label("出發", systemImage: "paperplane.fill")
                         .fontWeight(.semibold)

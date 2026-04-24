@@ -22,11 +22,22 @@ struct BaseView: View {
 
     @State private var viewModel = BaseViewModel()
 
+    // V7-4 T06：NPC 分頁
+    private enum BaseTab: String, CaseIterable {
+        case gather  = "採集"
+        case produce = "生產"
+        case shop    = "商店"
+    }
+
     // Sheet 狀態
     @State private var selectedGathererDef: GathererNpcDef?
-    @State private var showCraftSheet    = false
-    @State private var showCuisineSheet  = false   // V7-3
-    @State private var showMerchantSheet = false
+    @State private var showCraftSheet     = false
+    @State private var showCuisineSheet   = false   // V7-3
+    @State private var showPharmacySheet  = false   // V7-4
+    @State private var showMerchantSheet  = false
+    @State private var showFarmerSheet    = false   // V7-4
+    @State private var farmerSheetPlotIndex: Int = 0
+    @State private var baseTab: BaseTab = .gather
 
     // NPC 升級確認 Alert
     @State private var pendingUpgradeInfo: NpcUpgradeRequest?
@@ -74,14 +85,23 @@ struct BaseView: View {
                     }
                 }
 
-                // ── NPC 列表 ─────────────────────────────────────────
-                Section("NPC") {
-                    ForEach(GathererNpcDef.all) { npc in
-                        npcGathererRow(def: npc, player: players.first)
+                // ── NPC 分頁 Picker（V7-4 T06）────────────────────────
+                Section {
+                    Picker("分頁", selection: $baseTab) {
+                        ForEach(BaseTab.allCases, id: \.self) { tab in
+                            Text(tab.rawValue).tag(tab)
+                        }
                     }
-                    npcBlacksmithRow(player: players.first)
-                    npcChefRow(player: players.first)
-                    npcMerchantRow()
+                    .pickerStyle(.segmented)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
+                    .padding(.vertical, 4)
+                }
+
+                switch baseTab {
+                case .gather:  npcGatherSection()
+                case .produce: npcProduceSection()
+                case .shop:    npcShopSection()
                 }
 
                 // ── 開發模式（Debug build 限定）────────────────────────
@@ -173,8 +193,25 @@ struct BaseView: View {
                     isPresented: $showCuisineSheet
                 )
             }
+            .sheet(isPresented: $showPharmacySheet) {
+                PharmacySheet(
+                    viewModel: viewModel,
+                    player: players.first,
+                    inventory: inventories.first,
+                    isPresented: $showPharmacySheet
+                )
+            }
             .sheet(isPresented: $showMerchantSheet) {
                 MerchantSheet(isPresented: $showMerchantSheet)
+            }
+            .sheet(isPresented: $showFarmerSheet) {
+                FarmerPlotSheet(
+                    viewModel: viewModel,
+                    plotIndex: farmerSheetPlotIndex,
+                    player: players.first,
+                    inventory: inventories.first,
+                    isPresented: $showFarmerSheet
+                )
             }
             .alert(item: $pendingUpgradeInfo) { info in
                 let player = players.first
@@ -207,6 +244,121 @@ struct BaseView: View {
             set: { _ in }   // 不允許外部關閉，必須選職業
         )) {
             ClassSelectionView()
+        }
+    }
+
+    // MARK: - NPC Tab Sections（V7-4 T06）
+
+    @ViewBuilder
+    private func npcGatherSection() -> some View {
+        Section("採集者") {
+            ForEach(GathererNpcDef.all) { npc in
+                npcGathererRow(def: npc, player: players.first)
+            }
+        }
+        npcFarmerSection()
+    }
+
+    @ViewBuilder
+    private func npcProduceSection() -> some View {
+        Section("生產") {
+            npcBlacksmithRow(player: players.first)
+            npcChefRow(player: players.first)
+            npcPharmacistRow(player: players.first)
+        }
+    }
+
+    @ViewBuilder
+    private func npcShopSection() -> some View {
+        Section("商店") {
+            npcMerchantRow()
+        }
+    }
+
+    // MARK: - NPC Row: 製藥師（V7-4 T06）
+
+    @ViewBuilder
+    private func npcPharmacistRow(player: PlayerStateModel?) -> some View {
+        let activeTask = viewModel.pharmacistTask(from: tasks)
+        let tier = player?.tier(for: AppConstants.Actor.pharmacist) ?? 0
+
+        if let task = activeTask {
+            // 製藥中 — 進度條 + 倒數
+            HStack(spacing: 12) {
+                Image(systemName: "cross.vial.fill")
+                    .symbolEffect(.pulse, isActive: true)
+                    .foregroundStyle(Color.teal.opacity(0.7))
+                    .frame(width: 24)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("製藥師")
+                        .fontWeight(.medium)
+                    Text("製藥中：\(PotionDef.find(task.definitionKey)?.name ?? task.definitionKey)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(TaskCountdown.remaining(for: task, relativeTo: appState.tick))
+                        .font(.caption)
+                        .foregroundStyle(.teal)
+                    ProgressView(value: task.progress(relativeTo: appState.tick))
+                        .tint(.teal)
+                        .scaleEffect(y: 0.7)
+                        .padding(.top, 1)
+                }
+                Spacer()
+                TierBadgeView(tier: tier)
+                Text("製藥中")
+                    .font(.caption)
+                    .padding(.horizontal, 8).padding(.vertical, 3)
+                    .background(Color.teal.opacity(0.12))
+                    .foregroundStyle(.teal)
+                    .clipShape(Capsule())
+            }
+            .padding(.vertical, 2)
+        } else {
+            // 閒置 — 點擊開啟 PharmacySheet
+            Button(action: { showPharmacySheet = true }) {
+                HStack(spacing: 12) {
+                    Image(systemName: "cross.vial.fill")
+                        .foregroundStyle(Color.teal)
+                        .frame(width: 24)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("製藥師")
+                            .fontWeight(.medium)
+                            .foregroundStyle(.primary)
+                        Text("閒置中，點擊選擇配方")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    TierBadgeView(tier: tier)
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(.vertical, 2)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(NPCDispatchButtonStyle(enabled: true))
+            .contextMenu {
+                if let player,
+                   let cost = appState.npcUpgradeService.nextUpgradeCost(
+                       npcKind: .pharmacist, actorKey: AppConstants.Actor.pharmacist, player: player) {
+                    let inventory  = inventories.first
+                    let canExp     = player.heroExp >= cost.expCost
+                    let canMat     = cost.materialCosts.allSatisfy { (mat, req) in (inventory?.amount(of: mat) ?? 0) >= req }
+                    let canGold    = player.gold >= cost.goldCost
+                    let canUpgrade = canExp && canMat && canGold
+                    let matDesc    = cost.materialCosts.map { "\($0.0.icon)×\($0.1)" }.joined(separator: " ")
+                    let label      = "升級到 T\(tier + 1)（EXP \(cost.expCost) · \(matDesc) · \(cost.goldCost)金）"
+                    Button(canUpgrade ? label : label + "（資源不足）") {
+                        pendingUpgradeInfo = NpcUpgradeRequest(
+                            npcKind: .pharmacist, actorKey: AppConstants.Actor.pharmacist,
+                            label: "製藥師", cost: cost)
+                    }
+                    .disabled(!canUpgrade)
+                } else {
+                    Text("已達升級上限").foregroundStyle(.secondary)
+                }
+            }
         }
     }
 
@@ -360,12 +512,6 @@ struct BaseView: View {
         let isBusy = activeTask != nil
         let tier = player?.tier(for: AppConstants.Actor.chef) ?? 0
 
-        // Buff 狀態
-        let hasBuff: Bool = {
-            guard let player, !player.activeCuisineKey.isEmpty else { return false }
-            return player.cuisineBuffExpiresAt > Date().timeIntervalSinceReferenceDate
-        }()
-
         Button(action: { if !isBusy { showCuisineSheet = true } }) {
             HStack(spacing: 12) {
                 Image(systemName: "fork.knife")
@@ -374,19 +520,9 @@ struct BaseView: View {
                     .frame(width: 24)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text("廚師")
-                            .fontWeight(.medium)
-                            .foregroundStyle(.primary)
-                        if hasBuff {
-                            Text("✨ Buff 生效中")
-                                .font(.caption2)
-                                .padding(.horizontal, 6).padding(.vertical, 2)
-                                .background(Color.purple.opacity(0.12))
-                                .foregroundStyle(.purple)
-                                .clipShape(Capsule())
-                        }
-                    }
+                    Text("廚師")
+                        .fontWeight(.medium)
+                        .foregroundStyle(.primary)
 
                     if let task = activeTask, let def = CuisineDef.find(task.definitionKey) {
                         Text("烹飪中：\(def.icon) \(def.name)")
@@ -449,6 +585,168 @@ struct BaseView: View {
         }
     }
 
+    // MARK: - NPC Section: 農夫（V7-4）
+
+    @ViewBuilder
+    private func npcFarmerSection() -> some View {
+        let player = players.first
+        let availablePlots = (player?.gatherer5Tier ?? 0) + 1
+
+        Section {
+            ForEach(0..<min(availablePlots, AppConstants.FarmerPlot.maxPlots), id: \.self) { index in
+                farmerPlotRow(plotIndex: index, player: player)
+            }
+
+            // 升級提示（尚未達上限時顯示）
+            if let player, player.gatherer5Tier < NpcUpgradeDef.maxTier {
+                let nextTier = player.gatherer5Tier + 1
+                HStack(spacing: 8) {
+                    Image(systemName: "lock.fill")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("升至 T\(nextTier) 解鎖農田 \(nextTier + 1)（長按農田行升級）")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 2)
+            }
+        } header: {
+            HStack {
+                Image(systemName: "leaf.fill")
+                    .foregroundStyle(.green)
+                Text("農夫")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func farmerPlotRow(plotIndex: Int, player: PlayerStateModel?) -> some View {
+        let plotKey    = AppConstants.FarmerPlot.key(for: plotIndex)
+        let activeTask = viewModel.farmingTask(plotKey: plotKey, from: tasks)
+        let tier       = player?.gatherer5Tier ?? 0
+
+        // 可收穫（completed 且非 battlePending）
+        let completedTask = tasks.first {
+            $0.actorKey == plotKey && $0.kind == .farming && $0.status == .completed
+        }
+
+        if let completed = completedTask {
+            // 狀態：可收穫 → 高亮，點擊收下
+            Button {
+                appState.claimAllCompleted()
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "basket.fill")
+                        .foregroundStyle(.green)
+                        .frame(width: 24)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("農田 \(plotIndex + 1)")
+                            .fontWeight(.medium)
+                        Text("✅ 可收穫！點擊收下")
+                            .font(.caption)
+                            .foregroundStyle(.green)
+                        if let seedType = MaterialType(rawValue: completed.definitionKey) {
+                            Text("種植：\(seedType.icon) \(seedType.displayName)")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    Spacer()
+                    Text("收穫")
+                        .font(.caption)
+                        .padding(.horizontal, 8).padding(.vertical, 3)
+                        .background(Color.green.opacity(0.15))
+                        .foregroundStyle(.green)
+                        .clipShape(Capsule())
+                }
+                .padding(.vertical, 2)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(NPCDispatchButtonStyle(enabled: true))
+
+        } else if let task = activeTask {
+            // 狀態：生長中 → 顯示進度
+            HStack(spacing: 12) {
+                Image(systemName: "leaf.circle.fill")
+                    .symbolEffect(.pulse, isActive: true)
+                    .foregroundStyle(Color.green.opacity(0.7))
+                    .frame(width: 24)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("農田 \(plotIndex + 1)")
+                        .fontWeight(.medium)
+                    if let seedType = MaterialType(rawValue: task.definitionKey) {
+                        Text("生長中：\(seedType.icon) \(seedType.displayName)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Text(TaskCountdown.remaining(for: task, relativeTo: appState.tick))
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                    ProgressView(value: task.progress(relativeTo: appState.tick))
+                        .tint(.green)
+                        .scaleEffect(y: 0.7)
+                        .padding(.top, 1)
+                }
+                Spacer()
+                Text("生長中")
+                    .font(.caption)
+                    .padding(.horizontal, 8).padding(.vertical, 3)
+                    .background(Color.green.opacity(0.12))
+                    .foregroundStyle(.green)
+                    .clipShape(Capsule())
+            }
+            .padding(.vertical, 2)
+
+        } else {
+            // 狀態：空閒 → 點擊種植
+            Button {
+                farmerSheetPlotIndex = plotIndex
+                showFarmerSheet = true
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "leaf")
+                        .foregroundStyle(Color.green)
+                        .frame(width: 24)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("農田 \(plotIndex + 1)")
+                            .fontWeight(.medium)
+                        Text("空閒，點擊種植")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    TierBadgeView(tier: tier)
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(.vertical, 2)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(NPCDispatchButtonStyle(enabled: true))
+            .contextMenu {
+                if let player,
+                   let cost = appState.npcUpgradeService.nextUpgradeCost(
+                       npcKind: .farmer, actorKey: plotKey, player: player) {
+                    let inventory  = inventories.first
+                    let canExp     = player.heroExp >= cost.expCost
+                    let canMat     = cost.materialCosts.allSatisfy { (mat, req) in (inventory?.amount(of: mat) ?? 0) >= req }
+                    let canGold    = player.gold >= cost.goldCost
+                    let canUpgrade = canExp && canMat && canGold
+                    let matDesc    = cost.materialCosts.map { "\($0.0.icon)×\($0.1)" }.joined(separator: " ")
+                    let label      = "升級到 T\(tier + 1)（EXP \(cost.expCost) · \(matDesc) · \(cost.goldCost)金）"
+                    Button(canUpgrade ? label : label + "（資源不足）") {
+                        pendingUpgradeInfo = NpcUpgradeRequest(
+                            npcKind: .farmer, actorKey: plotKey, label: "農夫", cost: cost)
+                    }
+                    .disabled(!canUpgrade)
+                } else {
+                    Text("已達升級上限").foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
     // MARK: - NPC Row: 商人
 
     @ViewBuilder
@@ -500,6 +798,11 @@ struct BaseView: View {
         inv.spiritHerb       += amount
         inv.freshFish        += amount
         inv.abyssFish        += amount
+        // V7-4 種子
+        inv.wheatSeed        += amount
+        inv.vegetableSeed    += amount
+        inv.fruitSeed        += amount
+        inv.spiritGrainSeed  += amount
         try? context.save()
     }
 
@@ -536,6 +839,8 @@ struct BaseView: View {
         player.gatherer3Tier  = 0
         player.gatherer4Tier  = 0
         player.chefTier       = 0
+        player.gatherer5Tier  = 0   // V7-4 農夫
+        player.pharmacistTier = 0   // V7-4 製藥師
         player.gatherer1SkillPoints = 0;  player.gatherer1SkillsRaw = ""
         player.gatherer2SkillPoints = 0;  player.gatherer2SkillsRaw = ""
         player.gatherer3SkillPoints = 0;  player.gatherer3SkillsRaw = ""

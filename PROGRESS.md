@@ -784,3 +784,80 @@ V6-3 全部 T01–T12 ✅ 完成，`xcodebuild` 通過，無警告。
 ### 目前狀態
 
 V6-4 全部 T01–T05 ✅ 完成，`xcodebuild` 通過，無警告。
+
+---
+
+## V7-1 — 採集系統擴充（已完成）
+
+### 設計概覽
+
+採集系統從 2 人 × 2 地點擴充為 4 NPC × 16 地點，加入採集者技能樹與隨機事件。
+
+### 完成 Tickets
+
+| Ticket | 說明 | 狀態 |
+|---|---|---|
+| T01 | 16 個採集地點（森林 / 礦坑 / 海洋 / 靈地各 4 點）；新增 6 種採集素材 | ✅ |
+| T02 | 採集者 3 / 4 解鎖；`GathererNpcDef` 擴充；採集者專屬技能樹（`GathererSkillDef`）| ✅ |
+| T03 | 採集隨機事件系統（`GatherEventDef`）；結算時有機率觸發額外掉落 | ✅ |
+
+### 目前狀態
+
+V7-1 全部 T01–T03 ✅ 完成，`xcodebuild` 通過。
+
+---
+
+## V7-3 — 廚師 NPC + 料理系統（已完成）
+
+### 設計概覽
+
+新增廚師 NPC，可 AFK 烹飪料理，完成後英雄獲得 ATK / DEF / HP 臨時 Buff（限時一局）。
+
+### 完成內容
+
+- `CuisineDef.swift`：4 種料理靜態定義（ATK / DEF / HP 加成、烹飪時長）
+- `PlayerStateModel`：新增 `chefTier`、`activeCuisineKey`、`cuisineBuffExpiresAt`
+- `TaskModel`：新增 `TaskKind.cuisine`、`resultCuisineKey`
+- `TaskCreationService.createCuisineTask()`：廚師任務建立 + 素材扣除
+- `TaskClaimService`：廚師任務收下時寫入 Buff 欄位
+- `HeroStatsService`：Buff 生效期間套用料理加成（V7-4 T03 改為消耗品庫存設計，此路徑已移除）
+- `CuisineSheet`：料理配方選擇 / 烹飪進度 / 消耗品背包顯示
+- `BaseView`：廚師 NPC row
+
+### 目前狀態
+
+V7-3 ✅ 完成，`xcodebuild` 通過。
+
+---
+
+## V7-4 — 農夫 / 消耗品系統 + 商人更新（已完成）
+
+### 設計概覽
+
+新增農夫 NPC（種田 → 收穫農作物）、統一消耗品背包（料理 + 藥水）、製藥師 NPC（AFK 煉藥），  
+並讓玩家出征前攜帶料理（提升屬性）與藥水（HP 回復），同步更新商人新增種子購買與農作物出售。
+
+### 完成 Tickets
+
+| Ticket | 說明 | 狀態 |
+|---|---|---|
+| T01 | 新增 24 種 `MaterialType`（種子 × 4、農作物三品質 × 4 × 3）；`MaterialInventoryModel` 擴充欄位 | ✅ |
+| T02 | 農夫 NPC（`gatherer5`）+ `FarmerPlotSheet`；種植 → AFK → 收穫；25% 高級 / 5% 頂級品質 RNG | ✅ |
+| T03 | `ConsumableType` enum（料理 × 8 + 藥水 × 2）；`ConsumableInventoryModel`（SwiftData 單例）；廚師結算改寫入消耗品庫存（取代限時 Buff）| ✅ |
+| T04 | `PotionDef.swift`（2 種藥水靜態定義）；製藥師 NPC（`TaskKind.alchemy`）；`PharmacySheet` | ✅ |
+| T05 | 出征消耗品整合：攜帶 1 料理 + 1 藥水；料理提升 ATK / DEF / HP；藥水 HP < 50% 觸發一次回復；`BattleLogGenerator` 套用效果；`.potionUsed` 事件 | ✅ |
+| T06 | `BaseView` NPC 分頁重構（採集 / 生產 / 商店 Segmented Picker）；製藥師 row 接入 | ✅ |
+| T07 | `MerchantTradeDef` 新增 `cropSell` 分類 + 12 條農作物出售定義；商人新增種子購買（已在 goldTrades）與農作物出售 Section | ✅ |
+
+### 關鍵決策
+
+- **消耗品庫存取代限時 Buff**：`ConsumableInventoryModel`（SwiftData 單例）統一管理料理與藥水庫存，廢除 `activeCuisineKey` / `cuisineBuffExpiresAt` 的寫入路徑（欄位保留供結構相容，但不再使用）
+- **料理品質 RNG**：廚師結算時有 25% 機率產出高級版（rawValue 後綴 `High`），確定性 RNG，相同 seed 永遠相同結果
+- **農作物三品質**：種植結算有 25% 高級 / 5% 頂級機率（RNG），頂級品質商人出售價 60 金 / 顆
+- **消耗品出征快照**：`task.snapshotCuisineKey` / `snapshotPotionKey` 儲存 `ConsumableType.rawValue`，`BattleLogGenerator` 從快照還原 `CuisineDef` / `PotionDef` 後套用效果
+- **藥水每場觸發一次**：`potionUsed` flag 在 `runCombatCore` 每場戰鬥初始化，HP < 50% 時觸發，不跨場累計
+- **套利防護**：種子購買成本（80金/3顆）> 農作物普通出售收益（40金/4顆），需計入種植時間成本，無即時循環套利
+
+### 目前狀態
+
+V7-4 全部 T01–T07 ✅ 完成，`xcodebuild` 通過，無警告（僅一個既有 warning）。

@@ -1,20 +1,13 @@
-// CuisineSheet.swift
-// 廚師配方 Sheet（V7-3，T03 改版）
+// PharmacySheet.swift
+// 製藥師配方 Sheet（V7-4）
 //
-// 觸發：點擊閒置的廚師 NPC
-// 功能：選擇料理配方 → 建立烹飪任務，完成後進入消耗品背包
-//
-// 設計：
-//   - 顯示所有料理配方（4 種，無解鎖門檻）
-//   - 顯示所需素材 + 金幣 + 烹飪時間 + Buff 效果
-//   - 素材或金幣不足時 row disabled + 紅色提示
-//   - 顯示消耗品背包持有量
-//   - 建立成功後自動關閉 Sheet
+// 觸發：點擊閒置的製藥師 NPC
+// 功能：選擇藥水配方 → 建立煉藥任務，完成後藥水進消耗品背包
 
 import SwiftUI
 import SwiftData
 
-struct CuisineSheet: View {
+struct PharmacySheet: View {
 
     let viewModel: BaseViewModel
     let player: PlayerStateModel?
@@ -33,9 +26,9 @@ struct CuisineSheet: View {
         NavigationStack {
             List {
 
-                // ── 消耗品背包 ────────────────────────────────────────
+                // ── 消耗品背包（料理 + 藥水全顯示）──────────────────────
                 Section("消耗品背包") {
-                    ForEach(ConsumableType.allCases.filter(\.isCuisine), id: \.self) { type in
+                    ForEach(ConsumableType.allCases, id: \.self) { type in
                         let count = consumable?.amount(of: type) ?? 0
                         HStack {
                             Text("\(type.icon) \(type.displayName)")
@@ -48,7 +41,7 @@ struct CuisineSheet: View {
                     }
                 }
 
-                // ── 目前資源摘要 ─────────────────────────────────────
+                // ── 目前資源 ─────────────────────────────────────────────
                 Section("目前資源") {
                     HStack {
                         Label("金幣", systemImage: "coins")
@@ -58,7 +51,7 @@ struct CuisineSheet: View {
                             .fontWeight(.semibold)
                             .monospacedDigit()
                     }
-                    let relatedMaterials: [MaterialType] = [.freshFish, .abyssFish, .herb, .spiritHerb, .ancientWood]
+                    let relatedMaterials: [MaterialType] = [.wheat, .vegetable, .fruit, .spiritGrain]
                     ForEach(relatedMaterials, id: \.self) { mat in
                         let amount = inventory?.amount(of: mat) ?? 0
                         HStack {
@@ -73,33 +66,33 @@ struct CuisineSheet: View {
                     }
                 }
 
-                // ── 料理配方 ────────────────────────────────────────
+                // ── 藥水配方 ─────────────────────────────────────────────
                 Section {
-                    ForEach(CuisineDef.all, id: \.key) { cuisine in
-                        let canAfford = viewModel.canAffordCuisine(cuisine, player: player, inventory: inventory)
+                    ForEach(PotionDef.all, id: \.key) { potion in
+                        let canAfford = viewModel.canAffordPotion(potion, player: player, inventory: inventory)
                         Button {
-                            startCooking(cuisine: cuisine)
+                            startBrewing(potion: potion)
                         } label: {
-                            cuisineRow(cuisine, canAfford: canAfford)
+                            potionRow(potion, canAfford: canAfford)
                         }
                         .buttonStyle(.plain)
                         .disabled(!canAfford)
                     }
                 } header: {
-                    Text("選擇料理")
+                    Text("選擇藥水")
                 } footer: {
-                    Text("完成後料理進入消耗品背包，出征前選擇使用可獲得屬性加成。")
+                    Text("同一時間只能有一個製藥任務。藥水完成後進入消耗品背包。")
                         .font(.caption)
                 }
             }
-            .navigationTitle("廚師")
+            .navigationTitle("製藥師")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("取消") { isPresented = false }
                 }
             }
-            .alert("無法烹飪", isPresented: $showError) {
+            .alert("無法煉製", isPresented: $showError) {
                 Button("確定", role: .cancel) {}
             } message: {
                 Text(errorMessage ?? "發生未知錯誤")
@@ -107,13 +100,13 @@ struct CuisineSheet: View {
         }
     }
 
-    // MARK: - Cuisine Row
+    // MARK: - Potion Row
 
     @ViewBuilder
-    private func cuisineRow(_ cuisine: CuisineDef, canAfford: Bool) -> some View {
+    private func potionRow(_ potion: PotionDef, canAfford: Bool) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text(cuisine.icon)
+                Text(potion.icon)
                     .font(.title3)
                 HStack(spacing: 6) {
                     if !canAfford {
@@ -121,12 +114,12 @@ struct CuisineSheet: View {
                             .font(.caption)
                             .foregroundStyle(.red.opacity(0.7))
                     }
-                    Text(cuisine.name)
+                    Text(potion.name)
                         .fontWeight(.semibold)
                         .foregroundStyle(canAfford ? Color.primary : Color.secondary)
                 }
                 Spacer()
-                Text(cuisine.durationDisplay)
+                Text(potion.brewDurationDisplay)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
@@ -148,16 +141,16 @@ struct CuisineSheet: View {
             }
 
             HStack(spacing: 4) {
-                Image(systemName: "sparkles")
+                Image(systemName: "cross.circle")
                     .font(.caption2)
-                Text(buffText(cuisine))
+                Text("HP 回復 \(Int(potion.healPercent * 100))%")
                     .font(.caption)
             }
-            .foregroundStyle(.purple.opacity(0.85))
+            .foregroundStyle(.green.opacity(0.85))
 
             HStack(spacing: 8) {
-                ForEach(0..<cuisine.ingredients.count, id: \.self) { i in
-                    let (mat, amount) = cuisine.ingredients[i]
+                ForEach(0..<potion.ingredients.count, id: \.self) { i in
+                    let (mat, amount) = potion.ingredients[i]
                     let has = inventory?.amount(of: mat) ?? 0
                     Text("\(mat.icon)×\(amount)")
                         .font(.caption)
@@ -165,30 +158,20 @@ struct CuisineSheet: View {
                 }
                 HStack(spacing: 3) {
                     Image(systemName: "coins").frame(width: 11, height: 11)
-                    Text("×\(cuisine.goldCost)")
+                    Text("×\(potion.goldCost)")
                 }
                 .font(.caption)
-                .foregroundStyle((player?.gold ?? 0) >= cuisine.goldCost ? Color.primary : Color.red)
+                .foregroundStyle((player?.gold ?? 0) >= potion.goldCost ? Color.primary : Color.red)
             }
         }
         .padding(.vertical, 4)
         .opacity(canAfford ? 1.0 : 0.55)
     }
 
-    // MARK: - Helpers
-
-    private func buffText(_ cuisine: CuisineDef) -> String {
-        var parts: [String] = []
-        if cuisine.atkBonus > 0 { parts.append("ATK +\(cuisine.atkBonus)") }
-        if cuisine.defBonus > 0 { parts.append("DEF +\(cuisine.defBonus)") }
-        if cuisine.hpBonus  > 0 { parts.append("HP +\(cuisine.hpBonus)") }
-        return parts.joined(separator: "  ")
-    }
-
     // MARK: - Action
 
-    private func startCooking(cuisine: CuisineDef) {
-        let result = viewModel.startCuisineTask(recipeKey: cuisine.key, context: context)
+    private func startBrewing(potion: PotionDef) {
+        let result = viewModel.startAlchemyTask(recipeKey: potion.key, context: context)
         switch result {
         case .success:
             isPresented = false
@@ -206,7 +189,7 @@ struct CuisineSheet: View {
              ConsumableInventoryModel.self, EquipmentModel.self, TaskModel.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
-    CuisineSheet(
+    PharmacySheet(
         viewModel: BaseViewModel(),
         player: nil,
         inventory: nil,

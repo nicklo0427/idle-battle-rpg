@@ -50,6 +50,11 @@ final class BaseViewModel {
         tasks.first { $0.actorKey == AppConstants.Actor.chef && $0.status == .inProgress }
     }
 
+    /// 指定農田的進行中任務（nil = 閒置）V7-4
+    func farmingTask(plotKey: String, from tasks: [TaskModel]) -> TaskModel? {
+        tasks.first { $0.actorKey == plotKey && $0.kind == .farming && $0.status == .inProgress }
+    }
+
     /// 玩家目前是否可以負擔指定料理（素材 + 金幣都足夠）
     func canAffordCuisine(
         _ cuisine: CuisineDef,
@@ -144,6 +149,25 @@ final class BaseViewModel {
         }
     }
 
+    /// 建立農田種植任務（V7-4）
+    @discardableResult
+    func startFarmTask(
+        plotKey: String,
+        seedType: MaterialType,
+        durationSeconds: Int,
+        context: ModelContext
+    ) -> Result<Void, TaskCreationError> {
+        do {
+            try TaskCreationService(context: context)
+                .createFarmTask(plotKey: plotKey, seedType: seedType, durationSeconds: durationSeconds)
+            return .success(())
+        } catch let e as TaskCreationError {
+            return .failure(e)
+        } catch {
+            return .failure(.insufficientMaterials)
+        }
+    }
+
     /// 建立料理任務（V7-3）
     @discardableResult
     func startCuisineTask(
@@ -152,6 +176,42 @@ final class BaseViewModel {
     ) -> Result<Void, TaskCreationError> {
         do {
             try TaskCreationService(context: context).createCuisineTask(recipeKey: recipeKey)
+            return .success(())
+        } catch let e as TaskCreationError {
+            return .failure(e)
+        } catch {
+            return .failure(.recipeNotFound("unknown"))
+        }
+    }
+
+    // MARK: - 製藥師（V7-4）
+
+    /// 製藥師的進行中任務（nil = 閒置）
+    func pharmacistTask(from tasks: [TaskModel]) -> TaskModel? {
+        tasks.first { $0.actorKey == AppConstants.Actor.pharmacist && $0.status == .inProgress }
+    }
+
+    /// 玩家目前是否可以負擔指定藥水（素材 + 金幣都足夠）
+    func canAffordPotion(
+        _ potion: PotionDef,
+        player: PlayerStateModel?,
+        inventory: MaterialInventoryModel?
+    ) -> Bool {
+        guard let player, let inventory else { return false }
+        guard player.gold >= potion.goldCost else { return false }
+        return potion.ingredients.allSatisfy { (mat, amount) in
+            inventory.amount(of: mat) >= amount
+        }
+    }
+
+    /// 建立煉藥任務
+    @discardableResult
+    func startAlchemyTask(
+        recipeKey: String,
+        context: ModelContext
+    ) -> Result<Void, TaskCreationError> {
+        do {
+            try TaskCreationService(context: context).createAlchemyTask(recipeKey: recipeKey)
             return .success(())
         } catch let e as TaskCreationError {
             return .failure(e)

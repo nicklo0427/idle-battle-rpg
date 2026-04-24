@@ -79,6 +79,13 @@ final class PlayerStateModel {
     // MARK: - 廚師升級 Tier（V7-3）
     var chefTier: Int = 0
 
+    // MARK: - 農夫升級 Tier（V7-4）
+    /// 控制可用農田數量：availablePlots = gatherer5Tier + 1（最多 4 塊）
+    var gatherer5Tier: Int = 0
+
+    // MARK: - 製藥師升級 Tier（V7-4）
+    var pharmacistTier: Int = 0
+
     // MARK: - 採集者技能（V7-1 T02）
 
     var gatherer1SkillPoints: Int = 0
@@ -127,6 +134,10 @@ final class PlayerStateModel {
         case "gatherer_3": return gatherer3Tier
         case "gatherer_4": return gatherer4Tier
         case "chef":        return chefTier
+        // V7-4 農田共用同一個 Tier（多塊田由同一個農夫管理）
+        case "farmer_plot_1", "farmer_plot_2", "farmer_plot_3", "farmer_plot_4":
+            return gatherer5Tier
+        case "pharmacist":  return pharmacistTier
         default:            return 0
         }
     }
@@ -140,6 +151,10 @@ final class PlayerStateModel {
         case "gatherer_3": return .herbalist
         case "gatherer_4": return .fisherman
         case "chef":        return .chef
+        // V7-4 農田（升級 farmer 時消耗相同成本）
+        case "farmer_plot_1", "farmer_plot_2", "farmer_plot_3", "farmer_plot_4":
+            return .farmer
+        case "pharmacist":  return .pharmacist
         default:            return nil
         }
     }

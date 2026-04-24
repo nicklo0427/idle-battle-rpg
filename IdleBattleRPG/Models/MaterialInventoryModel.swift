@@ -56,6 +56,28 @@ final class MaterialInventoryModel {
     var freshFish:    Int = 0
     var abyssFish:    Int = 0
 
+    // MARK: - V7-4 種子
+
+    var wheatSeed:       Int = 0
+    var vegetableSeed:   Int = 0
+    var fruitSeed:       Int = 0
+    var spiritGrainSeed: Int = 0
+
+    // MARK: - V7-4 農作物（4 種 × 3 品質）
+
+    var wheat:           Int = 0
+    var wheatHigh:       Int = 0
+    var wheatTop:        Int = 0
+    var vegetable:       Int = 0
+    var vegetableHigh:   Int = 0
+    var vegetableTop:    Int = 0
+    var fruit:           Int = 0
+    var fruitHigh:       Int = 0
+    var fruitTop:        Int = 0
+    var spiritGrain:     Int = 0
+    var spiritGrainHigh: Int = 0
+    var spiritGrainTop:  Int = 0
+
     // MARK: - Init
 
     init(
@@ -147,6 +169,24 @@ final class MaterialInventoryModel {
         case .spiritHerb:   return spiritHerb
         case .freshFish:    return freshFish
         case .abyssFish:    return abyssFish
+        // V7-4 種子
+        case .wheatSeed:       return wheatSeed
+        case .vegetableSeed:   return vegetableSeed
+        case .fruitSeed:       return fruitSeed
+        case .spiritGrainSeed: return spiritGrainSeed
+        // V7-4 農作物
+        case .wheat:           return wheat
+        case .wheatHigh:       return wheatHigh
+        case .wheatTop:        return wheatTop
+        case .vegetable:       return vegetable
+        case .vegetableHigh:   return vegetableHigh
+        case .vegetableTop:    return vegetableTop
+        case .fruit:           return fruit
+        case .fruitHigh:       return fruitHigh
+        case .fruitTop:        return fruitTop
+        case .spiritGrain:     return spiritGrain
+        case .spiritGrainHigh: return spiritGrainHigh
+        case .spiritGrainTop:  return spiritGrainTop
         }
     }
 
@@ -185,6 +225,24 @@ final class MaterialInventoryModel {
         case .spiritHerb:   spiritHerb   += amount
         case .freshFish:    freshFish    += amount
         case .abyssFish:    abyssFish    += amount
+        // V7-4 種子
+        case .wheatSeed:       wheatSeed       += amount
+        case .vegetableSeed:   vegetableSeed   += amount
+        case .fruitSeed:       fruitSeed       += amount
+        case .spiritGrainSeed: spiritGrainSeed += amount
+        // V7-4 農作物
+        case .wheat:           wheat           += amount
+        case .wheatHigh:       wheatHigh       += amount
+        case .wheatTop:        wheatTop        += amount
+        case .vegetable:       vegetable       += amount
+        case .vegetableHigh:   vegetableHigh   += amount
+        case .vegetableTop:    vegetableTop    += amount
+        case .fruit:           fruit           += amount
+        case .fruitHigh:       fruitHigh       += amount
+        case .fruitTop:        fruitTop        += amount
+        case .spiritGrain:     spiritGrain     += amount
+        case .spiritGrainHigh: spiritGrainHigh += amount
+        case .spiritGrainTop:  spiritGrainTop  += amount
         }
     }
 
@@ -227,6 +285,24 @@ final class MaterialInventoryModel {
         case .spiritHerb:   spiritHerb   -= amount
         case .freshFish:    freshFish    -= amount
         case .abyssFish:    abyssFish    -= amount
+        // V7-4 種子
+        case .wheatSeed:       wheatSeed       -= amount
+        case .vegetableSeed:   vegetableSeed   -= amount
+        case .fruitSeed:       fruitSeed       -= amount
+        case .spiritGrainSeed: spiritGrainSeed -= amount
+        // V7-4 農作物
+        case .wheat:           wheat           -= amount
+        case .wheatHigh:       wheatHigh       -= amount
+        case .wheatTop:        wheatTop        -= amount
+        case .vegetable:       vegetable       -= amount
+        case .vegetableHigh:   vegetableHigh   -= amount
+        case .vegetableTop:    vegetableTop    -= amount
+        case .fruit:           fruit           -= amount
+        case .fruitHigh:       fruitHigh       -= amount
+        case .fruitTop:        fruitTop        -= amount
+        case .spiritGrain:     spiritGrain     -= amount
+        case .spiritGrainHigh: spiritGrainHigh -= amount
+        case .spiritGrainTop:  spiritGrainTop  -= amount
         }
         return true
     }

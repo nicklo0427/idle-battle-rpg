@@ -106,6 +106,27 @@ struct MerchantSheet: View {
                         .font(.caption)
                 }
 
+                // ── 農作物出售（V7-4 農作物 → 金幣）─────────────────────
+                Section {
+                    let cropSellTrades = MerchantTradeDef.cropSell.filter {
+                        (inventory?.amount(of: $0.giveMaterial) ?? 0) > 0
+                    }
+                    if cropSellTrades.isEmpty {
+                        Text("尚無農作物可出售")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(cropSellTrades, id: \.key) { trade in
+                            tradeRow(trade)
+                        }
+                    }
+                } header: {
+                    Text("農作物出售")
+                } footer: {
+                    Text("頂級品質（✦）可獲得更多金幣。")
+                        .font(.caption)
+                }
+
                 // ── 補給（金幣 → 稀有素材）──────────────────────────
                 Section {
                     ForEach(MerchantTradeDef.goldTrades, id: \.key) { trade in

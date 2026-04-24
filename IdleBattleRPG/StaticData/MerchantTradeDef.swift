@@ -17,6 +17,7 @@ enum TradeCategory {
     case basicMaterial   // V1 通用素材 → 金幣
     case areaMaterial    // V2-1 區域素材 → 金幣
     case gatherMaterial  // V7-1 採集專屬素材 → 金幣
+    case cropSell        // V7-4 農作物出售 → 金幣
 }
 
 // MARK: - 兌換項目定義
@@ -211,13 +212,38 @@ extension MerchantTradeDef {
             receive:      .gold(80),
             category:     .gatherMaterial
         ),
+
+        // ── V7-4 農作物出售（農作物 → 金幣）────────────────────────────────
+        // 普通品質：10 金/顆
+        MerchantTradeDef(key: "sell_wheat",         giveMaterial: .wheat,        giveAmount: 1, receive: .gold(10), category: .cropSell),
+        MerchantTradeDef(key: "sell_vegetable",     giveMaterial: .vegetable,    giveAmount: 1, receive: .gold(10), category: .cropSell),
+        MerchantTradeDef(key: "sell_fruit",         giveMaterial: .fruit,        giveAmount: 1, receive: .gold(10), category: .cropSell),
+        MerchantTradeDef(key: "sell_spirit_grain",  giveMaterial: .spiritGrain,  giveAmount: 1, receive: .gold(10), category: .cropSell),
+        // 高級品質：25 金/顆
+        MerchantTradeDef(key: "sell_wheat_high",        giveMaterial: .wheatHigh,       giveAmount: 1, receive: .gold(25), category: .cropSell),
+        MerchantTradeDef(key: "sell_vegetable_high",    giveMaterial: .vegetableHigh,   giveAmount: 1, receive: .gold(25), category: .cropSell),
+        MerchantTradeDef(key: "sell_fruit_high",        giveMaterial: .fruitHigh,       giveAmount: 1, receive: .gold(25), category: .cropSell),
+        MerchantTradeDef(key: "sell_spirit_grain_high", giveMaterial: .spiritGrainHigh, giveAmount: 1, receive: .gold(25), category: .cropSell),
+        // 頂級品質：60 金/顆
+        MerchantTradeDef(key: "sell_wheat_top",         giveMaterial: .wheatTop,        giveAmount: 1, receive: .gold(60), category: .cropSell),
+        MerchantTradeDef(key: "sell_vegetable_top",     giveMaterial: .vegetableTop,    giveAmount: 1, receive: .gold(60), category: .cropSell),
+        MerchantTradeDef(key: "sell_fruit_top",         giveMaterial: .fruitTop,        giveAmount: 1, receive: .gold(60), category: .cropSell),
+        MerchantTradeDef(key: "sell_spirit_grain_top",  giveMaterial: .spiritGrainTop,  giveAmount: 1, receive: .gold(60), category: .cropSell),
     ]
+
+    /// 農作物出售列表（V7-4）
+    static var cropSell: [MerchantTradeDef] {
+        all.filter { $0.category == .cropSell }
+    }
 
     /// 補給選項（金幣 → 稀有素材）——獨立清單，避免誤用出售邏輯
     static let goldTrades: [(key: String, goldCost: Int, receiveMaterial: MaterialType, receiveAmount: Int)] = [
         ("buy_ancient_fragment", 800,  .ancientFragment, 1),
         ("buy_spirit_herb",      400,  .spiritHerb,      1),
         ("buy_abyss_fish",       400,  .abyssFish,       1),
+        // V7-4 種子補給（商人只賣最基礎兩種，其餘靠地下城掉落）
+        ("buy_wheat_seed",       80,   .wheatSeed,       3),
+        ("buy_vegetable_seed",   120,  .vegetableSeed,   3),
     ]
 
     static func find(key: String) -> MerchantTradeDef? {

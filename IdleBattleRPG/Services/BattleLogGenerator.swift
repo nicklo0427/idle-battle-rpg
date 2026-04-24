@@ -39,6 +39,7 @@ struct BattleEvent {
         case statusApplied   // V6-3 T05：施加狀態效果（燃燒 / 中毒 / 暈眩 / 弱化）
         case statusTick      // V6-3 T05：狀態效果觸發（傷害 / 跳過行動）
         case statusExpired   // V6-3 T05：狀態效果消退
+        case potionUsed      // V7-4 T05：藥水觸發回復
     }
 
     let type:         EventType
@@ -108,7 +109,9 @@ struct BattleLogGenerator {
         task: TaskModel,
         floor: DungeonFloorDef,
         fromBattleIndex: Int,
-        maxBattles: Int = Int.max
+        maxBattles: Int = Int.max,
+        cuisineDef: CuisineDef? = nil,   // V7-4 T05
+        potionDef: PotionDef? = nil      // V7-4 T05
     ) -> [BattleEvent] {
 
         let totalDuration = task.endsAt.timeIntervalSince(task.startedAt)
@@ -122,9 +125,15 @@ struct BattleLogGenerator {
         let snapshotDex   = task.snapshotDex   ?? 0
 
         // 英雄戰鬥數值
-        let heroMaxHp = max(50, snapshotPower * 2)
-        let heroAtk   = max(10, snapshotPower / 4)
-        let heroDef   = max(5,  snapshotPower / 10)
+        var heroMaxHp = max(50, snapshotPower * 2)
+        var heroAtk   = max(10, snapshotPower / 4)
+        var heroDef   = max(5,  snapshotPower / 10)
+        // V7-4：套用料理加成
+        if let cuisine = cuisineDef {
+            heroAtk   += cuisine.atkBonus
+            heroDef   += cuisine.defBonus
+            heroMaxHp += cuisine.hpBonus
+        }
 
         // ATB 填充時間
         let heroChargeTime  = max(0.6, 1.8 - Double(snapshotAgi) * 0.06)
@@ -186,7 +195,8 @@ struct BattleLogGenerator {
                 enemyMaxHp:      enemyMaxHp,
                 enemyAtk:        enemyAtk,
                 enemyDef:        enemyDef,
-                enemyChargeTime: enemyChargeTime
+                enemyChargeTime: enemyChargeTime,
+                potionDef:       potionDef
             )
         }
 
@@ -215,11 +225,13 @@ struct BattleLogGenerator {
         enemyAtk:        Int,
         enemyDef:        Int,
         enemyChargeTime: Double,
+        potionDef:       PotionDef? = nil,   // V7-4 T05
         onEvent:         ((BattleEvent) -> Void)?
     ) -> CombatOutcome {
 
-        var heroHp  = heroMaxHp
-        var enemyHp = enemyMaxHp
+        var heroHp      = heroMaxHp
+        var enemyHp     = enemyMaxHp
+        var potionUsed  = false   // V7-4 T05
 
         // T11：初始值為 cooldownSeconds，技能從冷卻開始，需完整等待一次 CD 才可觸發
         var skillNextFireTime: [String: Double] = Dictionary(
@@ -276,6 +288,20 @@ struct BattleLogGenerator {
             }
             enemyStatuses = nextStatuses
             if enemyHp <= 0 { break }   // 狀態效果擊殺
+
+            // V7-4 T05：藥水觸發（HP < 50% 時一次性回復）
+            if let potion = potionDef, !potionUsed, heroHp < heroMaxHp / 2, heroHp > 0 {
+                potionUsed = true
+                let healed = Int(Double(heroMaxHp) * potion.healPercent)
+                heroHp = min(heroMaxHp, heroHp + healed)
+                onEvent?(BattleEvent(
+                    type: .potionUsed,
+                    description: "\(potion.icon) 飲下\(potion.name)！恢復 \(healed) HP（\(heroHp)/\(heroMaxHp)）",
+                    heroHpAfter: heroHp, enemyHpAfter: enemyHp,
+                    heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
+                    chargeTime: 0, isCrit: false
+                ))
+            }
 
             elapsedCombatTime += heroChargeTime
 
@@ -629,7 +655,8 @@ struct BattleLogGenerator {
         enemyMaxHp:      Int,
         enemyAtk:        Int,
         enemyDef:        Int,
-        enemyChargeTime: Double
+        enemyChargeTime: Double,
+        potionDef:       PotionDef? = nil   // V7-4 T05
     ) -> [BattleEvent] {
         // 探索 seed（文字選取）：原有 per-battle seed
         var exploreRng = DeterministicRNG(seed: taskSeed ^ UInt64(battleIndex &+ 1))
@@ -736,6 +763,7 @@ struct BattleLogGenerator {
             enemyAtk:        enemyAtk,
             enemyDef:        enemyDef,
             enemyChargeTime: enemyChargeTime,
+            potionDef:       potionDef,
             onEvent:         { events.append($0) }
         )
 

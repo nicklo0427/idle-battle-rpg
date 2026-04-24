@@ -82,7 +82,11 @@ struct NpcUpgradeService {
         case "blacksmith":  player.blacksmithTier += 1
         case "gatherer_3": player.gatherer3Tier  += 1
         case "gatherer_4": player.gatherer4Tier  += 1
-        case "chef":        player.chefTier       += 1
+        case "chef":        player.chefTier        += 1
+        // V7-4 農田（4 塊田共用同一 Tier）
+        case "farmer_plot_1", "farmer_plot_2", "farmer_plot_3", "farmer_plot_4":
+            player.gatherer5Tier += 1
+        case "pharmacist":  player.pharmacistTier  += 1
         default: break
         }
 

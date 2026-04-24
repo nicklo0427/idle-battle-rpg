@@ -5,6 +5,7 @@
 // V1 通用素材（5 種）：採集或地下城掉落，作為鑄造基礎用料
 // V2-1 區域素材（12 種）：各地下城樓層專屬掉落，對應區域裝備製作
 // V4-3 沉落王城素材（4 種）：第四區域專屬掉落
+// V7-4 種子（4 種）+ 農作物品質變體（12 種，4 種農作物 × 普通/高級/頂級）
 
 import Foundation
 
@@ -55,6 +56,31 @@ enum MaterialType: String, CaseIterable, Codable {
     case freshFish    = "fresh_fish"     // 鮮魚（漁夫）
     case abyssFish    = "abyss_fish"     // 深淵魚（漁夫高階地點）
 
+    // MARK: - V7-4 種子（農田消耗輸入）
+
+    case wheatSeed       = "wheat_seed"        // 小麥種子（商人購買）
+    case vegetableSeed   = "vegetable_seed"    // 蔬菜種子（商人購買）
+    case fruitSeed       = "fruit_seed"        // 果實種子（地下城掉落）
+    case spiritGrainSeed = "spirit_grain_seed" // 靈穗種子（地下城掉落）
+
+    // MARK: - V7-4 農作物（4 種 × 3 品質）
+
+    case wheat            = "wheat"             // 小麥（普通）
+    case wheatHigh        = "wheat_high"        // ★小麥（高級）
+    case wheatTop         = "wheat_top"         // ✦小麥（頂級）
+
+    case vegetable        = "vegetable"         // 蔬菜（普通）
+    case vegetableHigh    = "vegetable_high"    // ★蔬菜（高級）
+    case vegetableTop     = "vegetable_top"     // ✦蔬菜（頂級）
+
+    case fruit            = "fruit"             // 果實（普通）
+    case fruitHigh        = "fruit_high"        // ★果實（高級）
+    case fruitTop         = "fruit_top"         // ✦果實（頂級）
+
+    case spiritGrain      = "spirit_grain"      // 靈穗（普通）
+    case spiritGrainHigh  = "spirit_grain_high" // ★靈穗（高級）
+    case spiritGrainTop   = "spirit_grain_top"  // ✦靈穗（頂級）
+
     // MARK: - 顯示名稱
 
     var displayName: String {
@@ -92,6 +118,24 @@ enum MaterialType: String, CaseIterable, Codable {
         case .spiritHerb:            return "靈草"
         case .freshFish:             return "鮮魚"
         case .abyssFish:             return "深淵魚"
+        // V7-4 種子
+        case .wheatSeed:             return "小麥種子"
+        case .vegetableSeed:         return "蔬菜種子"
+        case .fruitSeed:             return "果實種子"
+        case .spiritGrainSeed:       return "靈穗種子"
+        // V7-4 農作物
+        case .wheat:                 return "小麥"
+        case .wheatHigh:             return "★小麥"
+        case .wheatTop:              return "✦小麥"
+        case .vegetable:             return "蔬菜"
+        case .vegetableHigh:         return "★蔬菜"
+        case .vegetableTop:          return "✦蔬菜"
+        case .fruit:                 return "果實"
+        case .fruitHigh:             return "★果實"
+        case .fruitTop:              return "✦果實"
+        case .spiritGrain:           return "靈穗"
+        case .spiritGrainHigh:       return "★靈穗"
+        case .spiritGrainTop:        return "✦靈穗"
         }
     }
 
@@ -132,6 +176,16 @@ enum MaterialType: String, CaseIterable, Codable {
         case .spiritHerb:            return "🍃"
         case .freshFish:             return "🐟"
         case .abyssFish:             return "🦑"
+        // V7-4 種子
+        case .wheatSeed:             return "🌱"
+        case .vegetableSeed:         return "🌱"
+        case .fruitSeed:             return "🌱"
+        case .spiritGrainSeed:       return "🌱"
+        // V7-4 農作物（普通/高級/頂級共用同一 emoji，靠 displayName 前綴區分）
+        case .wheat, .wheatHigh, .wheatTop:             return "🌾"
+        case .vegetable, .vegetableHigh, .vegetableTop: return "🥦"
+        case .fruit, .fruitHigh, .fruitTop:             return "🍎"
+        case .spiritGrain, .spiritGrainHigh, .spiritGrainTop: return "🌿"
         }
     }
 

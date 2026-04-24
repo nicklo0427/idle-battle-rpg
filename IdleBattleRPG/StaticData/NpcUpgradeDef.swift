@@ -13,6 +13,8 @@ enum NpcKind: String, CaseIterable {
     case herbalist    // 採藥師
     case fisherman    // 漁夫
     case chef         // 廚師（V7-3）
+    case farmer       // 農夫（V7-4）
+    case pharmacist   // 製藥師（V7-4）
 }
 
 // MARK: - 升級成本定義
@@ -89,6 +91,27 @@ enum NpcUpgradeDef {
         .init(fromTier: 2, expCost: 700, materialCosts: [(.abyssFish, 20), (.spiritHerb, 10)],       goldCost: 1500),
     ]
 
+    // MARK: 農夫升級成本（V7-4）
+    //
+    // Tier 升級解鎖新農田（availablePlots = tier + 1）並提升頂級作物機率
+    // 升級素材使用種子，強化農田玩法的循環感
+
+    static let farmerCosts: [NpcUpgradeCostDef] = [
+        .init(fromTier: 0, expCost: 100, materialCosts: [(.wheatSeed, 5)],                              goldCost:  300),
+        .init(fromTier: 1, expCost: 300, materialCosts: [(.vegetableSeed, 5), (.fruitSeed, 1)],         goldCost:  700),
+        .init(fromTier: 2, expCost: 800, materialCosts: [(.fruitSeed, 3), (.spiritGrainSeed, 2)],       goldCost: 1500),
+    ]
+
+    // MARK: 製藥師升級成本（V7-4）
+    //
+    // 製藥師 Tier 縮短釀製時間（複用 craftDurationMultiplier）
+
+    static let pharmacistCosts: [NpcUpgradeCostDef] = [
+        .init(fromTier: 0, expCost: 120, materialCosts: [(.herb, 20)],                           goldCost:  500),
+        .init(fromTier: 1, expCost: 350, materialCosts: [(.spiritHerb, 10)],                     goldCost: 1000),
+        .init(fromTier: 2, expCost: 900, materialCosts: [(.spiritHerb, 20), (.wheat, 10)],       goldCost: 2000),
+    ]
+
     // MARK: 採集者每 Tier 加成
     //
     // Tier 0：+0（基礎）
@@ -129,6 +152,8 @@ enum NpcUpgradeDef {
         case .herbalist:   return herbalistCosts.first   { $0.fromTier == fromTier }
         case .fisherman:   return fishermanCosts.first   { $0.fromTier == fromTier }
         case .chef:        return chefCosts.first        { $0.fromTier == fromTier }
+        case .farmer:      return farmerCosts.first      { $0.fromTier == fromTier }
+        case .pharmacist:  return pharmacistCosts.first  { $0.fromTier == fromTier }
         }
     }
 }

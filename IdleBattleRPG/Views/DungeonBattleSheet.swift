@@ -48,6 +48,17 @@ struct DungeonBattleSheet: View {
         return task.forcedBattles ?? max(1, Int(duration / 60))
     }
 
+    // V7-4：從快照 key 還原消耗品定義
+    private var snapshotCuisineDef: CuisineDef? {
+        ConsumableType(rawValue: task.snapshotCuisineKey)
+            .flatMap { $0.cuisineDefKey }
+            .flatMap { CuisineDef.find($0) }
+    }
+    private var snapshotPotionDef: PotionDef? {
+        guard let type = ConsumableType(rawValue: task.snapshotPotionKey) else { return nil }
+        return PotionDef.all.first { $0.consumableType == type }
+    }
+
     // MARK: - Body
 
     var body: some View {
@@ -98,7 +109,9 @@ struct DungeonBattleSheet: View {
             task:            task,
             floor:           floor,
             fromBattleIndex: currentBattleIndex,
-            maxBattles:      1
+            maxBattles:      1,
+            cuisineDef:      snapshotCuisineDef,
+            potionDef:       snapshotPotionDef
         )
 
         // T09：傳入裝備技能定義，啟用 CD 面板

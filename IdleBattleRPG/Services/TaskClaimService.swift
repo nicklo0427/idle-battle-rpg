@@ -100,12 +100,22 @@ struct TaskClaimService {
                 equipmentCount += 1
             }
 
-            // cuisine 任務（V7-3）：將 buff 寫入玩家，新 buff 覆蓋舊 buff
+            // alchemy 任務（T04）：藥水直接進消耗品背包
+            if task.kind == .alchemy,
+               let def = PotionDef.find(task.definitionKey),
+               let consumable = fetchConsumableInventory() {
+                consumable.add(of: def.consumableType)
+            }
+
+            // cuisine 任務（T03）：進消耗品背包；25% 機率產出高級料理
             if task.kind == .cuisine, !task.resultCuisineKey.isEmpty,
                let cuisine = CuisineDef.find(task.resultCuisineKey),
-               let player {
-                player.activeCuisineKey     = cuisine.key
-                player.cuisineBuffExpiresAt = Date().timeIntervalSinceReferenceDate + cuisine.buffDuration
+               let baseType = cuisine.consumableType,
+               let consumable = fetchConsumableInventory() {
+                var rng = DeterministicRNG(task: task)
+                let isHighQuality = rng.nextDouble() < 0.25
+                let finalType = isHighQuality ? (baseType.highQualityVariant ?? baseType) : baseType
+                consumable.add(of: finalType)
             }
         }
 
@@ -196,6 +206,11 @@ struct TaskClaimService {
         let descriptor = FetchDescriptor<PlayerStateModel>()
         guard let player = (try? context.fetch(descriptor))?.first else { return }
         player.gold += amount
+    }
+
+    private func fetchConsumableInventory() -> ConsumableInventoryModel? {
+        let descriptor = FetchDescriptor<ConsumableInventoryModel>()
+        return (try? context.fetch(descriptor))?.first
     }
 
     private func creditMaterials(_ materials: [MaterialType: Int]) {

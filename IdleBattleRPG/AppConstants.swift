@@ -8,11 +8,21 @@ enum AppConstants {
 
     // MARK: - Actor Keys（與 TaskModel.actorKey 對應）
     enum Actor {
-        static let gatherer1  = "gatherer_1"
-        static let gatherer2  = "gatherer_2"
-        static let blacksmith = "blacksmith"
-        static let player     = "player"
-        static let chef       = "chef"       // V7-3 廚師 NPC
+        static let gatherer1   = "gatherer_1"
+        static let gatherer2   = "gatherer_2"
+        static let blacksmith  = "blacksmith"
+        static let player      = "player"
+        static let chef        = "chef"         // V7-3 廚師 NPC
+        static let pharmacist  = "pharmacist"   // V7-4 製藥師 NPC
+    }
+
+    // MARK: - 農夫農田 Keys（V7-4）
+    enum FarmerPlot {
+        /// 所有農田的 actorKey（索引 0-based）
+        static let keys = ["farmer_plot_1", "farmer_plot_2", "farmer_plot_3", "farmer_plot_4"]
+        /// 根據索引（0-based）取得 actorKey
+        static func key(for index: Int) -> String { keys[index] }
+        static let maxPlots = 4
     }
 
     // MARK: - 初始狀態

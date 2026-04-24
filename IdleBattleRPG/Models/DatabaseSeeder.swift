@@ -14,6 +14,7 @@ struct DatabaseSeeder {
     static func seedIfNeeded(context: ModelContext) {
         seedPlayerState(context: context)
         seedMaterialInventory(context: context)
+        seedConsumableInventory(context: context)
         seedStartingEquipment(context: context)
         seedDungeonProgression(context: context)
         backfillTalentPoints(context: context)
@@ -63,6 +64,13 @@ struct DatabaseSeeder {
             ancientFragment: 0
         )
         context.insert(inventory)
+    }
+
+    @MainActor
+    private static func seedConsumableInventory(context: ModelContext) {
+        let descriptor = FetchDescriptor<ConsumableInventoryModel>()
+        guard (try? context.fetch(descriptor))?.isEmpty != false else { return }
+        context.insert(ConsumableInventoryModel())
     }
 
     @MainActor

@@ -12,6 +12,8 @@ enum TaskKind: String, Codable {
     case craft   = "craft"
     case dungeon = "dungeon"
     case cuisine = "cuisine"    // V7-3 廚師 NPC
+    case farming = "farming"    // V7-4 農夫 NPC（多塊農田）
+    case alchemy = "alchemy"    // V7-4 製藥師 NPC
 }
 
 // MARK: - 任務狀態
@@ -104,6 +106,21 @@ final class TaskModel {
     var resultFreshFish:   Int = 0
     var resultAbyssFish:   Int = 0
 
+    // MARK: - 結果欄位：V7-4 農作物（4 種 × 3 品質；種子為輸入消耗，無結果欄位）
+
+    var resultWheat:            Int = 0
+    var resultWheatHigh:        Int = 0
+    var resultWheatTop:         Int = 0
+    var resultVegetable:        Int = 0
+    var resultVegetableHigh:    Int = 0
+    var resultVegetableTop:     Int = 0
+    var resultFruit:            Int = 0
+    var resultFruitHigh:        Int = 0
+    var resultFruitTop:         Int = 0
+    var resultSpiritGrain:      Int = 0
+    var resultSpiritGrainHigh:  Int = 0
+    var resultSpiritGrainTop:   Int = 0
+
     // MARK: - 結果欄位：特殊
 
     /// .dungeon 專用
@@ -149,6 +166,13 @@ final class TaskModel {
 
     /// .cuisine 專用：建立任務時就填入的料理 key（對應 CuisineDef.key）
     var resultCuisineKey: String = ""
+
+    // MARK: - 出征消耗品快照（V7-4 T05）
+
+    /// .dungeon 專用：攜帶的料理 ConsumableType rawValue（空字串 = 未攜帶）
+    var snapshotCuisineKey: String = ""
+    /// .dungeon 專用：攜帶的藥水 ConsumableType rawValue（空字串 = 未攜帶）
+    var snapshotPotionKey:  String = ""
 
     // MARK: - Init
 
@@ -292,6 +316,22 @@ final class TaskModel {
         case .spiritHerb:   return resultSpiritHerb
         case .freshFish:    return resultFreshFish
         case .abyssFish:    return resultAbyssFish
+        // V7-4 種子（作為輸入消耗，無結果欄位）
+        case .wheatSeed, .vegetableSeed, .fruitSeed, .spiritGrainSeed:
+            return 0
+        // V7-4 農作物
+        case .wheat:           return resultWheat
+        case .wheatHigh:       return resultWheatHigh
+        case .wheatTop:        return resultWheatTop
+        case .vegetable:       return resultVegetable
+        case .vegetableHigh:   return resultVegetableHigh
+        case .vegetableTop:    return resultVegetableTop
+        case .fruit:           return resultFruit
+        case .fruitHigh:       return resultFruitHigh
+        case .fruitTop:        return resultFruitTop
+        case .spiritGrain:     return resultSpiritGrain
+        case .spiritGrainHigh: return resultSpiritGrainHigh
+        case .spiritGrainTop:  return resultSpiritGrainTop
         }
     }
 
@@ -326,6 +366,22 @@ final class TaskModel {
         case .spiritHerb:   resultSpiritHerb  = amount
         case .freshFish:    resultFreshFish   = amount
         case .abyssFish:    resultAbyssFish   = amount
+        // V7-4 種子（作為輸入消耗，無結果欄位，忽略寫入）
+        case .wheatSeed, .vegetableSeed, .fruitSeed, .spiritGrainSeed:
+            break
+        // V7-4 農作物
+        case .wheat:           resultWheat           = amount
+        case .wheatHigh:       resultWheatHigh       = amount
+        case .wheatTop:        resultWheatTop        = amount
+        case .vegetable:       resultVegetable       = amount
+        case .vegetableHigh:   resultVegetableHigh   = amount
+        case .vegetableTop:    resultVegetableTop    = amount
+        case .fruit:           resultFruit           = amount
+        case .fruitHigh:       resultFruitHigh       = amount
+        case .fruitTop:        resultFruitTop        = amount
+        case .spiritGrain:     resultSpiritGrain     = amount
+        case .spiritGrainHigh: resultSpiritGrainHigh = amount
+        case .spiritGrainTop:  resultSpiritGrainTop  = amount
         }
     }
 }

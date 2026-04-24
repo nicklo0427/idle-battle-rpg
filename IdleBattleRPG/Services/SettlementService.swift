@@ -53,6 +53,8 @@ struct SettlementService {
         case .gather:  fillGatherResults(task)
         case .craft:   break   // resultCraftedEquipKey 在建立時已填入
         case .cuisine: break   // resultCuisineKey 在建立時已填入（V7-3）
+        case .alchemy: break   // 結果在 TaskClaimService 處理（V7-4）
+        case .farming: fillFarmResults(task)  // V7-4 農田任務
         case .dungeon:
             // V6-3 T01：不預算戰鬥結果，改由玩家即時發起（DungeonBattleSheet）
             // fillDungeonResults / markDungeonProgression 移至 DungeonBattleSheet.finalizeBattle()
@@ -100,6 +102,56 @@ struct SettlementService {
         }
 
         task.setResult(amount, of: def.outputMaterial)
+    }
+
+    // MARK: - Farm 結算（V7-4，確定性 RNG）
+
+    private func fillFarmResults(_ task: TaskModel) {
+        guard let seedType = MaterialType(rawValue: task.definitionKey) else {
+            print("[SettlementService] 無法識別種子類型: \(task.definitionKey)")
+            return
+        }
+
+        // 農夫 Tier 決定品質機率（上限 3）
+        let tier = min(
+            (try? context.fetch(FetchDescriptor<PlayerStateModel>()))?.first?.gatherer5Tier ?? 0,
+            3
+        )
+
+        // 品質門檻（roll 值，由小到大：頂級 < 高級分界 < 1.0）
+        let topThreshold:  [Double] = [0.02, 0.06, 0.12, 0.18]
+        let highThreshold: [Double] = [0.20, 0.30, 0.40, 0.50]  // top + high 累計
+
+        var rng = DeterministicRNG(task: task)
+        let baseYield = 4
+
+        for _ in 0..<baseYield {
+            let roll   = rng.nextDouble()
+            let isTop  = roll < topThreshold[tier]
+            let isHigh = !isTop && roll < highThreshold[tier]
+
+            switch seedType {
+            case .wheatSeed:
+                if isTop        { task.resultWheatTop  += 1 }
+                else if isHigh  { task.resultWheatHigh += 1 }
+                else            { task.resultWheat     += 1 }
+            case .vegetableSeed:
+                if isTop        { task.resultVegetableTop  += 1 }
+                else if isHigh  { task.resultVegetableHigh += 1 }
+                else            { task.resultVegetable     += 1 }
+            case .fruitSeed:
+                if isTop        { task.resultFruitTop  += 1 }
+                else if isHigh  { task.resultFruitHigh += 1 }
+                else            { task.resultFruit     += 1 }
+            case .spiritGrainSeed:
+                if isTop        { task.resultSpiritGrainTop  += 1 }
+                else if isHigh  { task.resultSpiritGrainHigh += 1 }
+                else            { task.resultSpiritGrain     += 1 }
+            default:
+                // 非種子類型不應出現在農田任務中
+                break
+            }
+        }
     }
 
     // MARK: - Dungeon 結算（V1 + V2-1 雙路徑）
