@@ -19,19 +19,43 @@ import SwiftData
 struct CraftSheet: View {
 
     let viewModel: BaseViewModel
+    let appState: AppState
     let player: PlayerStateModel?
     let inventory: MaterialInventoryModel?
     let progressionService: DungeonProgressionService
-    @Binding var isPresented: Bool
 
     @Environment(\.modelContext) private var context
+    @Environment(\.dismiss)      private var dismiss
 
-    @State private var errorMessage: String?
+    @State private var upgradeExpanded: Bool = true
+    @State private var detailTab:       DetailTab = .upgrade
+    @State private var upgradeAlertMsg: String?
+    @State private var errorMessage:    String?
     @State private var showError = false
+
+    private enum DetailTab { case upgrade, skill }
+
+    // MARK: - Computed
+
+    private var currentTier: Int { player?.tier(for: AppConstants.Actor.blacksmith) ?? 0 }
 
     private var isFirstCraft: Bool {
         guard let player else { return false }
         return !player.hasUsedFirstCraftBoost
+    }
+
+    private var upgradeCost: NpcUpgradeCostDef? {
+        guard let player else { return nil }
+        return appState.npcUpgradeService.nextUpgradeCost(
+            npcKind: .blacksmith, actorKey: AppConstants.Actor.blacksmith, player: player)
+    }
+
+    private var canUpgrade: Bool {
+        guard let cost = upgradeCost, let player, let inventory else { return false }
+        let expOk  = player.heroExp >= cost.expCost
+        let matOk  = cost.materialCosts.allSatisfy { inventory.amount(of: $0.0) >= $0.1 }
+        let goldOk = player.gold >= cost.goldCost
+        return expOk && matOk && goldOk
     }
 
     /// 已解鎖的所有配方（V1 全顯示；V2-1 需首通樓層）
@@ -57,6 +81,11 @@ struct CraftSheet: View {
     var body: some View {
         NavigationStack {
             List {
+
+                // ── 升級 Section（可收合）────────────────────────────────
+                upgradeSection
+
+                // ── 首件鑄造特快提示 ──────────────────────────────────────
                 if isFirstCraft {
                     Section {
                         Label("首件鑄造特快！委派後 30 秒即可完成。", systemImage: "bolt.fill")
@@ -73,13 +102,29 @@ struct CraftSheet: View {
                     title: "精良裝備",
                     recipes: availableRecipes.filter { $0.rarity == .refined }
                 )
+                recipeSection(
+                    title: "稀有裝備",
+                    recipes: availableRecipes.filter { $0.rarity == .rare }
+                )
+                recipeSection(
+                    title: "史詩裝備",
+                    recipes: availableRecipes.filter { $0.rarity == .epic }
+                )
             }
             .navigationTitle("鑄造師")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { isPresented = false }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("完成") { dismiss() }
                 }
+            }
+            .alert("提示", isPresented: Binding(
+                get: { upgradeAlertMsg != nil },
+                set: { if !$0 { upgradeAlertMsg = nil } }
+            )) {
+                Button("確定", role: .cancel) { upgradeAlertMsg = nil }
+            } message: {
+                Text(upgradeAlertMsg ?? "")
             }
             .alert("無法鑄造", isPresented: $showError) {
                 Button("確定", role: .cancel) {}
@@ -87,6 +132,151 @@ struct CraftSheet: View {
                 Text(errorMessage ?? "發生未知錯誤")
             }
         }
+    }
+
+    // MARK: - Section：升級（可收合）
+
+    @ViewBuilder
+    private var upgradeSection: some View {
+        Section {
+            VStack(spacing: 0) {
+                HStack(spacing: 10) {
+                    Image(systemName: "hammer.fill")
+                        .foregroundStyle(.orange)
+                        .frame(width: 22)
+                    Text(currentTier < NpcUpgradeDef.maxTier
+                         ? "升級後加快鑄造速度"
+                         : "已達升級上限")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    TierBadgeView(tier: currentTier, alwaysShow: true, color: .orange)
+                    Image(systemName: "chevron.down")
+                        .font(.caption2).foregroundStyle(.tertiary)
+                        .rotationEffect(.degrees(upgradeExpanded ? 0 : -90))
+                }
+                .padding(.vertical, 4)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    withAnimation(.easeInOut(duration: 0.2)) { upgradeExpanded.toggle() }
+                }
+
+                if upgradeExpanded {
+                    Divider().padding(.top, 6)
+                    Picker("", selection: $detailTab) {
+                        Text("升級").tag(DetailTab.upgrade)
+                        Text("技能").tag(DetailTab.skill)
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.vertical, 8)
+                    Divider()
+                    if detailTab == .upgrade { upgradeContent } else { skillContent }
+                }
+            }
+            .animation(.easeInOut(duration: 0.2), value: upgradeExpanded)
+            .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))
+            .listRowSeparator(.hidden)
+        }
+    }
+
+    @ViewBuilder
+    private var upgradeContent: some View {
+        if currentTier >= NpcUpgradeDef.maxTier {
+            HStack {
+                Label("已達升級上限 T\(NpcUpgradeDef.maxTier)", systemImage: "checkmark.seal.fill")
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+            .padding(.vertical, 10)
+        } else if let cost = upgradeCost, let player {
+            upgradeRow(label: "EXP", required: cost.expCost, have: player.heroExp)
+            ForEach(cost.materialCosts, id: \.0) { mat, req in
+                Divider()
+                upgradeRow(label: "\(mat.icon) \(mat.displayName)",
+                           required: req, have: inventory?.amount(of: mat) ?? 0)
+            }
+            Divider()
+            upgradeGoldRow(required: cost.goldCost, have: player.gold)
+            Button("升至 T\(currentTier + 1)") { performUpgrade() }
+                .buttonStyle(.borderedProminent)
+                .tint(.orange)
+                .frame(maxWidth: .infinity)
+                .disabled(!canUpgrade)
+                .padding(.top, 10)
+                .padding(.bottom, 4)
+        }
+    }
+
+    // MARK: - 技能頁
+
+    @ViewBuilder
+    private var skillContent: some View {
+        let nodes    = ProducerSkillNodeDef.nodes(for: AppConstants.Actor.blacksmith)
+        let availPts = player?.skillPoints(for: AppConstants.Actor.blacksmith) ?? 0
+        if availPts > 0 {
+            HStack {
+                Spacer()
+                Text("可用點數：\(availPts)")
+                    .font(.caption).foregroundStyle(.orange).fontWeight(.semibold)
+            }
+            .padding(.vertical, 8)
+            Divider()
+        }
+        ForEach(nodes, id: \.key) { node in
+            skillNodeRow(node, availPoints: availPts)
+            if node.key != nodes.last?.key { Divider() }
+        }
+    }
+
+    @ViewBuilder
+    private func skillNodeRow(_ node: ProducerSkillNodeDef, availPoints: Int) -> some View {
+        let level     = player?.skillLevel(nodeKey: node.key, actorKey: AppConstants.Actor.blacksmith) ?? 0
+        let isMaxed   = level >= node.maxLevel
+        let prereqMet: Bool = {
+            guard let prereqKey = node.prerequisiteKey, let p = player else { return true }
+            return p.skillLevel(nodeKey: prereqKey, actorKey: AppConstants.Actor.blacksmith) >= node.prerequisiteLevel
+        }()
+        let canInvest = !isMaxed && prereqMet && availPoints > 0
+
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    Text(node.name).fontWeight(.medium)
+                        .foregroundStyle(prereqMet ? .primary : .secondary)
+                    Text("Lv.\(level)/\(node.maxLevel)")
+                        .font(.caption).monospacedDigit().foregroundStyle(.secondary)
+                    if isMaxed {
+                        Text("已滿").font(.caption2)
+                            .padding(.horizontal, 5).padding(.vertical, 2)
+                            .background(Color.orange.opacity(0.15))
+                            .foregroundStyle(.orange).clipShape(Capsule())
+                    }
+                }
+                if !prereqMet, let prereqKey = node.prerequisiteKey,
+                   let prereqNode = ProducerSkillNodeDef.find(key: prereqKey) {
+                    Text("需先點「\(prereqNode.name)」達 \(node.prerequisiteLevel) 級")
+                        .font(.caption).foregroundStyle(.tertiary)
+                } else {
+                    Text(node.description).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+            if canInvest {
+                Button {
+                    guard let player else { return }
+                    if let errMsg = viewModel.investProducerSkillPoint(
+                        nodeKey: node.key, actorKey: AppConstants.Actor.blacksmith,
+                        player: player, context: context) {
+                        upgradeAlertMsg = errMsg
+                    }
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title3).foregroundStyle(.orange)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.vertical, 8)
     }
 
     // MARK: - Section Helper
@@ -114,7 +304,7 @@ struct CraftSheet: View {
         let materials = recipe.requiredMaterials
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                // 名稱 + 不可用圖示
+                // 名稱 + 不可用圖示 + 稀有度 badge
                 HStack(spacing: 6) {
                     if !canAfford {
                         Image(systemName: "lock.fill")
@@ -123,7 +313,16 @@ struct CraftSheet: View {
                     }
                     Text(recipe.name)
                         .fontWeight(.semibold)
-                        .foregroundStyle(canAfford ? Color.primary : Color.secondary)
+                        .foregroundStyle(canAfford ? recipe.rarity.displayColor : Color.secondary)
+                    if recipe.rarity == .rare || recipe.rarity == .epic {
+                        Text(recipe.rarity.displayName)
+                            .font(.caption2)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(recipe.rarity.displayColor)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(recipe.rarity.displayColor.opacity(0.12), in: Capsule())
+                    }
                 }
                 Spacer()
                 // 時長永遠顯示（讓玩家知道等待成本）
@@ -216,6 +415,40 @@ struct CraftSheet: View {
             .foregroundStyle(has >= req.amount ? Color.primary : Color.red)
     }
 
+    // MARK: - Helpers
+
+    private func upgradeRow(label: String, required: Int, have: Int) -> some View {
+        HStack {
+            Text(label)
+            Spacer()
+            Text("\(have) / \(required)")
+                .font(.caption)
+                .foregroundStyle(have >= required ? Color.secondary : Color.red)
+                .monospacedDigit()
+        }
+        .padding(.vertical, 10)
+    }
+
+    private func upgradeGoldRow(required: Int, have: Int) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: "coins").imageScale(.small).foregroundStyle(.yellow)
+            Text("金幣")
+            Spacer()
+            Text("\(have) / \(required)")
+                .font(.caption)
+                .foregroundStyle(have >= required ? Color.secondary : Color.red)
+                .monospacedDigit()
+        }
+        .padding(.vertical, 10)
+    }
+
+    private func performUpgrade() {
+        guard let player else { return }
+        let result = appState.npcUpgradeService.upgrade(
+            npcKind: .blacksmith, actorKey: AppConstants.Actor.blacksmith, player: player)
+        if case .failure(let err) = result { upgradeAlertMsg = err.message }
+    }
+
     // MARK: - Action
 
     private func startCraft(recipe: CraftRecipeDef) {
@@ -226,7 +459,7 @@ struct CraftSheet: View {
             if let player {
                 viewModel.advanceOnboarding(expectedStep: 1, player: player, context: context)
             }
-            isPresented = false
+            dismiss()
         case .failure(let error):
             errorMessage = error.errorDescription
             showError = true
@@ -235,18 +468,18 @@ struct CraftSheet: View {
 }
 
 #Preview {
-    @Previewable @State var isPresented = true
     let container = try! ModelContainer(
         for: PlayerStateModel.self, MaterialInventoryModel.self,
              EquipmentModel.self, TaskModel.self, DungeonProgressionModel.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
+    let appState = AppState(context: container.mainContext)
     CraftSheet(
         viewModel: BaseViewModel(),
+        appState: appState,
         player: nil,
         inventory: nil,
-        progressionService: DungeonProgressionService(context: container.mainContext),
-        isPresented: $isPresented
+        progressionService: DungeonProgressionService(context: container.mainContext)
     )
     .modelContainer(container)
 }

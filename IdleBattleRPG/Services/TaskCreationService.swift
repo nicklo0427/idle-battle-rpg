@@ -71,9 +71,8 @@ struct TaskCreationService {
             throw TaskCreationError.actorBusy(actorKey)
         }
 
-        let baseDuration = def.durationOptions.contains(durationSeconds)
-            ? durationSeconds
-            : def.shortestDuration   // 防呆：不在選項內時退回最短
+        let maxDuration  = def.durationOptions.max() ?? def.shortestDuration
+        let baseDuration = min(max(def.shortestDuration, durationSeconds), maxDuration)
 
         // 採集速度技能縮減（V7-1 T02）
         let player = (try? context.fetch(FetchDescriptor<PlayerStateModel>()))?.first
@@ -140,8 +139,12 @@ struct TaskCreationService {
         if let override = durationOverride {
             duration = override
         } else {
-            let multiplier = NpcUpgradeDef.craftDurationMultiplier(tier: player.blacksmithTier)
-            duration = max(30, Int(Double(def.durationSeconds) * multiplier))
+            let tierMult  = NpcUpgradeDef.craftDurationMultiplier(tier: player.blacksmithTier)
+            let speedNode = ProducerSkillNodeDef.nodes(for: AppConstants.Actor.blacksmith)
+                .first { $0.speedReductionPerPoint > 0 }
+            let speedLv   = speedNode.map { player.skillLevel(nodeKey: $0.key, actorKey: AppConstants.Actor.blacksmith) } ?? 0
+            let skillMult = 1.0 - Double(speedLv) * (speedNode?.speedReductionPerPoint ?? 0)
+            duration = max(30, Int(Double(def.durationSeconds) * tierMult * skillMult))
         }
         let now = Date.now
         let task = TaskModel(
@@ -193,9 +196,13 @@ struct TaskCreationService {
             inventory.deduct(amount, of: material)
         }
 
-        // 廚師 tier 縮短烹飪時間（複用 craftDurationMultiplier）
-        let multiplier = NpcUpgradeDef.craftDurationMultiplier(tier: player.chefTier)
-        let duration   = max(30, Int(Double(def.cookMinutes * 60) * multiplier))
+        // 廚師 tier + 速度技能縮短烹飪時間
+        let tierMult      = NpcUpgradeDef.craftDurationMultiplier(tier: player.chefTier)
+        let chSpeedNode   = ProducerSkillNodeDef.nodes(for: AppConstants.Actor.chef)
+            .first { $0.speedReductionPerPoint > 0 }
+        let chSpeedLv     = chSpeedNode.map { player.skillLevel(nodeKey: $0.key, actorKey: AppConstants.Actor.chef) } ?? 0
+        let chSkillMult   = 1.0 - Double(chSpeedLv) * (chSpeedNode?.speedReductionPerPoint ?? 0)
+        let duration      = max(30, Int(Double(def.cookMinutes * 60) * tierMult * chSkillMult))
 
         let now = Date.now
         let task = TaskModel(
@@ -212,9 +219,12 @@ struct TaskCreationService {
     // MARK: - 農田任務（V7-4）
 
     /// 建立農田種植任務。
-    /// 驗證：農田閒置、玩家持有該種子 ≥ 1。
-    /// 建立前立即扣除種子 1 顆（與鑄造扣素材邏輯相同）。
+    /// 驗證：農田閒置、玩家持有該種子 ≥ rounds（1 輪 = 300 秒 = 1 顆種子）。
+    /// 建立前立即扣除 rounds 顆種子（與鑄造扣素材邏輯相同）。
     func createFarmTask(plotKey: String, seedType: MaterialType, durationSeconds: Int) throws {
+        let shortestRound = 300   // 5 分鐘 / 輪
+        let rounds = max(1, durationSeconds / shortestRound)
+
         // 1. 農田是否閒置
         let inProgress = repository.fetchInProgress()
         if inProgress.contains(where: { $0.actorKey == plotKey && $0.kind == .farming }) {
@@ -227,13 +237,24 @@ struct TaskCreationService {
             throw TaskCreationError.noInventory
         }
 
-        // 3. 驗證種子庫存 ≥ 1
-        guard inventory.amount(of: seedType) >= 1 else {
+        // 3. 驗證種子庫存 ≥ rounds
+        guard inventory.amount(of: seedType) >= rounds else {
             throw TaskCreationError.insufficientMaterials
         }
 
-        // 4. 扣除種子
-        inventory.deduct(1, of: seedType)
+        // 4. 扣除 rounds 顆種子
+        inventory.deduct(rounds, of: seedType)
+
+        // 4b. 套用農夫速度技能（fa_speed）縮短實際任務時長
+        let playerDesc2 = FetchDescriptor<PlayerStateModel>()
+        let farmerPlayer = (try? context.fetch(playerDesc2))?.first
+        let speedNode    = ProducerSkillNodeDef.nodes(for: "farmer")
+                              .first { $0.speedReductionPerPoint > 0 }
+        let speedLv      = speedNode.map {
+            farmerPlayer?.skillLevel(nodeKey: $0.key, actorKey: "farmer") ?? 0
+        } ?? 0
+        let skillMult    = 1.0 - Double(speedLv) * (speedNode?.speedReductionPerPoint ?? 0)
+        let effectiveDuration = max(shortestRound, Int(Double(rounds * shortestRound) * skillMult))
 
         // 5. 建立任務（definitionKey = seedType.rawValue，供結算時判斷農作物種類）
         let now = Date.now
@@ -242,7 +263,7 @@ struct TaskCreationService {
             actorKey:      plotKey,
             definitionKey: seedType.rawValue,
             startedAt:     now,
-            endsAt:        now.addingTimeInterval(TimeInterval(durationSeconds))
+            endsAt:        now.addingTimeInterval(TimeInterval(effectiveDuration))
         )
         repository.insert(task)
     }
@@ -283,9 +304,13 @@ struct TaskCreationService {
             inventory.deduct(amount, of: mat)
         }
 
-        // 製藥師 tier 縮短釀製時間（複用 craftDurationMultiplier）
-        let multiplier = NpcUpgradeDef.craftDurationMultiplier(tier: player.pharmacistTier)
-        let duration   = max(30, Int(Double(def.brewMinutes * 60) * multiplier))
+        // 製藥師 tier + 速度技能縮短釀製時間
+        let phTierMult  = NpcUpgradeDef.craftDurationMultiplier(tier: player.pharmacistTier)
+        let phSpeedNode = ProducerSkillNodeDef.nodes(for: AppConstants.Actor.pharmacist)
+            .first { $0.speedReductionPerPoint > 0 }
+        let phSpeedLv   = phSpeedNode.map { player.skillLevel(nodeKey: $0.key, actorKey: AppConstants.Actor.pharmacist) } ?? 0
+        let phSkillMult = 1.0 - Double(phSpeedLv) * (phSpeedNode?.speedReductionPerPoint ?? 0)
+        let duration    = max(30, Int(Double(def.brewMinutes * 60) * phTierMult * phSkillMult))
 
         let now = Date.now
         let task = TaskModel(

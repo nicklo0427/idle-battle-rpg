@@ -37,12 +37,23 @@ extension Color {
         }
     }
 
-    // MARK: - 精良裝備金色（T03）
+    // MARK: - 裝備稀有度色
 
-    /// 精良（refined）稀有度的金黃色
-    static let rarityRefined = Color(red: 1.0, green: 0.78, blue: 0.2)
+    /// Boss 武器浮動值高亮色（金黃）— SettlementSheet 專用，與稀有度色系無關
+    static let rarityRefined   = Color(red: 1.0, green: 0.78, blue: 0.20)
+    /// 精良（Fine）稀有度：綠色
+    static let rarityFine      = Color.green
+    /// 稀有（Rare）稀有度：藍色
+    static let rarityRare      = Color.blue
+    /// 史詩（Epic）稀有度：紫色
+    static let rarityEpic      = Color.purple
+    /// 傳說（Legendary）稀有度：金橙色
+    static let rarityLegendary = Color(red: 1.0, green: 0.55, blue: 0.0)
+    /// 神話（Mythic）稀有度：深紅色
+    static let rarityMythic    = Color(red: 0.75, green: 0.05, blue: 0.15)
 
     // MARK: - 勝率色
+
 
     /// 依勝率百分比回傳語意色（綠 / 橙 / 紅）
     static func winRate(_ rate: Int) -> Color {
@@ -52,4 +63,22 @@ extension Color {
         default:       return .red
         }
     }
+}
+
+// MARK: - EquipmentRarity 顯示色（V8-1）
+
+extension EquipmentRarity {
+    /// 稀有度對應強調色；common 回傳 .primary（不強調）
+    var displayColor: Color {
+        switch self {
+        case .common:    return .primary
+        case .refined:   return .rarityFine
+        case .rare:      return .rarityRare
+        case .epic:      return .rarityEpic
+        case .legendary: return .rarityLegendary
+        case .mythic:    return .rarityMythic
+        }
+    }
+    /// common 以外皆有強調色
+    var hasAccent: Bool { self != .common }
 }

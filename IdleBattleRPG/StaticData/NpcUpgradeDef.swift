@@ -75,9 +75,11 @@ enum NpcUpgradeDef {
     // MARK: 鑄造師升級成本（EXP + 素材 + 金幣）
 
     static let blacksmithCosts: [NpcUpgradeCostDef] = [
-        .init(fromTier: 0, expCost:  80, materialCosts: [(.ore,              10)], goldCost:  400),
-        .init(fromTier: 1, expCost: 250, materialCosts: [(.crystalShard,      5)], goldCost: 1200),
-        .init(fromTier: 2, expCost: 700, materialCosts: [(.ancientFragment,   3)], goldCost: 2500),
+        .init(fromTier: 0, expCost:   80, materialCosts: [(.ore,             10)], goldCost:  400),
+        .init(fromTier: 1, expCost:  250, materialCosts: [(.crystalShard,     5)], goldCost: 1200),
+        .init(fromTier: 2, expCost:  700, materialCosts: [(.ancientFragment,  3)], goldCost: 2500),
+        // V8-1：第 4 階，需沉沒之城 Boss 素材
+        .init(fromTier: 3, expCost: 2000, materialCosts: [(.sunkenKingSeal,   3)], goldCost: 8000),
     ]
 
     // MARK: 廚師升級成本（EXP + 魚類素材 + 金幣）
@@ -132,9 +134,10 @@ enum NpcUpgradeDef {
     // Tier 1：0.85（縮短 15%）
     // Tier 2：0.75（縮短 25%）
     // Tier 3：0.65（縮短 35%）
+    // Tier 4：0.55（縮短 45%）V8-1
     // 下限 30 秒（TaskCreationService 的 max(30, ...) 保護）
 
-    private static let craftMultipliers: [Double] = [1.0, 0.85, 0.75, 0.65]
+    private static let craftMultipliers: [Double] = [1.0, 0.85, 0.75, 0.65, 0.55]
 
     static func craftDurationMultiplier(tier: Int) -> Double {
         guard tier >= 0, tier < craftMultipliers.count else { return 1.0 }

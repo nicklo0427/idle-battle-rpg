@@ -18,6 +18,7 @@ enum TradeCategory {
     case areaMaterial    // V2-1 區域素材 → 金幣
     case gatherMaterial  // V7-1 採集專屬素材 → 金幣
     case cropSell        // V7-4 農作物出售 → 金幣
+    case sunkenMaterial  // V8-2 沉落王城素材 → 金幣
 }
 
 // MARK: - 兌換項目定義
@@ -213,6 +214,12 @@ extension MerchantTradeDef {
             category:     .gatherMaterial
         ),
 
+        // ── V8-2 沉落王城素材出售（素材 → 金幣）────────────────────────────
+        MerchantTradeDef(key: "sell_sunken_rune_shard",      giveMaterial: .sunkenRuneShard,      giveAmount: 3, receive: .gold(200), category: .sunkenMaterial),
+        MerchantTradeDef(key: "sell_abyssal_crystal_drop",   giveMaterial: .abyssalCrystalDrop,   giveAmount: 3, receive: .gold(200), category: .sunkenMaterial),
+        MerchantTradeDef(key: "sell_drowned_crown_fragment", giveMaterial: .drownedCrownFragment, giveAmount: 2, receive: .gold(280), category: .sunkenMaterial),
+        MerchantTradeDef(key: "sell_sunken_king_seal",       giveMaterial: .sunkenKingSeal,       giveAmount: 1, receive: .gold(400), category: .sunkenMaterial),
+
         // ── V7-4 農作物出售（農作物 → 金幣）────────────────────────────────
         // 普通品質：10 金/顆
         MerchantTradeDef(key: "sell_wheat",         giveMaterial: .wheat,        giveAmount: 1, receive: .gold(10), category: .cropSell),
@@ -241,9 +248,11 @@ extension MerchantTradeDef {
         ("buy_ancient_fragment", 800,  .ancientFragment, 1),
         ("buy_spirit_herb",      400,  .spiritHerb,      1),
         ("buy_abyss_fish",       400,  .abyssFish,       1),
-        // V7-4 種子補給（商人只賣最基礎兩種，其餘靠地下城掉落）
-        ("buy_wheat_seed",       80,   .wheatSeed,       3),
-        ("buy_vegetable_seed",   120,  .vegetableSeed,   3),
+        // V7-4 種子補給（V8-2 補齊全部 4 種）
+        ("buy_wheat_seed",        80,  .wheatSeed,        3),
+        ("buy_vegetable_seed",   120,  .vegetableSeed,    3),
+        ("buy_fruit_seed",       160,  .fruitSeed,        3),
+        ("buy_spirit_grain_seed",200,  .spiritGrainSeed,  3),
     ]
 
     static func find(key: String) -> MerchantTradeDef? {

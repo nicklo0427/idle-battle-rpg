@@ -10,61 +10,45 @@ import SwiftData
 struct PharmacySheet: View {
 
     let viewModel: BaseViewModel
+    let appState: AppState
     let player: PlayerStateModel?
     let inventory: MaterialInventoryModel?
-    @Binding var isPresented: Bool
 
     @Environment(\.modelContext) private var context
+    @Environment(\.dismiss)      private var dismiss
 
-    @Query private var consumables: [ConsumableInventoryModel]
-    private var consumable: ConsumableInventoryModel? { consumables.first }
+    @State private var upgradeExpanded: Bool = true
+    @State private var detailTab:       DetailTab = .upgrade
+    @State private var upgradeAlertMsg: String?
 
-    @State private var errorMessage: String?
+    private enum DetailTab { case upgrade, skill }
+    @State private var errorMessage:    String?
     @State private var showError = false
+
+    // MARK: - Computed
+
+    private var currentTier: Int { player?.tier(for: AppConstants.Actor.pharmacist) ?? 0 }
+
+    private var upgradeCost: NpcUpgradeCostDef? {
+        guard let player else { return nil }
+        return appState.npcUpgradeService.nextUpgradeCost(
+            npcKind: .pharmacist, actorKey: AppConstants.Actor.pharmacist, player: player)
+    }
+
+    private var canUpgrade: Bool {
+        guard let cost = upgradeCost, let player, let inventory else { return false }
+        let expOk  = player.heroExp >= cost.expCost
+        let matOk  = cost.materialCosts.allSatisfy { inventory.amount(of: $0.0) >= $0.1 }
+        let goldOk = player.gold >= cost.goldCost
+        return expOk && matOk && goldOk
+    }
 
     var body: some View {
         NavigationStack {
             List {
 
-                // ── 消耗品背包（料理 + 藥水全顯示）──────────────────────
-                Section("消耗品背包") {
-                    ForEach(ConsumableType.allCases, id: \.self) { type in
-                        let count = consumable?.amount(of: type) ?? 0
-                        HStack {
-                            Text("\(type.icon) \(type.displayName)")
-                                .foregroundStyle(count > 0 ? .primary : .secondary)
-                            Spacer()
-                            Text("\(count)")
-                                .monospacedDigit()
-                                .foregroundStyle(count > 0 ? .primary : .secondary)
-                        }
-                    }
-                }
-
-                // ── 目前資源 ─────────────────────────────────────────────
-                Section("目前資源") {
-                    HStack {
-                        Label("金幣", systemImage: "coins")
-                            .foregroundStyle(.yellow)
-                        Spacer()
-                        Text("\(player?.gold ?? 0)")
-                            .fontWeight(.semibold)
-                            .monospacedDigit()
-                    }
-                    let relatedMaterials: [MaterialType] = [.wheat, .vegetable, .fruit, .spiritGrain]
-                    ForEach(relatedMaterials, id: \.self) { mat in
-                        let amount = inventory?.amount(of: mat) ?? 0
-                        HStack {
-                            Text("\(mat.icon) \(mat.displayName)")
-                                .foregroundStyle(amount > 0 ? .primary : .secondary)
-                            Spacer()
-                            Text("\(amount)")
-                                .fontWeight(.medium)
-                                .monospacedDigit()
-                                .foregroundStyle(amount > 0 ? .primary : .secondary)
-                        }
-                    }
-                }
+                // ── 升級 Section（可收合）────────────────────────────────
+                upgradeSection
 
                 // ── 藥水配方 ─────────────────────────────────────────────
                 Section {
@@ -88,9 +72,17 @@ struct PharmacySheet: View {
             .navigationTitle("製藥師")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { isPresented = false }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("完成") { dismiss() }
                 }
+            }
+            .alert("提示", isPresented: Binding(
+                get: { upgradeAlertMsg != nil },
+                set: { if !$0 { upgradeAlertMsg = nil } }
+            )) {
+                Button("確定", role: .cancel) { upgradeAlertMsg = nil }
+            } message: {
+                Text(upgradeAlertMsg ?? "")
             }
             .alert("無法煉製", isPresented: $showError) {
                 Button("確定", role: .cancel) {}
@@ -98,6 +90,182 @@ struct PharmacySheet: View {
                 Text(errorMessage ?? "發生未知錯誤")
             }
         }
+    }
+
+    // MARK: - Section：升級（可收合）
+
+    @ViewBuilder
+    private var upgradeSection: some View {
+        Section {
+            VStack(spacing: 0) {
+                HStack(spacing: 10) {
+                    Image(systemName: "cross.vial.fill")
+                        .foregroundStyle(.teal)
+                        .frame(width: 22)
+                    Text(currentTier < NpcUpgradeDef.maxTier
+                         ? "升級後加快煉藥速度"
+                         : "已達升級上限")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    TierBadgeView(tier: currentTier, alwaysShow: true, color: .teal)
+                    Image(systemName: "chevron.down")
+                        .font(.caption2).foregroundStyle(.tertiary)
+                        .rotationEffect(.degrees(upgradeExpanded ? 0 : -90))
+                }
+                .padding(.vertical, 4)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    withAnimation(.easeInOut(duration: 0.2)) { upgradeExpanded.toggle() }
+                }
+                if upgradeExpanded {
+                    Divider().padding(.top, 6)
+                    Picker("", selection: $detailTab) {
+                        Text("升級").tag(DetailTab.upgrade)
+                        Text("技能").tag(DetailTab.skill)
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.vertical, 8)
+                    Divider()
+                    if detailTab == .upgrade { upgradeContent } else { skillContent }
+                }
+            }
+            .animation(.easeInOut(duration: 0.2), value: upgradeExpanded)
+            .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))
+            .listRowSeparator(.hidden)
+        }
+    }
+
+    @ViewBuilder
+    private var upgradeContent: some View {
+        if currentTier >= NpcUpgradeDef.maxTier {
+            HStack {
+                Label("已達升級上限 T\(NpcUpgradeDef.maxTier)", systemImage: "checkmark.seal.fill")
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+            .padding(.vertical, 10)
+        } else if let cost = upgradeCost, let player {
+            upgradeRow(label: "EXP", required: cost.expCost, have: player.heroExp)
+            ForEach(cost.materialCosts, id: \.0) { mat, req in
+                Divider()
+                upgradeRow(label: "\(mat.icon) \(mat.displayName)",
+                           required: req, have: inventory?.amount(of: mat) ?? 0)
+            }
+            Divider()
+            upgradeGoldRow(required: cost.goldCost, have: player.gold)
+            Button("升至 T\(currentTier + 1)") { performUpgrade() }
+                .buttonStyle(.borderedProminent)
+                .tint(.teal)
+                .frame(maxWidth: .infinity)
+                .disabled(!canUpgrade)
+                .padding(.top, 10)
+                .padding(.bottom, 4)
+        }
+    }
+
+    // MARK: - 技能頁
+
+    @ViewBuilder
+    private var skillContent: some View {
+        let nodes    = ProducerSkillNodeDef.nodes(for: AppConstants.Actor.pharmacist)
+        let availPts = player?.skillPoints(for: AppConstants.Actor.pharmacist) ?? 0
+        if availPts > 0 {
+            HStack {
+                Spacer()
+                Text("可用點數：\(availPts)")
+                    .font(.caption).foregroundStyle(.teal).fontWeight(.semibold)
+            }
+            .padding(.vertical, 8)
+            Divider()
+        }
+        ForEach(nodes, id: \.key) { node in
+            skillNodeRow(node, availPoints: availPts)
+            if node.key != nodes.last?.key { Divider() }
+        }
+    }
+
+    @ViewBuilder
+    private func skillNodeRow(_ node: ProducerSkillNodeDef, availPoints: Int) -> some View {
+        let level     = player?.skillLevel(nodeKey: node.key, actorKey: AppConstants.Actor.pharmacist) ?? 0
+        let isMaxed   = level >= node.maxLevel
+        let prereqMet: Bool = {
+            guard let prereqKey = node.prerequisiteKey, let p = player else { return true }
+            return p.skillLevel(nodeKey: prereqKey, actorKey: AppConstants.Actor.pharmacist) >= node.prerequisiteLevel
+        }()
+        let canInvest = !isMaxed && prereqMet && availPoints > 0
+
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    Text(node.name).fontWeight(.medium)
+                        .foregroundStyle(prereqMet ? .primary : .secondary)
+                    Text("Lv.\(level)/\(node.maxLevel)")
+                        .font(.caption).monospacedDigit().foregroundStyle(.secondary)
+                    if isMaxed {
+                        Text("已滿").font(.caption2)
+                            .padding(.horizontal, 5).padding(.vertical, 2)
+                            .background(Color.teal.opacity(0.15))
+                            .foregroundStyle(.teal).clipShape(Capsule())
+                    }
+                }
+                if !prereqMet, let prereqKey = node.prerequisiteKey,
+                   let prereqNode = ProducerSkillNodeDef.find(key: prereqKey) {
+                    Text("需先點「\(prereqNode.name)」達 \(node.prerequisiteLevel) 級")
+                        .font(.caption).foregroundStyle(.tertiary)
+                } else {
+                    Text(node.description).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+            if canInvest {
+                Button {
+                    guard let player else { return }
+                    if let errMsg = viewModel.investProducerSkillPoint(
+                        nodeKey: node.key, actorKey: AppConstants.Actor.pharmacist,
+                        player: player, context: context) {
+                        upgradeAlertMsg = errMsg
+                    }
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title3).foregroundStyle(.teal)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.vertical, 8)
+    }
+
+    private func upgradeRow(label: String, required: Int, have: Int) -> some View {
+        HStack {
+            Text(label)
+            Spacer()
+            Text("\(have) / \(required)")
+                .font(.caption)
+                .foregroundStyle(have >= required ? Color.secondary : Color.red)
+                .monospacedDigit()
+        }
+        .padding(.vertical, 10)
+    }
+
+    private func upgradeGoldRow(required: Int, have: Int) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: "coins").imageScale(.small).foregroundStyle(.yellow)
+            Text("金幣")
+            Spacer()
+            Text("\(have) / \(required)")
+                .font(.caption)
+                .foregroundStyle(have >= required ? Color.secondary : Color.red)
+                .monospacedDigit()
+        }
+        .padding(.vertical, 10)
+    }
+
+    private func performUpgrade() {
+        guard let player else { return }
+        let result = appState.npcUpgradeService.upgrade(
+            npcKind: .pharmacist, actorKey: AppConstants.Actor.pharmacist, player: player)
+        if case .failure(let err) = result { upgradeAlertMsg = err.message }
     }
 
     // MARK: - Potion Row
@@ -174,7 +342,7 @@ struct PharmacySheet: View {
         let result = viewModel.startAlchemyTask(recipeKey: potion.key, context: context)
         switch result {
         case .success:
-            isPresented = false
+            dismiss()
         case .failure(let error):
             errorMessage = error.errorDescription
             showError = true
@@ -183,17 +351,17 @@ struct PharmacySheet: View {
 }
 
 #Preview {
-    @Previewable @State var isPresented = true
     let container = try! ModelContainer(
         for: PlayerStateModel.self, MaterialInventoryModel.self,
              ConsumableInventoryModel.self, EquipmentModel.self, TaskModel.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
+    let appState = AppState(context: container.mainContext)
     PharmacySheet(
         viewModel: BaseViewModel(),
+        appState: appState,
         player: nil,
-        inventory: nil,
-        isPresented: $isPresented
+        inventory: nil
     )
     .modelContainer(container)
 }

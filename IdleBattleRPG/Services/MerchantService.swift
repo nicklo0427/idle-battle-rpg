@@ -98,6 +98,86 @@ struct MerchantService {
         return .success(())
     }
 
+    // MARK: - 多批次賣出（確認 Sheet 使用）
+
+    /// 賣出 N 批次（原子）。times 必須 >= 1。
+    @discardableResult
+    func executeSellTrade(tradeKey: String, times: Int) -> Result<Void, MerchantTradeError> {
+        guard times >= 1 else { return .success(()) }
+        guard let trade = MerchantTradeDef.find(key: tradeKey) else {
+            return .failure(.tradeNotFound)
+        }
+        guard let player = fetchPlayer() else { return .failure(.noPlayer) }
+        guard let inv    = fetchInventory() else { return .failure(.noInventory) }
+
+        let totalGive = trade.giveAmount * times
+        let have = inv.amount(of: trade.giveMaterial)
+        guard have >= totalGive else {
+            return .failure(.insufficientMaterial(trade.giveMaterial, have: have, need: totalGive))
+        }
+        guard case .gold(let goldPerBatch) = trade.receive else {
+            return .failure(.tradeNotFound)
+        }
+
+        inv.deduct(totalGive, of: trade.giveMaterial)
+        player.gold += goldPerBatch * times
+        save()
+        return .success(())
+    }
+
+    // MARK: - 多批次購買（確認 Sheet 使用）
+
+    /// 購買 N 次（原子）。times 必須 >= 1。
+    @discardableResult
+    func executeBuyTrade(tradeKey: String, times: Int) -> Result<Void, MerchantTradeError> {
+        guard times >= 1 else { return .success(()) }
+        guard let trade = MerchantTradeDef.goldTrades.first(where: { $0.key == tradeKey }) else {
+            return .failure(.tradeNotFound)
+        }
+        guard let player = fetchPlayer() else { return .failure(.noPlayer) }
+        guard let inv    = fetchInventory() else { return .failure(.noInventory) }
+
+        let totalCost = trade.goldCost * times
+        guard player.gold >= totalCost else {
+            return .failure(.insufficientGold(have: player.gold, need: totalCost))
+        }
+
+        player.gold -= totalCost
+        inv.add(trade.receiveAmount * times, of: trade.receiveMaterial)
+        save()
+        return .success(())
+    }
+
+    // MARK: - 全賣（一次清空可負擔的最大批次）
+
+    /// 將目前庫存中符合批次要求的最多次數一次賣出，回傳實際執行批次數。
+    /// 例：持有 25 木材，批次 10 → 執行 2 次，賣出 20 木材，剩 5。
+    @discardableResult
+    func executeMaxSellTrade(tradeKey: String) -> Result<Int, MerchantTradeError> {
+        guard let trade = MerchantTradeDef.find(key: tradeKey) else {
+            return .failure(.tradeNotFound)
+        }
+        guard let player = fetchPlayer() else { return .failure(.noPlayer) }
+        guard let inv    = fetchInventory() else { return .failure(.noInventory) }
+
+        let owned = inv.amount(of: trade.giveMaterial)
+        let times = owned / trade.giveAmount
+        guard times > 0 else {
+            return .failure(.insufficientMaterial(trade.giveMaterial, have: owned, need: trade.giveAmount))
+        }
+        guard case .gold(let goldPerBatch) = trade.receive else {
+            return .failure(.tradeNotFound)
+        }
+
+        // 計算總量後一次扣除、一次入帳、一次 save（原子）
+        inv.deduct(trade.giveAmount * times, of: trade.giveMaterial)
+        player.gold += goldPerBatch * times
+        save()
+
+        print("[MerchantService] 全賣 \(trade.giveMaterial.displayName) ×\(trade.giveAmount * times) → 金幣 +\(goldPerBatch * times)（\(times) 批）")
+        return .success(times)
+    }
+
     // MARK: - 便利查詢（供 UI 預先判斷是否可負擔）
 
     func canAffordSell(tradeKey: String, inventory: MaterialInventoryModel?) -> Bool {

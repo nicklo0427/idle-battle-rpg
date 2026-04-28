@@ -66,6 +66,22 @@ enum AppConstants {
         }
     }
 
+    // MARK: - 採集時長選項（秒）
+    enum GatherDuration {
+        static let short: Int = 5 * 60          // 5 分鐘（每輪基本單位）
+        static let long:  Int = 12 * 3600       // 12 小時（上限）
+
+        static let all: [Int] = [
+             5 * 60,    //  5 分鐘  →   1 輪
+            15 * 60,    // 15 分鐘  →   3 輪
+            30 * 60,    // 30 分鐘  →   6 輪
+            60 * 60,    //  1 小時  →  12 輪
+             4 * 3600,  //  4 小時  →  48 輪
+             8 * 3600,  //  8 小時  →  96 輪
+            12 * 3600,  // 12 小時  → 144 輪
+        ]
+    }
+
     // MARK: - 英雄升級所需 EXP
     enum ExpThreshold {
         private static let table: [Int: Int] = [

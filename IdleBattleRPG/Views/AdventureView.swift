@@ -53,7 +53,6 @@ struct AdventureView: View {
     var body: some View {
         NavigationStack {
             List {
-                heroStatSection
                 activeBannerSection
                 firstBoostBannerSection
                 regionListSection
@@ -96,28 +95,6 @@ struct AdventureView: View {
     }
 
     // MARK: - Sections
-
-    private var heroStatSection: some View {
-        Section("英雄戰力") {
-            if let stats = heroStats {
-                HStack {
-                    Label("當前戰力", systemImage: "bolt.fill")
-                        .foregroundStyle(.yellow)
-                    Spacer()
-                    Text("\(stats.power)")
-                        .fontWeight(.bold)
-                        .monospacedDigit()
-                }
-            } else {
-                Label {
-                    Text("尚無英雄資料")
-                } icon: {
-                    Image(systemName: "exclamationmark.circle.fill").frame(width: 16, height: 16)
-                }
-                .foregroundStyle(.red)
-            }
-        }
-    }
 
     @ViewBuilder
     private var activeBannerSection: some View {
@@ -212,15 +189,9 @@ struct AdventureView: View {
                 .foregroundStyle(completed ? .green : (unlocked ? Color.dungeonRegion(region.key) : .secondary))
                 .frame(width: 26)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(region.name)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(unlocked ? .primary : .secondary)
-                Text(region.regionDescription)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
+            Text(region.name)
+                .fontWeight(.semibold)
+                .foregroundStyle(unlocked ? .primary : .secondary)
 
             Spacer()
 
@@ -302,14 +273,6 @@ struct AdventureView: View {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.caption)
                                 .foregroundStyle(.green)
-                        }
-                        if floor.isBossFloor, let bossName = floor.bossName {
-                            Text(bossName)
-                                .font(.caption2)
-                                .foregroundStyle(Color.dungeonRegion(region.key))  // T01 Boss 名稱
-                                .padding(.horizontal, 5).padding(.vertical, 1)
-                                .background(Color.dungeonRegion(region.key).opacity(0.12))
-                                .clipShape(Capsule())
                         }
                     }
 

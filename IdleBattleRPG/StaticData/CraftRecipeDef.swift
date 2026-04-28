@@ -48,7 +48,7 @@ struct CraftRecipeDef {
 
 extension CraftRecipeDef {
 
-    static let all: [CraftRecipeDef] = v1Recipes + v2Recipes + v7Recipes
+    static let all: [CraftRecipeDef] = v1Recipes + v2Recipes + v7Recipes + v8Recipes
 
     static let v1Recipes: [CraftRecipeDef] = [
 
@@ -396,6 +396,142 @@ private extension CraftRecipeDef {
             ],
             goldCost:          1500,
             outputEquipmentKey: "sunken_city_weapon",
+            unlockedByFloorKey: "sunken_floor_4"
+        ),
+    ]
+}
+
+// MARK: - V8-1 稀有/史詩配方靜態資料
+
+private extension CraftRecipeDef {
+
+    static let v8Recipes: [CraftRecipeDef] = rareRecipes + epicRecipes
+
+    // ── 稀有套組（靈火套裝）：沉沒之城 floor 2 清關後解鎖 ────────────────
+    static let rareRecipes: [CraftRecipeDef] = [
+
+        CraftRecipeDef(
+            key:               "recipe_rare_weapon",
+            name:              "鑄造靈火劍",
+            slot:              .weapon,
+            rarity:            .rare,
+            durationSeconds:   90 * 60,
+            requiredMaterials: [
+                MaterialRequirement(material: .sunkenRuneShard, amount: 3),
+                MaterialRequirement(material: .spiritHerb,     amount: 8),
+            ],
+            goldCost:           2500,
+            outputEquipmentKey: "rare_weapon",
+            unlockedByFloorKey: "sunken_floor_2"
+        ),
+        CraftRecipeDef(
+            key:               "recipe_rare_armor",
+            name:              "鑄造深淵重甲",
+            slot:              .armor,
+            rarity:            .rare,
+            durationSeconds:   90 * 60,
+            requiredMaterials: [
+                MaterialRequirement(material: .abyssalCrystalDrop, amount: 3),
+                MaterialRequirement(material: .abyssFish,          amount: 8),
+            ],
+            goldCost:           2500,
+            outputEquipmentKey: "rare_armor",
+            unlockedByFloorKey: "sunken_floor_2"
+        ),
+        CraftRecipeDef(
+            key:               "recipe_rare_offhand",
+            name:              "鑄造古木戰盾",
+            slot:              .offhand,
+            rarity:            .rare,
+            durationSeconds:   75 * 60,
+            requiredMaterials: [
+                MaterialRequirement(material: .drownedCrownFragment, amount: 2),
+                MaterialRequirement(material: .ancientWood,          amount: 12),
+            ],
+            goldCost:           2000,
+            outputEquipmentKey: "rare_offhand",
+            unlockedByFloorKey: "sunken_floor_2"
+        ),
+        CraftRecipeDef(
+            key:               "recipe_rare_accessory",
+            name:              "鑄造深海護符",
+            slot:              .accessory,
+            rarity:            .rare,
+            durationSeconds:   75 * 60,
+            requiredMaterials: [
+                MaterialRequirement(material: .sunkenKingSeal, amount: 1),
+                MaterialRequirement(material: .abyssFish,      amount: 5),
+                MaterialRequirement(material: .spiritHerb,     amount: 5),
+            ],
+            goldCost:           3000,
+            outputEquipmentKey: "rare_accessory",
+            unlockedByFloorKey: "sunken_floor_2"
+        ),
+    ]
+
+    // ── 史詩套組（永恆套裝）：沉沒之城 Boss（floor 4）清關後解鎖 ──────────
+    // 原料跨三系統：沉城 Boss 素材 + V7 採集素材 + V7-4 頂級農作物
+    static let epicRecipes: [CraftRecipeDef] = [
+
+        CraftRecipeDef(
+            key:               "recipe_epic_weapon",
+            name:              "鑄造永恆刃",
+            slot:              .weapon,
+            rarity:            .epic,
+            durationSeconds:   120 * 60,
+            requiredMaterials: [
+                MaterialRequirement(material: .sunkenKingSeal, amount: 2),
+                MaterialRequirement(material: .spiritGrainTop, amount: 3),
+                MaterialRequirement(material: .spiritHerb,     amount: 10),
+            ],
+            goldCost:           5000,
+            outputEquipmentKey: "epic_weapon",
+            unlockedByFloorKey: "sunken_floor_4"
+        ),
+        CraftRecipeDef(
+            key:               "recipe_epic_armor",
+            name:              "鑄造神域護甲",
+            slot:              .armor,
+            rarity:            .epic,
+            durationSeconds:   120 * 60,
+            requiredMaterials: [
+                MaterialRequirement(material: .sunkenKingSeal, amount: 2),
+                MaterialRequirement(material: .fruitTop,       amount: 3),
+                MaterialRequirement(material: .abyssFish,      amount: 10),
+            ],
+            goldCost:           5000,
+            outputEquipmentKey: "epic_armor",
+            unlockedByFloorKey: "sunken_floor_4"
+        ),
+        CraftRecipeDef(
+            key:               "recipe_epic_offhand",
+            name:              "鑄造虛空之盾",
+            slot:              .offhand,
+            rarity:            .epic,
+            durationSeconds:   110 * 60,
+            requiredMaterials: [
+                MaterialRequirement(material: .drownedCrownFragment, amount: 4),
+                MaterialRequirement(material: .wheatTop,             amount: 5),
+                MaterialRequirement(material: .ancientWood,          amount: 15),
+            ],
+            goldCost:           4000,
+            outputEquipmentKey: "epic_offhand",
+            unlockedByFloorKey: "sunken_floor_4"
+        ),
+        CraftRecipeDef(
+            key:               "recipe_epic_accessory",
+            name:              "鑄造深淵聖環",
+            slot:              .accessory,
+            rarity:            .epic,
+            durationSeconds:   120 * 60,
+            requiredMaterials: [
+                MaterialRequirement(material: .sunkenKingSeal, amount: 3),
+                MaterialRequirement(material: .spiritGrainTop, amount: 5),
+                MaterialRequirement(material: .abyssFish,      amount: 8),
+                MaterialRequirement(material: .spiritHerb,     amount: 8),
+            ],
+            goldCost:           6000,
+            outputEquipmentKey: "epic_accessory",
             unlockedByFloorKey: "sunken_floor_4"
         ),
     ]

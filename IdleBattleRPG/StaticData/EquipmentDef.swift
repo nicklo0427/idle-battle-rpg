@@ -34,13 +34,21 @@ enum EquipmentSlot: String, CaseIterable, Codable {
 // MARK: - 裝備稀有度
 
 enum EquipmentRarity: String, CaseIterable, Codable {
-    case common  = "common"
-    case refined = "refined"
+    case common    = "common"
+    case refined   = "refined"
+    case rare      = "rare"       // V8-1 稀有
+    case epic      = "epic"       // V8-1 史詩
+    case legendary = "legendary"  // V8+ 傳說（預留）
+    case mythic    = "mythic"     // V8+ 神話（預留）
 
     var displayName: String {
         switch self {
-        case .common:  return "普通"
-        case .refined: return "精良"
+        case .common:    return "普通"
+        case .refined:   return "精良"
+        case .rare:      return "稀有"
+        case .epic:      return "史詩"
+        case .legendary: return "傳說"
+        case .mythic:    return "神話"
         }
     }
 }
@@ -311,6 +319,86 @@ extension EquipmentDef {
             defBonus: 0,
             hpBonus:  0,
             atkRange: 82...108  // Boss 掉落浮動範圍；下限 = 鑄造 +2，最高 216 power
+        ),
+
+        // ── V8-1 稀有套組（靈火套裝）────────────────────────────────────────
+        // 設計：沉沒之城素材 + V7 採集素材合鑄，需清沉沒之城 floor 2
+        // 戰力約為沉城精良套裝 ×1.35
+        EquipmentDef(
+            key:      "rare_weapon",
+            name:     "靈火劍",
+            slot:     .weapon,
+            rarity:   .rare,
+            atkBonus: 110,  // power 220  (沉城武器 160 → 此件 → 史詩 290)
+            defBonus: 0,
+            hpBonus:  0
+        ),
+        EquipmentDef(
+            key:      "rare_armor",
+            name:     "深淵重甲",
+            slot:     .armor,
+            rarity:   .rare,
+            atkBonus: 0,    // power: 58×1.5 + 130 = 217  (沉城 162 → 此件 → 史詩 292)
+            defBonus: 58,
+            hpBonus:  130
+        ),
+        EquipmentDef(
+            key:      "rare_offhand",
+            name:     "古木戰盾",
+            slot:     .offhand,
+            rarity:   .rare,
+            atkBonus: 0,    // power: 38×1.5 + 75 = 132  (沉城 98 → 此件 → 史詩 175)
+            defBonus: 38,
+            hpBonus:  75
+        ),
+        EquipmentDef(
+            key:      "rare_accessory",
+            name:     "深海護符",
+            slot:     .accessory,
+            rarity:   .rare,
+            atkBonus: 28,   // power: 28×2 + 14×1.5 + 48 = 125  (沉城 90 → 此件 → 史詩 165)
+            defBonus: 14,
+            hpBonus:  48
+        ),
+
+        // ── V8-1 史詩套組（永恆套裝）────────────────────────────────────────
+        // 設計：沉沒之城 Boss 素材 + V7 採集素材 + 頂級農作物，需清沉沒之城 Boss
+        // 戰力約為稀有套裝 ×1.32，終局目標裝備
+        EquipmentDef(
+            key:      "epic_weapon",
+            name:     "永恆刃",
+            slot:     .weapon,
+            rarity:   .epic,
+            atkBonus: 145,  // power 290
+            defBonus: 0,
+            hpBonus:  0
+        ),
+        EquipmentDef(
+            key:      "epic_armor",
+            name:     "神域護甲",
+            slot:     .armor,
+            rarity:   .epic,
+            atkBonus: 0,    // power: 78×1.5 + 175 = 292
+            defBonus: 78,
+            hpBonus:  175
+        ),
+        EquipmentDef(
+            key:      "epic_offhand",
+            name:     "虛空之盾",
+            slot:     .offhand,
+            rarity:   .epic,
+            atkBonus: 0,    // power: 50×1.5 + 100 = 175
+            defBonus: 50,
+            hpBonus:  100
+        ),
+        EquipmentDef(
+            key:      "epic_accessory",
+            name:     "深淵聖環",
+            slot:     .accessory,
+            rarity:   .epic,
+            atkBonus: 37,   // power: 37×2 + 20×1.5 + 65 = 169
+            defBonus: 20,
+            hpBonus:  65
         ),
 
         // ── V7-2 採集系裝備 ──────────────────────────────────────────────

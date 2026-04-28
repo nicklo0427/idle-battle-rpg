@@ -41,10 +41,6 @@ struct NpcUpgradeService {
 
         let currentTier = player.tier(for: actorKey)
 
-        guard currentTier < NpcUpgradeDef.maxTier else {
-            return .failure(.alreadyMaxTier)
-        }
-
         guard let cost = NpcUpgradeDef.upgradeCost(npcKind: npcKind, fromTier: currentTier) else {
             return .failure(.alreadyMaxTier)
         }
@@ -90,12 +86,18 @@ struct NpcUpgradeService {
         default: break
         }
 
-        // 採集者升 Tier 獲得技能點（V7-1 T02）
+        // 升 Tier 獲得技能點（採集者 + 生產者）
         switch actorKey {
-        case "gatherer_1": player.gatherer1SkillPoints += 1
-        case "gatherer_2": player.gatherer2SkillPoints += 1
-        case "gatherer_3": player.gatherer3SkillPoints += 1
-        case "gatherer_4": player.gatherer4SkillPoints += 1
+        case "gatherer_1":  player.gatherer1SkillPoints  += 1
+        case "gatherer_2":  player.gatherer2SkillPoints  += 1
+        case "gatherer_3":  player.gatherer3SkillPoints  += 1
+        case "gatherer_4":  player.gatherer4SkillPoints  += 1
+        case "blacksmith":  player.blacksmithSkillPoints += 1
+        case "chef":        player.chefSkillPoints       += 1
+        case "pharmacist":  player.pharmacistSkillPoints += 1
+        case "farmer_plot_1", "farmer_plot_2",
+             "farmer_plot_3", "farmer_plot_4":
+                            player.farmerSkillPoints     += 1
         default: break
         }
 
@@ -107,9 +109,7 @@ struct NpcUpgradeService {
 
     /// 下一次升級完整成本；`nil` 表示已達上限
     func nextUpgradeCost(npcKind: NpcKind, actorKey: String, player: PlayerStateModel) -> NpcUpgradeCostDef? {
-        let tier = player.tier(for: actorKey)
-        guard tier < NpcUpgradeDef.maxTier else { return nil }
-        return NpcUpgradeDef.upgradeCost(npcKind: npcKind, fromTier: tier)
+        NpcUpgradeDef.upgradeCost(npcKind: npcKind, fromTier: player.tier(for: actorKey))
     }
 
     // MARK: - Private

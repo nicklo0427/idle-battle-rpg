@@ -422,11 +422,32 @@ struct CharacterView: View {
                 }
             }
         } header: {
-            Text("裝備（\(unequipped.count) 件未裝備）")
+            VStack(alignment: .leading, spacing: 4) {
+                Text("裝備（\(unequipped.count) 件未裝備）")
+                rarityLegendView
+            }
         } footer: {
             Text("點擊穿上 · 右滑強化 · 左滑拆解")
                 .font(.caption)
         }
+    }
+
+    // MARK: - 稀有度色彩說明條
+
+    private var rarityLegendView: some View {
+        HStack(spacing: 10) {
+            ForEach(EquipmentRarity.allCases, id: \.self) { rarity in
+                HStack(spacing: 3) {
+                    Circle()
+                        .fill(rarity == .common ? Color.secondary.opacity(0.5) : rarity.displayColor)
+                        .frame(width: 6, height: 6)
+                    Text(rarity.displayName)
+                        .font(.caption2)
+                        .foregroundStyle(rarity == .common ? Color.secondary : rarity.displayColor)
+                }
+            }
+        }
+        .textCase(nil)
     }
 
     // ── 通用素材 Tab ────────────────────────────────────────────────
@@ -1055,6 +1076,10 @@ struct CharacterView: View {
     @ViewBuilder
     private func equippedSlotRow(slot: EquipmentSlot, item: EquipmentModel?) -> some View {
         HStack {
+            Rectangle()
+                .fill(item.map { $0.rarity.hasAccent ? $0.rarity.displayColor.opacity(0.8) : Color.secondary.opacity(0.35) } ?? Color.clear)
+                .frame(width: 3)
+                .clipShape(Capsule())
             Text(slot.icon).frame(width: 28)
             Text(slot.displayName).foregroundStyle(.secondary)
             Spacer()
@@ -1067,17 +1092,12 @@ struct CharacterView: View {
                         }
                         Text(item.displayName)
                             .fontWeight(.medium)
-                            .foregroundStyle(item.rarity == .refined ? Color.rarityRefined : Color.primary)  // T03 精良金色
+                            .foregroundStyle(item.rarity.hasAccent ? item.rarity.displayColor : Color.primary)
                     }
-                    HStack(spacing: 4) {
-                        Text(item.rarity.displayName)
+                    if item.atkBonus > 0 {
+                        Text("ATK +\(item.atkBonus)")
                             .font(.caption2)
-                            .foregroundStyle(item.rarity == .refined ? Color.rarityRefined : Color.secondary)  // T03 精良金色
-                        if item.atkBonus > 0 {
-                            Text("ATK +\(item.atkBonus)")
-                                .font(.caption2)
-                                .foregroundStyle(item.isRolledBossWeapon ? .yellow : .red)
-                        }
+                            .foregroundStyle(item.isRolledBossWeapon ? .yellow : .red)
                     }
                 }
                 if isOnExpedition {
@@ -1122,26 +1142,15 @@ struct CharacterView: View {
             guard !isOnExpedition else { return }
             equipSheetSlot = slot
         }
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .strokeBorder(
-                    item?.rarity == .refined
-                        ? Color.rarityRefined.opacity(0.6)
-                        : Color.clear,
-                    lineWidth: 1.5
-                )
-        )
     }
 
     @ViewBuilder
     private func backpackItemRow(_ item: EquipmentModel) -> some View {
         HStack {
-            if item.rarity == .refined {
-                Rectangle()
-                    .fill(Color.rarityRefined.opacity(0.8))
-                    .frame(width: 3)
-                    .clipShape(Capsule())
-            }
+            Rectangle()
+                .fill(item.rarity.hasAccent ? item.rarity.displayColor.opacity(0.8) : Color.secondary.opacity(0.35))
+                .frame(width: 3)
+                .clipShape(Capsule())
             Text(item.slot.icon).frame(width: 28)
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 2) {
@@ -1150,11 +1159,8 @@ struct CharacterView: View {
                     }
                     Text(item.displayName)
                         .fontWeight(.medium)
-                        .foregroundStyle(item.rarity == .refined ? Color.rarityRefined : Color.primary)  // T03 精良金色
+                        .foregroundStyle(item.rarity.hasAccent ? item.rarity.displayColor : Color.primary)
                 }
-                Text(item.rarity.displayName)
-                    .font(.caption2)
-                    .foregroundStyle(item.rarity == .refined ? Color.rarityRefined : Color.secondary)   // T03 精良金色
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 1) {
@@ -1233,16 +1239,16 @@ private struct EquipSelectSheet: View {
                                 HStack {
                                     if item.isRolledBossWeapon {
                                         Text("✦").font(.caption2).foregroundStyle(.yellow)
-                                    } else if item.rarity == .refined {
-                                        Text("★").font(.caption2).foregroundStyle(Color.rarityRefined)
+                                    } else if item.rarity.hasAccent {
+                                        Text("★").font(.caption2).foregroundStyle(item.rarity.displayColor)
                                     }
                                     Text(item.displayName)
                                         .fontWeight(.medium)
-                                        .foregroundStyle(item.rarity == .refined ? Color.rarityRefined : Color.primary)  // T03 精良金色
+                                        .foregroundStyle(item.rarity.hasAccent ? item.rarity.displayColor : Color.primary)
                                     Spacer()
                                     Text(item.rarity.displayName)
                                         .font(.caption2)
-                                        .foregroundStyle(item.rarity == .refined ? Color.rarityRefined : Color.secondary)  // T03 精良金色
+                                        .foregroundStyle(item.rarity.hasAccent ? item.rarity.displayColor : Color.secondary)
                                 }
 
                                 // 行 2：完整屬性數值

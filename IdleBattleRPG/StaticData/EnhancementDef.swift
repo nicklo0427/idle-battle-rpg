@@ -44,19 +44,23 @@ struct EnhancementBonusDef {
 
 enum EnhancementDef {
 
-    /// 強化等級上限（+0 到 +5）
-    static let maxLevel = 5
+    /// 強化等級上限（+0 到 +8）
+    static let maxLevel = 8
 
     // MARK: 金幣成本（每次強化費用，非累計）
 
     static let costs: [EnhancementCostDef] = [
-        .init(fromLevel: 0, goldCost: 100),
-        .init(fromLevel: 1, goldCost: 200),
-        .init(fromLevel: 2, goldCost: 350),
-        .init(fromLevel: 3, goldCost: 550),
-        .init(fromLevel: 4, goldCost: 800),
+        .init(fromLevel: 0, goldCost:  100),
+        .init(fromLevel: 1, goldCost:  200),
+        .init(fromLevel: 2, goldCost:  350),
+        .init(fromLevel: 3, goldCost:  550),
+        .init(fromLevel: 4, goldCost:  800),
+        // V8-1：+6 / +7 / +8
+        .init(fromLevel: 5, goldCost: 1200),
+        .init(fromLevel: 6, goldCost: 1800),
+        .init(fromLevel: 7, goldCost: 2800),
     ]
-    // 累計滿強化費用：2,000 金幣
+    // 累計滿強化費用：+5 = 2,000 金幣；+8 = 7,800 金幣
 
     // MARK: 每級加成（固定值，非百分比）
     //
@@ -101,6 +105,26 @@ enum EnhancementDef {
         "ruins_armor":     250,
         "ruins_offhand":   250,
         "ruins_weapon":    300,     // Boss 武器
+        // V4-3 沉沒之城
+        "sunken_city_accessory": 400,
+        "sunken_city_armor":     400,
+        "sunken_city_offhand":   400,
+        "sunken_city_weapon":    500,   // Boss 武器
+        // V7-2 採集系裝備
+        "gather_talisman": 40,
+        "gather_shield":   180,
+        "gather_armor":    220,
+        "gather_spear":    280,
+        // V8-1 稀有套組
+        "rare_weapon":    500,
+        "rare_armor":     500,
+        "rare_offhand":   500,
+        "rare_accessory": 500,
+        // V8-1 史詩套組
+        "epic_weapon":    1200,
+        "epic_armor":     1200,
+        "epic_offhand":   1200,
+        "epic_accessory": 1200,
         // rusty_sword：不加入，Service 層查不到即視為不可拆解
     ]
 

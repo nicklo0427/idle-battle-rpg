@@ -48,7 +48,7 @@ struct EnhancementService {
     // MARK: - 強化
 
     /// 強化一件裝備：扣金幣、遞增 enhancementLevel。
-    /// 已達 +5 或金幣不足時回傳 .failure，不寫入資料。
+    /// 已達 +8 或金幣不足時回傳 .failure，不寫入資料。
     @discardableResult
     func enhance(equipment: EquipmentModel, player: PlayerStateModel) -> Result<Void, EnhanceError> {
         guard equipment.enhancementLevel < EnhancementDef.maxLevel else {

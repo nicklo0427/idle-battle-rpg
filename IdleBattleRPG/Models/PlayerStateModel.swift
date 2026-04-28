@@ -97,6 +97,17 @@ final class PlayerStateModel {
     var gatherer4SkillPoints: Int = 0
     var gatherer4SkillsRaw:   String = ""
 
+    // MARK: - 生產者技能
+
+    var blacksmithSkillPoints: Int = 0
+    var blacksmithSkillsRaw:   String = ""
+    var chefSkillPoints:       Int = 0
+    var chefSkillsRaw:         String = ""
+    var pharmacistSkillPoints: Int = 0
+    var pharmacistSkillsRaw:   String = ""
+    var farmerSkillPoints:     Int = 0
+    var farmerSkillsRaw:       String = ""
+
     // MARK: - Init
 
     init(
@@ -225,13 +236,17 @@ extension PlayerStateModel {
             .compactMap { s in s.isEmpty ? nil : String(s) }
     }
 
-    /// 指定採集者可用技能點數
+    /// 指定 NPC 可用技能點數（採集者 + 生產者）
     func skillPoints(for actorKey: String) -> Int {
         switch actorKey {
-        case "gatherer_1": return gatherer1SkillPoints
-        case "gatherer_2": return gatherer2SkillPoints
-        case "gatherer_3": return gatherer3SkillPoints
-        case "gatherer_4": return gatherer4SkillPoints
+        case "gatherer_1":  return gatherer1SkillPoints
+        case "gatherer_2":  return gatherer2SkillPoints
+        case "gatherer_3":  return gatherer3SkillPoints
+        case "gatherer_4":  return gatherer4SkillPoints
+        case "blacksmith":  return blacksmithSkillPoints
+        case "chef":        return chefSkillPoints
+        case "pharmacist":  return pharmacistSkillPoints
+        case "farmer":      return farmerSkillPoints
         default: return 0
         }
     }
@@ -243,10 +258,14 @@ extension PlayerStateModel {
 
     func decrementSkillPoints(for actorKey: String) {
         switch actorKey {
-        case "gatherer_1": gatherer1SkillPoints = max(0, gatherer1SkillPoints - 1)
-        case "gatherer_2": gatherer2SkillPoints = max(0, gatherer2SkillPoints - 1)
-        case "gatherer_3": gatherer3SkillPoints = max(0, gatherer3SkillPoints - 1)
-        case "gatherer_4": gatherer4SkillPoints = max(0, gatherer4SkillPoints - 1)
+        case "gatherer_1":  gatherer1SkillPoints  = max(0, gatherer1SkillPoints  - 1)
+        case "gatherer_2":  gatherer2SkillPoints  = max(0, gatherer2SkillPoints  - 1)
+        case "gatherer_3":  gatherer3SkillPoints  = max(0, gatherer3SkillPoints  - 1)
+        case "gatherer_4":  gatherer4SkillPoints  = max(0, gatherer4SkillPoints  - 1)
+        case "blacksmith":  blacksmithSkillPoints = max(0, blacksmithSkillPoints - 1)
+        case "chef":        chefSkillPoints       = max(0, chefSkillPoints       - 1)
+        case "pharmacist":  pharmacistSkillPoints = max(0, pharmacistSkillPoints - 1)
+        case "farmer":      farmerSkillPoints     = max(0, farmerSkillPoints     - 1)
         default: break
         }
     }
@@ -254,20 +273,28 @@ extension PlayerStateModel {
     func appendSkillKey(_ key: String, for actorKey: String) {
         let updated = (investedSkillKeys(for: actorKey) + [key]).joined(separator: ",")
         switch actorKey {
-        case "gatherer_1": gatherer1SkillsRaw = updated
-        case "gatherer_2": gatherer2SkillsRaw = updated
-        case "gatherer_3": gatherer3SkillsRaw = updated
-        case "gatherer_4": gatherer4SkillsRaw = updated
+        case "gatherer_1":  gatherer1SkillsRaw  = updated
+        case "gatherer_2":  gatherer2SkillsRaw  = updated
+        case "gatherer_3":  gatherer3SkillsRaw  = updated
+        case "gatherer_4":  gatherer4SkillsRaw  = updated
+        case "blacksmith":  blacksmithSkillsRaw = updated
+        case "chef":        chefSkillsRaw       = updated
+        case "pharmacist":  pharmacistSkillsRaw = updated
+        case "farmer":      farmerSkillsRaw     = updated
         default: break
         }
     }
 
     private func rawSkills(for actorKey: String) -> String {
         switch actorKey {
-        case "gatherer_1": return gatherer1SkillsRaw
-        case "gatherer_2": return gatherer2SkillsRaw
-        case "gatherer_3": return gatherer3SkillsRaw
-        case "gatherer_4": return gatherer4SkillsRaw
+        case "gatherer_1":  return gatherer1SkillsRaw
+        case "gatherer_2":  return gatherer2SkillsRaw
+        case "gatherer_3":  return gatherer3SkillsRaw
+        case "gatherer_4":  return gatherer4SkillsRaw
+        case "blacksmith":  return blacksmithSkillsRaw
+        case "chef":        return chefSkillsRaw
+        case "pharmacist":  return pharmacistSkillsRaw
+        case "farmer":      return farmerSkillsRaw
         default: return ""
         }
     }
