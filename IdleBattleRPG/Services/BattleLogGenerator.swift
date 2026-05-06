@@ -128,11 +128,12 @@ struct BattleLogGenerator {
         var heroMaxHp = max(50, snapshotPower * 2)
         var heroAtk   = max(10, snapshotPower / 4)
         var heroDef   = max(5,  snapshotPower / 10)
-        // V7-4：套用料理加成
+        // V7-4：套用料理加成（ch_flavor 乘數）
         if let cuisine = cuisineDef {
-            heroAtk   += cuisine.atkBonus
-            heroDef   += cuisine.defBonus
-            heroMaxHp += cuisine.hpBonus
+            let flavorMultiplier = 1.0 + Double(task.snapshotChFlavorLevel) * 0.10
+            heroAtk   += Int(Double(cuisine.atkBonus) * flavorMultiplier)
+            heroDef   += Int(Double(cuisine.defBonus) * flavorMultiplier)
+            heroMaxHp += Int(Double(cuisine.hpBonus)  * flavorMultiplier)
         }
 
         // ATB 填充時間
@@ -196,7 +197,8 @@ struct BattleLogGenerator {
                 enemyAtk:        enemyAtk,
                 enemyDef:        enemyDef,
                 enemyChargeTime: enemyChargeTime,
-                potionDef:       potionDef
+                potionDef:       potionDef,
+                potencyLevel:    task.snapshotPhPotencyLevel
             )
         }
 
@@ -226,6 +228,7 @@ struct BattleLogGenerator {
         enemyDef:        Int,
         enemyChargeTime: Double,
         potionDef:       PotionDef? = nil,   // V7-4 T05
+        potencyLevel:    Int = 0,            // V8-2 T03：ph_potency 技能等級
         onEvent:         ((BattleEvent) -> Void)?
     ) -> CombatOutcome {
 
@@ -292,7 +295,8 @@ struct BattleLogGenerator {
             // V7-4 T05：藥水觸發（HP < 50% 時一次性回復）
             if let potion = potionDef, !potionUsed, heroHp < heroMaxHp / 2, heroHp > 0 {
                 potionUsed = true
-                let healed = Int(Double(heroMaxHp) * potion.healPercent)
+                let potencyMultiplier = 1.0 + Double(potencyLevel) * 0.10
+                let healed = Int(Double(heroMaxHp) * potion.healPercent * potencyMultiplier)
                 heroHp = min(heroMaxHp, heroHp + healed)
                 onEvent?(BattleEvent(
                     type: .potionUsed,
@@ -656,7 +660,8 @@ struct BattleLogGenerator {
         enemyAtk:        Int,
         enemyDef:        Int,
         enemyChargeTime: Double,
-        potionDef:       PotionDef? = nil   // V7-4 T05
+        potionDef:       PotionDef? = nil,   // V7-4 T05
+        potencyLevel:    Int = 0             // V8-2 T03：ph_potency 技能等級
     ) -> [BattleEvent] {
         // 探索 seed（文字選取）：原有 per-battle seed
         var exploreRng = DeterministicRNG(seed: taskSeed ^ UInt64(battleIndex &+ 1))
@@ -764,6 +769,7 @@ struct BattleLogGenerator {
             enemyDef:        enemyDef,
             enemyChargeTime: enemyChargeTime,
             potionDef:       potionDef,
+            potencyLevel:    potencyLevel,
             onEvent:         { events.append($0) }
         )
 

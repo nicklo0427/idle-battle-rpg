@@ -114,8 +114,13 @@ struct TaskCreationService {
         guard let player    = (try? context.fetch(playerDesc))?.first    else { throw TaskCreationError.noPlayerState }
         guard let inventory = (try? context.fetch(inventoryDesc))?.first else { throw TaskCreationError.noInventory }
 
+        // bs_gold：每點降低 10% 鑄造金幣成本
+        let goldLv        = player.skillLevel(nodeKey: "bs_gold", actorKey: AppConstants.Actor.blacksmith)
+        let goldDiscount  = Double(goldLv) * 0.10
+        let effectiveGold = max(0, Int(Double(def.goldCost) * (1.0 - goldDiscount)))
+
         // 驗證資源
-        guard player.gold >= def.goldCost else { throw TaskCreationError.insufficientGold }
+        guard player.gold >= effectiveGold else { throw TaskCreationError.insufficientGold }
         for req in def.requiredMaterials {
             guard inventory.amount(of: req.material) >= req.amount else {
                 throw TaskCreationError.insufficientMaterials
@@ -123,7 +128,7 @@ struct TaskCreationService {
         }
 
         // 扣除資源
-        player.gold -= def.goldCost
+        player.gold -= effectiveGold
         for req in def.requiredMaterials {
             inventory.deduct(req.amount, of: req.material)
         }
@@ -389,6 +394,8 @@ struct TaskCreationService {
         task.snapshotSkillLevelsRaw = player.skillLevelsRaw
         task.snapshotCuisineKey     = cuisineKey
         task.snapshotPotionKey      = potionKey
+        task.snapshotChFlavorLevel  = player.skillLevel(nodeKey: "ch_flavor",  actorKey: AppConstants.Actor.chef)
+        task.snapshotPhPotencyLevel = player.skillLevel(nodeKey: "ph_potency", actorKey: AppConstants.Actor.pharmacist)
         repository.insert(task)
     }
 

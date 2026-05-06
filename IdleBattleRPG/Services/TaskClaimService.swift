@@ -68,6 +68,12 @@ struct TaskClaimService {
         let playerDesc = FetchDescriptor<PlayerStateModel>()
         let player = (try? context.fetch(playerDesc))?.first
 
+        // 生產者多產技能（迴圈外計算一次）
+        let chPortionLv   = player?.skillLevel(nodeKey: "ch_portion", actorKey: "chef")       ?? 0
+        let portionChance = Double(chPortionLv) * 0.10
+        let phYieldLv     = player?.skillLevel(nodeKey: "ph_yield",   actorKey: "pharmacist") ?? 0
+        let yieldChance   = Double(phYieldLv) * 0.10
+
         var totalGold      = 0
         var materials      = [MaterialType: Int]()
         var equipmentCount = 0
@@ -105,6 +111,14 @@ struct TaskClaimService {
                let def = PotionDef.find(task.definitionKey),
                let consumable = fetchConsumableInventory() {
                 consumable.add(of: def.consumableType)
+
+                // ph_yield 多產判定（Lv0 不進此區塊，不影響 RNG 序列）
+                if yieldChance > 0 {
+                    var rng = DeterministicRNG(task: task)
+                    if rng.nextDouble() < yieldChance {
+                        consumable.add(of: def.consumableType)
+                    }
+                }
             }
 
             // cuisine 任務（T03）：進消耗品背包；25% 機率產出高級料理
@@ -116,6 +130,13 @@ struct TaskClaimService {
                 let isHighQuality = rng.nextDouble() < 0.25
                 let finalType = isHighQuality ? (baseType.highQualityVariant ?? baseType) : baseType
                 consumable.add(of: finalType)
+
+                // ch_portion 多產判定（Lv0 短路，不消耗額外亂數）
+                if portionChance > 0, rng.nextDouble() < portionChance {
+                    let isHighQuality2 = rng.nextDouble() < 0.25
+                    let bonusType = isHighQuality2 ? (baseType.highQualityVariant ?? baseType) : baseType
+                    consumable.add(of: bonusType)
+                }
             }
         }
 
