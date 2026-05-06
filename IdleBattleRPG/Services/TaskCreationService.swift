@@ -90,6 +90,8 @@ struct TaskCreationService {
             endsAt:        now.addingTimeInterval(TimeInterval(duration))
         )
         repository.insert(task)
+        NotificationService.requestPermissionIfNeeded()
+        NotificationService.schedule(for: task)
     }
 
     // MARK: - 鑄造任務
@@ -163,6 +165,8 @@ struct TaskCreationService {
         )
         // repository.insert 內部呼叫 context.save()，原子儲存扣除+建立
         repository.insert(task)
+        NotificationService.requestPermissionIfNeeded()
+        NotificationService.schedule(for: task)
     }
 
     // MARK: - 料理任務（V7-3）
@@ -219,6 +223,8 @@ struct TaskCreationService {
         )
         task.resultCuisineKey = def.key
         repository.insert(task)
+        NotificationService.requestPermissionIfNeeded()
+        NotificationService.schedule(for: task)
     }
 
     // MARK: - 農田任務（V7-4）
@@ -271,6 +277,8 @@ struct TaskCreationService {
             endsAt:        now.addingTimeInterval(TimeInterval(effectiveDuration))
         )
         repository.insert(task)
+        NotificationService.requestPermissionIfNeeded()
+        NotificationService.schedule(for: task)
     }
 
     // MARK: - 煉藥任務（V7-4）
@@ -326,6 +334,8 @@ struct TaskCreationService {
             endsAt:        now.addingTimeInterval(TimeInterval(duration))
         )
         repository.insert(task)
+        NotificationService.requestPermissionIfNeeded()
+        NotificationService.schedule(for: task)
     }
 
     // MARK: - 地下城任務
@@ -397,6 +407,8 @@ struct TaskCreationService {
         task.snapshotChFlavorLevel  = player.skillLevel(nodeKey: "ch_flavor",  actorKey: AppConstants.Actor.chef)
         task.snapshotPhPotencyLevel = player.skillLevel(nodeKey: "ph_potency", actorKey: AppConstants.Actor.pharmacist)
         repository.insert(task)
+        NotificationService.requestPermissionIfNeeded()
+        NotificationService.schedule(for: task)
     }
 
     private func fetchConsumableInventory() -> ConsumableInventoryModel? {
@@ -456,5 +468,7 @@ struct TaskCreationService {
         task.snapshotSkillKeysRaw   = equippedSkillKeys.joined(separator: ",")
         task.snapshotSkillLevelsRaw = player.skillLevelsRaw
         repository.insert(task)
+        NotificationService.requestPermissionIfNeeded()
+        NotificationService.schedule(for: task)
     }
 }

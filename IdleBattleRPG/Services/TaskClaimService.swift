@@ -79,6 +79,7 @@ struct TaskClaimService {
         var equipmentCount = 0
 
         for task in completed {
+            NotificationService.cancel(for: task)
             totalGold += task.resultGold
             accumulateMaterials(from: task, player: player, into: &materials)
 
