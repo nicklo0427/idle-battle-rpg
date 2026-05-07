@@ -64,8 +64,8 @@ extension NpcIntroDef {
         ),
         NpcIntroDef(
             actorKey:    "weaponsmith",
-            defaultName: "副手師",
-            introLine:   "副手武器嘛，一般人都不重視。但我告訴你，一把好的格擋刃或箭筒，關鍵時刻能救你一命。"
+            defaultName: "鍛造學徒",
+            introLine:   "師父說我只能做些小件的，什麼盾牌、刀刃之類的。不過我覺得這挺有意思——副手武器關鍵時刻能救你一命，你信嗎？"
         ),
         NpcIntroDef(
             actorKey:    "jeweler",

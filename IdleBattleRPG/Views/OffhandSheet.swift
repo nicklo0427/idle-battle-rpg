@@ -1,5 +1,5 @@
 // OffhandSheet.swift
-// 副手師 Sheet（V10-1 T12）
+// 鍛造學徒 Sheet（V10-1 T12）
 //
 // 功能：
 //   - 顯示 .offhand slot 鑄造配方
@@ -48,7 +48,7 @@ struct OffhandSheet: View {
                 NpcIntroSection(actorKey: AppConstants.Actor.weaponsmith)
                 recipeSection(title: "副手", recipes: availableRecipes)
             }
-            .navigationTitle(player?.npcDisplayName(for: AppConstants.Actor.weaponsmith) ?? "副手師")
+            .navigationTitle(player?.npcDisplayName(for: AppConstants.Actor.weaponsmith) ?? "鍛造學徒")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
