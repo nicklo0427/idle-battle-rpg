@@ -38,6 +38,8 @@ struct BaseView: View {
     @State private var showMerchantSheet  = false
     @State private var showFarmerDetailSheet = false  // V7-4
     @State private var showArmorSheet        = false  // V10-1 皮甲師
+    @State private var showOffhandSheet      = false  // V10-1 副手師
+    @State private var showAccessorySheet    = false  // V10-1 飾品師
     @State private var baseTab: BaseTab = .gather
 
     // NPC 升級確認 Alert
@@ -201,6 +203,22 @@ struct BaseView: View {
                     selectedTab:        $selectedTab
                 )
             }
+            .sheet(isPresented: $showOffhandSheet) {
+                OffhandSheet(
+                    appState:           appState,
+                    player:             players.first,
+                    inventory:          inventories.first,
+                    progressionService: appState.progressionService
+                )
+            }
+            .sheet(isPresented: $showAccessorySheet) {
+                AccessorySheet(
+                    appState:           appState,
+                    player:             players.first,
+                    inventory:          inventories.first,
+                    progressionService: appState.progressionService
+                )
+            }
             .alert(item: $pendingUpgradeInfo) { info in
                 let player = players.first
                 let inventory = inventories.first
@@ -293,6 +311,15 @@ struct BaseView: View {
             // 皮甲師：教程菁英勝（step >= 5）後解鎖
             if (players.first?.onboardingStep ?? 0) >= 5 {
                 npcArmorerCard(player: players.first)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            }
+            // 副手師 & 飾品師：職業選擇後（step >= 3）解鎖
+            if (players.first?.onboardingStep ?? 0) >= 3 {
+                npcWeaponsmithCard(player: players.first)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                npcJewelerCard(player: players.first)
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
             }
@@ -718,6 +745,122 @@ struct BaseView: View {
         .buttonStyle(.plain)
     }
 
+    // MARK: - NPC Card: 副手師（V10-1 T12）
+
+    @ViewBuilder
+    private func npcWeaponsmithCard(player: PlayerStateModel?) -> some View {
+        let activeTask = tasks.first { $0.actorKey == AppConstants.Actor.weaponsmith && $0.status == .inProgress }
+        let isBusy     = activeTask != nil
+        let caption: String = {
+            guard let task = activeTask else { return "閒置中，點擊委派" }
+            let recipeName = CraftRecipeDef.find(key: task.definitionKey)?.name ?? "副手"
+            return "鑄造中：\(recipeName)\n\(TaskCountdown.remaining(for: task, relativeTo: appState.tick))"
+        }()
+        let progress = isBusy ? activeTask.map { $0.progress(relativeTo: appState.tick) } : nil
+
+        Button { if !isBusy { showOffhandSheet = true } } label: {
+            HStack(spacing: 14) {
+                ZStack(alignment: .topTrailing) {
+                    Image(webp: "npc_weaponsmith")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 80, height: 80)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .opacity(isBusy ? 0.85 : 1.0)
+                    npcStatusBadge(isBusy: isBusy)
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(player?.npcDisplayName(for: AppConstants.Actor.weaponsmith) ?? "副手師")
+                        .font(.subheadline).fontWeight(.medium).lineLimit(1)
+                    Text(caption)
+                        .font(.caption2)
+                        .foregroundStyle(isBusy ? Color.orange : .secondary)
+                        .lineLimit(2)
+                    if let progress {
+                        ProgressView(value: progress).tint(.orange).scaleEffect(y: 0.6)
+                    }
+                }
+
+                Spacer()
+
+                if isBusy {
+                    Text("鑄造中")
+                        .font(.caption2)
+                        .padding(.horizontal, 8).padding(.vertical, 4)
+                        .background(Color.orange.opacity(0.12))
+                        .foregroundStyle(Color.orange)
+                        .clipShape(Capsule())
+                } else {
+                    Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
+                }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity)
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - NPC Card: 飾品師（V10-1 T13）
+
+    @ViewBuilder
+    private func npcJewelerCard(player: PlayerStateModel?) -> some View {
+        let activeTask = tasks.first { $0.actorKey == AppConstants.Actor.jeweler && $0.status == .inProgress }
+        let isBusy     = activeTask != nil
+        let caption: String = {
+            guard let task = activeTask else { return "閒置中，點擊委派" }
+            let recipeName = CraftRecipeDef.find(key: task.definitionKey)?.name ?? "飾品"
+            return "鑄造中：\(recipeName)\n\(TaskCountdown.remaining(for: task, relativeTo: appState.tick))"
+        }()
+        let progress = isBusy ? activeTask.map { $0.progress(relativeTo: appState.tick) } : nil
+
+        Button { if !isBusy { showAccessorySheet = true } } label: {
+            HStack(spacing: 14) {
+                ZStack(alignment: .topTrailing) {
+                    Image(webp: "npc_jeweler")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 80, height: 80)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .opacity(isBusy ? 0.85 : 1.0)
+                    npcStatusBadge(isBusy: isBusy)
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(player?.npcDisplayName(for: AppConstants.Actor.jeweler) ?? "飾品師")
+                        .font(.subheadline).fontWeight(.medium).lineLimit(1)
+                    Text(caption)
+                        .font(.caption2)
+                        .foregroundStyle(isBusy ? Color.purple : .secondary)
+                        .lineLimit(2)
+                    if let progress {
+                        ProgressView(value: progress).tint(.purple).scaleEffect(y: 0.6)
+                    }
+                }
+
+                Spacer()
+
+                if isBusy {
+                    Text("鑄造中")
+                        .font(.caption2)
+                        .padding(.horizontal, 8).padding(.vertical, 4)
+                        .background(Color.purple.opacity(0.12))
+                        .foregroundStyle(Color.purple)
+                        .clipShape(Capsule())
+                } else {
+                    Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
+                }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity)
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
+        .buttonStyle(.plain)
+    }
+
     // MARK: - NPC Card: 商人
 
     @ViewBuilder
@@ -832,7 +975,6 @@ struct BaseView: View {
 
     private func devResetFirstBoosts() {
         guard let player = players.first else { return }
-        player.hasUsedFirstDungeonBoost = false
         player.onboardingStep = 0
         // 清除所有裝備，模擬教程前的無武器狀態
         let allEquip = (try? context.fetch(FetchDescriptor<EquipmentModel>())) ?? []

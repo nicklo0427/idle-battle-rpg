@@ -45,7 +45,6 @@ struct DatabaseSeeder {
             defPoints:                3,
             hpPoints:                 20,
             lastOpenedAt:             .now,
-            hasUsedFirstDungeonBoost: false,
             onboardingStep:           0
         )
         context.insert(player)

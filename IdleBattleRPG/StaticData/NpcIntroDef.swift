@@ -62,6 +62,16 @@ extension NpcIntroDef {
             defaultName: "皮甲師",
             introLine:   "你剛才那一戰，我看出來你是個能打的。防具才是長命百歲的關鍵——讓我給你做一件像樣的護甲。"
         ),
+        NpcIntroDef(
+            actorKey:    "weaponsmith",
+            defaultName: "副手師",
+            introLine:   "副手武器嘛，一般人都不重視。但我告訴你，一把好的格擋刃或箭筒，關鍵時刻能救你一命。"
+        ),
+        NpcIntroDef(
+            actorKey:    "jeweler",
+            defaultName: "飾品師",
+            introLine:   "珠寶？不，我做的是戰鬥飾品。攻擊、防禦、生命——看你需要什麼，我替你鑲嵌。"
+        ),
     ]
 
     static func find(actorKey: String) -> NpcIntroDef? {

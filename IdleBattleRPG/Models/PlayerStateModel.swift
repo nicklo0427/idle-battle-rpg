@@ -20,9 +20,6 @@ final class PlayerStateModel {
     // MARK: - 時間追蹤
     var lastOpenedAt: Date
 
-    // MARK: - 新手保護 Flag
-    var hasUsedFirstDungeonBoost: Bool
-
     // MARK: - Onboarding 進度（0 = 尚未開始，3 = 完成）
     var onboardingStep: Int
 
@@ -130,7 +127,6 @@ final class PlayerStateModel {
         defPoints: Int = 3,
         hpPoints: Int = 20,
         lastOpenedAt: Date = .now,
-        hasUsedFirstDungeonBoost: Bool = false,
         onboardingStep: Int = 0
     ) {
         self.gold                    = gold
@@ -140,7 +136,6 @@ final class PlayerStateModel {
         self.defPoints               = defPoints
         self.hpPoints                = hpPoints
         self.lastOpenedAt            = lastOpenedAt
-        self.hasUsedFirstDungeonBoost = hasUsedFirstDungeonBoost
         self.onboardingStep          = onboardingStep
         // V10-1：敘事 & 命名欄位必須在 init 中明確設定，
         // 避免 @Model 的 backing store 在未賦值時回傳非預期值
