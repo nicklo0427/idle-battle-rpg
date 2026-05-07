@@ -140,9 +140,14 @@ extension CraftRecipeDef {
     // MARK: - V2-1 配方（按解鎖樓層分組查詢）
 
 
-    /// 過濾出已解鎖配方（V1 全顯示；V2-1 需首通對應樓層）
-    static func available(isCleared: (String) -> Bool) -> [CraftRecipeDef] {
+    /// 過濾出已解鎖配方（V1 全顯示；V2-1 需首通對應樓層；T08 教程另開旗標）
+    static func available(
+        isCleared: (String) -> Bool,
+        tutorialArmorUnlocked: Bool = false
+    ) -> [CraftRecipeDef] {
         all.filter { recipe in
+            // T08 教程菁英勝利直接解鎖荒徑皮甲，不依賴 floor_2 首通
+            if recipe.key == "recipe_wildland_armor" && tutorialArmorUnlocked { return true }
             guard let floorKey = recipe.unlockedByFloorKey else { return true }
             return isCleared(floorKey)
         }

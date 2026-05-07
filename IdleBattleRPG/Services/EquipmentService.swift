@@ -53,6 +53,19 @@ struct EquipmentService {
         save()
     }
 
+    /// 教程防具鑄造結算：發放 wildland_armor（精良，已裝備）
+    func grantTutorialArmor() {
+        guard let def = EquipmentDef.find(key: "wildland_armor") else { return }
+        let item = EquipmentModel(
+            defKey:     def.key,
+            slot:       def.slot,
+            rarity:     .refined,
+            isEquipped: true
+        )
+        context.insert(item)
+        save()
+    }
+
     // MARK: - Private
 
     private func save() {

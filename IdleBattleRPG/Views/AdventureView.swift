@@ -54,6 +54,8 @@ struct AdventureView: View {
         NavigationStack {
             List {
                 activeBannerSection
+                tutorialStep4BannerSection
+                tutorialStep6ExploreSection
                 firstBoostBannerSection
                 regionListSection
             }
@@ -134,6 +136,53 @@ struct AdventureView: View {
                 }
                 .buttonStyle(.plain)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var tutorialStep4BannerSection: some View {
+        if let player = players.first, player.onboardingStep == 4 {
+            Section {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "bubble.left.fill").foregroundStyle(.orange)
+                    Text("前往荒野邊境，挑戰 F1 的菁英敵人！打敗他，贏得防具鍛造材料。")
+                        .font(.subheadline)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.vertical, 4)
+            } header: { Text("🎯 引導任務") }
+        }
+    }
+
+    @ViewBuilder
+    private var tutorialStep6ExploreSection: some View {
+        if let player = players.first, player.onboardingStep == 6 {
+            Section {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "bubble.left.fill").foregroundStyle(.green)
+                        Text("前往荒野邊境探索！必定獲得防具所需材料。")
+                            .font(.subheadline)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Button {
+                        do {
+                            try TaskCreationService(context: context).createTutorialExploreTask()
+                        } catch {
+                            errorMessage = error.localizedDescription
+                            showError = true
+                        }
+                    } label: {
+                        Label("荒野探索（5 秒）", systemImage: "location.fill")
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.green)
+                    .disabled(activeDungeonTask != nil)
+                }
+                .padding(.vertical, 4)
+            } header: { Text("🎯 引導任務") }
         }
     }
 
@@ -442,6 +491,13 @@ private struct FloorDetailSheet: View {
 
     private var isBusy: Bool { activeDungeonTask != nil }
 
+    /// 教程菁英戰（step == 4，荒野 F1）：繞過戰力門檻，保證勝利
+    private var isTutorialElite: Bool {
+        (players.first?.onboardingStep == 4)
+        && floor.regionKey == "wildland"
+        && floor.floorIndex == 1
+    }
+
     var body: some View {
         NavigationStack {
             List {
@@ -463,9 +519,10 @@ private struct FloorDetailSheet: View {
             .sheet(isPresented: $showEliteBattle) {
                 if let elite = EliteDef.find(floorKey: floor.key) {
                     EliteBattleSheet(
-                        elite:    elite,
-                        appState: appState,
-                        onEliteDefeated: { eliteCleared = true }
+                        elite:            elite,
+                        appState:         appState,
+                        isTutorialElite:  isTutorialElite,
+                        onEliteDefeated:  { eliteCleared = true }
                     )
                 }
             }
@@ -630,11 +687,12 @@ private struct FloorDetailSheet: View {
                     Label("菁英已擊敗，獎勵已領取", systemImage: "checkmark.circle.fill")
                         .font(.caption)
                         .foregroundStyle(.green)
-                } else if let power = heroStats?.power, power >= elite.minPowerRequired {
+                } else if isTutorialElite || (heroStats?.power ?? 0) >= elite.minPowerRequired {
                     Button {
                         showEliteBattle = true
                     } label: {
-                        Label("挑戰菁英", systemImage: "shield.lefthalf.filled")
+                        Label(isTutorialElite ? "挑戰菁英（引導戰）" : "挑戰菁英",
+                              systemImage: "shield.lefthalf.filled")
                             .fontWeight(.semibold)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 4)

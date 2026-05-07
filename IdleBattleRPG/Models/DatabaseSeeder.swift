@@ -144,12 +144,12 @@ struct DatabaseSeeder {
         player.hasSeenIntro = true
     }
 
-    /// 舊存檔升級相容：classKey 非空但 onboardingStep < 3，直接設為 3 跳過教程
+    /// 舊存檔升級相容：classKey 非空但尚未完成完整教程（step < 8），直接設為 8 跳過所有教程
     @MainActor
     private static func backfillOnboardingStep(context: ModelContext) {
         let descriptor = FetchDescriptor<PlayerStateModel>()
         guard let player = (try? context.fetch(descriptor))?.first else { return }
-        guard !player.classKey.isEmpty, player.onboardingStep < 3 else { return }
-        player.onboardingStep = 3
+        guard !player.classKey.isEmpty, player.onboardingStep < 8 else { return }
+        player.onboardingStep = 8
     }
 }

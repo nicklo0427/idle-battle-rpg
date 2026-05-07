@@ -106,6 +106,8 @@ final class PlayerStateModel {
     var seenNpcIntroKeysRaw: String = ""
     /// NPC 自訂名字，格式 "actorKey:名字,actorKey:名字"
     var npcNamesRaw: String = ""
+    /// T08：教程菁英戰勝後解鎖「荒徑皮甲」配方（不透過 floor clear 機制）
+    var tutorialArmorRecipeUnlocked: Bool = false
 
     // MARK: - 生產者技能
 

@@ -156,6 +156,49 @@ struct TaskCreationService {
         NotificationService.schedule(for: task)
     }
 
+    /// 建立防具鑄造任務（皮甲師 actorKey）。
+    /// 驗證：配方存在、皮甲師閒置、金幣足夠、素材足夠。
+    func createArmorCraftTask(recipeKey: String) throws {
+        guard let def = CraftRecipeDef.find(key: recipeKey) else {
+            throw TaskCreationError.recipeNotFound(recipeKey)
+        }
+
+        let inProgress = repository.fetchInProgress()
+        if inProgress.contains(where: { $0.actorKey == AppConstants.Actor.armorer }) {
+            throw TaskCreationError.actorBusy(AppConstants.Actor.armorer)
+        }
+
+        let playerDesc    = FetchDescriptor<PlayerStateModel>()
+        let inventoryDesc = FetchDescriptor<MaterialInventoryModel>()
+        guard let player    = (try? context.fetch(playerDesc))?.first    else { throw TaskCreationError.noPlayerState }
+        guard let inventory = (try? context.fetch(inventoryDesc))?.first else { throw TaskCreationError.noInventory }
+
+        guard player.gold >= def.goldCost else { throw TaskCreationError.insufficientGold }
+        for req in def.requiredMaterials {
+            guard inventory.amount(of: req.material) >= req.amount else {
+                throw TaskCreationError.insufficientMaterials
+            }
+        }
+
+        player.gold -= def.goldCost
+        for req in def.requiredMaterials {
+            inventory.deduct(req.amount, of: req.material)
+        }
+
+        let now = Date.now
+        let task = TaskModel(
+            kind:                  .craft,
+            actorKey:              AppConstants.Actor.armorer,
+            definitionKey:         recipeKey,
+            startedAt:             now,
+            endsAt:                now.addingTimeInterval(TimeInterval(def.durationSeconds)),
+            resultCraftedEquipKey: def.outputEquipmentKey
+        )
+        repository.insert(task)
+        NotificationService.requestPermissionIfNeeded()
+        NotificationService.schedule(for: task)
+    }
+
     // MARK: - 料理任務（V7-3）
 
     /// 建立料理任務。
@@ -420,6 +463,46 @@ struct TaskCreationService {
             endsAt:        now.addingTimeInterval(5)
         )
         player.onboardingStep = 1
+        repository.insert(task)
+    }
+
+    /// 教程探索任務：5 秒，保底 driedHideBundle×3 + hide×3，onboardingStep 由結算設為 7
+    func createTutorialExploreTask() throws {
+        let inProgress = repository.fetchInProgress()
+        if inProgress.contains(where: { $0.kind == .dungeon && $0.actorKey == AppConstants.Actor.player }) {
+            throw TaskCreationError.playerAlreadyInDungeon
+        }
+
+        let now = Date.now
+        let task = TaskModel(
+            kind:          .dungeon,
+            actorKey:      AppConstants.Actor.player,
+            definitionKey: "tutorial_explore",
+            startedAt:     now,
+            endsAt:        now.addingTimeInterval(5)
+        )
+        repository.insert(task)
+    }
+
+    /// 教程防具鑄造任務：armorer 鑄造 5 秒，不扣素材/金幣，onboardingStep 由結算設為 8
+    func createTutorialArmorTask() throws {
+        guard (try? context.fetch(FetchDescriptor<PlayerStateModel>()))?.first != nil else {
+            throw TaskCreationError.noPlayerState
+        }
+
+        let inProgress = repository.fetchInProgress()
+        if inProgress.contains(where: { $0.kind == .craft && $0.actorKey == AppConstants.Actor.armorer }) {
+            throw TaskCreationError.actorBusy(AppConstants.Actor.armorer)
+        }
+
+        let now = Date.now
+        let task = TaskModel(
+            kind:          .craft,
+            actorKey:      AppConstants.Actor.armorer,
+            definitionKey: "tutorial_armor",
+            startedAt:     now,
+            endsAt:        now.addingTimeInterval(5)
+        )
         repository.insert(task)
     }
 

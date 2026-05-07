@@ -15,6 +15,8 @@ struct EliteBattleSheet: View {
 
     let elite:           EliteDef
     let appState:        AppState
+    /// true = 教程引導戰（step 4）：敵人 HP=1, ATK=0, DEF=0，保證勝利
+    var isTutorialElite: Bool = false
     /// 勝利且獎勵入帳後呼叫，供 FloorDetailSheet 刷新菁英狀態
     var onEliteDefeated: (() -> Void)? = nil
 
@@ -52,8 +54,13 @@ struct EliteBattleSheet: View {
         let seed  = EliteBattleEngine.makeSeed(eliteKey: elite.key)
         let stats = HeroStatsService.fetchAndCompute(context: context)
 
+        // 教程模式：覆蓋菁英數值讓玩家必勝
+        let effectiveElite: EliteDef = isTutorialElite
+            ? elite.copying(overrideHP: 1, overrideATK: 0, overrideDEF: 0)
+            : elite
+
         let result = EliteBattleEngine.simulate(
-            elite:     elite,
+            elite:     effectiveElite,
             heroPower: stats.power,
             heroAgi:   stats.totalAGI,
             heroDex:   stats.totalDEX,
@@ -87,6 +94,13 @@ struct EliteBattleSheet: View {
             regionKey:  result.elite.regionKey,
             floorIndex: result.elite.floorIndex
         )
+
+        // 教程模式額外效果：解鎖防具配方，推進教程步驟
+        if isTutorialElite {
+            player.tutorialArmorRecipeUnlocked = true
+            player.onboardingStep = 5
+            appState.showToast("菁英已擊敗！解鎖荒徑皮甲配方！")
+        }
 
         try? context.save()
 

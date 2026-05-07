@@ -69,6 +69,26 @@ struct SettlementService {
             return
         }
 
+        if task.definitionKey == "tutorial_explore" {
+            task.resultDriedHideBundle = 3
+            task.resultHide            = 3
+            task.resultGold            = 30
+            if let player = (try? context.fetch(FetchDescriptor<PlayerStateModel>()))?.first {
+                player.onboardingStep = 7
+            }
+            task.status = .completed
+            return
+        }
+
+        if task.definitionKey == "tutorial_armor" {
+            EquipmentService(context: context).grantTutorialArmor()
+            if let player = (try? context.fetch(FetchDescriptor<PlayerStateModel>()))?.first {
+                player.onboardingStep = 8
+            }
+            task.status = .completed
+            return
+        }
+
         switch task.kind {
         case .gather:  fillGatherResults(task)
         case .craft:   break   // resultCraftedEquipKey 在建立時已填入

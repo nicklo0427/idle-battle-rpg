@@ -19,9 +19,10 @@ struct ContentView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.scenePhase)   private var scenePhase
 
-    @State private var appState: AppState?
-    @Query private var players:  [PlayerStateModel]
-    @Query private var tasks:    [TaskModel]
+    @State private var appState:     AppState?
+    @State private var selectedTab:  Int = 0
+    @Query private var players:      [PlayerStateModel]
+    @Query private var tasks:        [TaskModel]
 
     private var hasDungeonTask: Bool {
         tasks.contains { $0.kind == .dungeon && $0.status == .inProgress }
@@ -85,8 +86,9 @@ struct ContentView: View {
 
     @ViewBuilder
     private func mainTabView(appState: AppState) -> some View {
-        TabView {
-            BaseView(appState: appState)
+        let adventureUnlocked = (players.first?.onboardingStep ?? 8) >= 4
+        TabView(selection: $selectedTab) {
+            BaseView(appState: appState, selectedTab: $selectedTab)
                 .tabItem {
                     Label {
                         Text("基地")
@@ -95,22 +97,27 @@ struct ContentView: View {
                             .gatheringSymbolEffect(isActive: hasGatherTask)
                     }
                 }
+                .tag(0)
 
-            AdventureView(appState: appState)
-                .tabItem {
-                    Label {
-                        Text("冒險")
-                    } icon: {
-                        Image(systemName: "map.fill")
-                            .symbolEffect(.pulse, isActive: hasDungeonTask)
+            if adventureUnlocked {
+                AdventureView(appState: appState)
+                    .tabItem {
+                        Label {
+                            Text("冒險")
+                        } icon: {
+                            Image(systemName: "map.fill")
+                                .symbolEffect(.pulse, isActive: hasDungeonTask)
+                        }
                     }
-                }
+                    .tag(1)
+            }
 
-            CharacterView(appState: appState)
+            CharacterView(appState: appState, selectedTab: $selectedTab)
                 .tabItem {
                     Label("角色", systemImage: "person.fill")
                 }
                 .badge(players.first.map { max(0, $0.availableStatPoints + $0.availableTalentPoints + $0.availableSkillPoints) } ?? 0)
+                .tag(2)
         }
         // ── 輕量 Toast 覆蓋（非阻擋，結算 Sheet 開啟時也可見）─────
         .overlay(alignment: .top) {

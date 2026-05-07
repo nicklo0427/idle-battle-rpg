@@ -35,6 +35,7 @@ private enum BackpackTab: String, CaseIterable {
 struct CharacterView: View {
 
     let appState: AppState
+    @Binding var selectedTab: Int
 
     @Environment(\.modelContext) private var context
 
@@ -81,11 +82,48 @@ struct CharacterView: View {
         tasks.contains { $0.kind == .dungeon && $0.status == .inProgress }
     }
 
+    // MARK: - T07 教程：解鎖冒險 Tab
+
+    @ViewBuilder
+    private var tutorialUnlockAdventureSection: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "bubble.left.fill")
+                        .foregroundStyle(.orange)
+                    Text("趁手的武器在手了。接下來，去挑戰荒野的菁英敵人，贏得防具鍛造材料。")
+                        .font(.subheadline)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Button {
+                    guard let player else { return }
+                    player.onboardingStep = 4
+                    try? context.save()
+                    selectedTab = 1   // 切換至冒險 Tab（tag 1）
+                } label: {
+                    Label("前往冒險（解鎖冒險頁）", systemImage: "map.fill")
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.orange)
+            }
+            .padding(.vertical, 4)
+        } header: {
+            Text("🎯 引導任務")
+        }
+    }
+
     // MARK: - Body
 
     var body: some View {
         NavigationStack {
             List {
+                // ── 教程引導（T07：step == 3）────────────────────────
+                if player?.onboardingStep == 3 {
+                    tutorialUnlockAdventureSection
+                }
+
                 // ── Segment Picker ───────────────────────────────────
                 Picker("", selection: $segment) {
                     ForEach(CharacterSegment.allCases, id: \.self) { seg in
@@ -1350,6 +1388,6 @@ extension EquipmentSlot: Identifiable {
                                         EquipmentModel.self, TaskModel.self,
                                         configurations: config)
     let appState  = AppState(context: container.mainContext)
-    return CharacterView(appState: appState)
+    return CharacterView(appState: appState, selectedTab: .constant(2))
         .modelContainer(container)
 }
