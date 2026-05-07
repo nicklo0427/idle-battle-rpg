@@ -35,45 +35,50 @@ struct ContentView: View {
 
     var body: some View {
         Group {
-            if let appState {
-                mainTabView(appState: appState)
-                    // 結算 Sheet：由 AppState.shouldShowSettlement 驅動
-                    .sheet(isPresented: Binding(
-                        get: { appState.shouldShowSettlement },
-                        set: { show in if !show { appState.claimAllCompleted() } }
-                    )) {
-                        SettlementSheet(appState: appState)
-                    }
+            if let player = players.first {
+                if needsNewPlayerFlow(player) {
+                    // V10-1：新玩家完整流程（敘事 → 命名 → 職業選擇）
+                    // 在 ContentView 層決定，直接傳入已載入的 player 避免時序競態
+                    NewPlayerFlowView(player: player)
+                } else if let appState {
+                    mainTabView(appState: appState)
+                        .sheet(isPresented: Binding(
+                            get: { appState.shouldShowSettlement },
+                            set: { show in if !show { appState.claimAllCompleted() } }
+                        )) {
+                            SettlementSheet(appState: appState)
+                        }
+                } else {
+                    Color.black.ignoresSafeArea()  // AppState 初始化前短暫過渡
+                }
             } else {
-                // AppState 初始化前的短暫過渡（通常不可見）
-                ProgressView()
+                Color.black.ignoresSafeArea()  // 資料尚未 seed（首次啟動 task 尚未執行）
             }
         }
         .onAppear {
             guard appState == nil else { return }
             let state = AppState(context: context)
             appState = state
-            // 啟動後首次掃描，補跑離線期間到期的任務
             state.scanAndSettle()
-            // V6-3 T02：補查現有 battlePending 任務（舊存檔離線期間已到期但尚未戰鬥）
             state.checkForPendingBattles()
             state.startForegroundTimer()
         }
         .onChange(of: scenePhase) { _, newPhase in
             switch newPhase {
             case .active:
-                // App 回到前景：先補跑離線到期任務，再啟動 Timer
                 appState?.scanAndSettle()
-                // V6-3 T02：補查現有 battlePending 任務
                 appState?.checkForPendingBattles()
                 appState?.startForegroundTimer()
             case .inactive, .background:
-                // App 進入背景：停止 Timer，節省資源
                 appState?.stopForegroundTimer()
             @unknown default:
                 break
             }
         }
+    }
+
+    private func needsNewPlayerFlow(_ player: PlayerStateModel) -> Bool {
+        !player.hasSeenIntro || player.classKey.isEmpty
     }
 
     // MARK: - Main Tab View

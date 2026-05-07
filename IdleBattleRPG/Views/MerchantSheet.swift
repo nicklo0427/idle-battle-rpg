@@ -76,6 +76,7 @@ struct MerchantSheet: View {
         NavigationStack {
             VStack(spacing: 0) {
                 goldHeaderView
+                NpcIntroSection(actorKey: "merchant")
                 Divider()
                 mainTabPicker
                 Divider()
@@ -88,7 +89,7 @@ struct MerchantSheet: View {
                     }
                 }
             }
-            .navigationTitle("商人的市集")
+            .navigationTitle(player?.npcDisplayName(for: "merchant") ?? "商人的市集")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {

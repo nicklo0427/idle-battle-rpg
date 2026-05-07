@@ -287,7 +287,12 @@ struct CharacterView: View {
                 }
             }
         } header: {
-            Text("英雄屬性")
+            if let player {
+                let displayName = player.heroName.isEmpty ? "冒險者" : player.heroName
+                Text("\(displayName) · 英雄屬性")
+            } else {
+                Text("英雄屬性")
+            }
         }
 
         // ── 升級 ────────────────────────────────────────────────────

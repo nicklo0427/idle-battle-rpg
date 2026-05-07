@@ -54,6 +54,8 @@ struct CuisineSheet: View {
         NavigationStack {
             List {
 
+                NpcIntroSection(actorKey: AppConstants.Actor.chef)
+
                 // ── 升級 Section（可收合）────────────────────────────────
                 upgradeSection
 
@@ -76,7 +78,7 @@ struct CuisineSheet: View {
                         .font(.caption)
                 }
             }
-            .navigationTitle("廚師")
+            .navigationTitle(player?.npcDisplayName(for: AppConstants.Actor.chef) ?? "廚師")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {

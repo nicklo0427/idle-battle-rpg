@@ -89,7 +89,7 @@ extension EquipmentDef {
 
     static let all: [EquipmentDef] = [
 
-        // ── 初始裝備（不可鑄造）──────────────────────────────────────
+        // ── 初始裝備（職業起始，不可鑄造）────────────────────────────
         EquipmentDef(
             key:      "rusty_sword",
             name:     "破舊短劍",
@@ -98,6 +98,69 @@ extension EquipmentDef {
             atkBonus: 12,
             defBonus: 0,
             hpBonus:  0
+        ),
+        EquipmentDef(
+            key:      "rusty_parry_blade",
+            name:     "破舊格擋刃",
+            slot:     .offhand,
+            rarity:   .common,
+            atkBonus: 2,
+            defBonus: 0,
+            hpBonus:  0
+        ),
+        EquipmentDef(
+            key:      "rusty_bow",
+            name:     "破舊短弓",
+            slot:     .weapon,
+            rarity:   .common,
+            atkBonus: 12,
+            defBonus: 0,
+            hpBonus:  0
+        ),
+        EquipmentDef(
+            key:      "rusty_quiver",
+            name:     "破舊箭筒",
+            slot:     .offhand,
+            rarity:   .common,
+            atkBonus: 4,
+            defBonus: 0,
+            hpBonus:  0
+        ),
+        EquipmentDef(
+            key:      "rusty_wand",
+            name:     "破舊魔杖",
+            slot:     .weapon,
+            rarity:   .common,
+            atkBonus: 12,
+            defBonus: 0,
+            hpBonus:  0
+        ),
+        EquipmentDef(
+            key:      "rusty_grimoire",
+            name:     "破舊法典",
+            slot:     .offhand,
+            rarity:   .common,
+            atkBonus: 0,
+            defBonus: 0,
+            hpBonus:  6
+        ),
+        EquipmentDef(
+            key:      "rusty_hammer",
+            name:     "破舊戰錘",
+            slot:     .weapon,
+            rarity:   .common,
+            atkBonus: 6,
+            defBonus: 0,
+            hpBonus:  0
+        ),
+        EquipmentDef(
+            key:      "rusty_shield",
+            name:     "破舊木盾",
+            slot:     .offhand,
+            rarity:   .common,
+            atkBonus: 0,
+            defBonus: 2,
+            hpBonus:  4
         ),
 
         // ── 普通裝備（可鑄造）────────────────────────────────────────

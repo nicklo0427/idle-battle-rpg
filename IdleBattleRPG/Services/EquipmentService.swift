@@ -38,6 +38,21 @@ struct EquipmentService {
         save()
     }
 
+    /// 依職業定義發放初始裝備並全部裝備（V10-1 職業選擇確認時呼叫）
+    func grantStarterEquipment(for classDef: ClassDef) {
+        for key in classDef.starterEquipmentKeys {
+            guard let def = EquipmentDef.find(key: key) else { continue }
+            let item = EquipmentModel(
+                defKey:     def.key,
+                slot:       def.slot,
+                rarity:     def.rarity,
+                isEquipped: true
+            )
+            context.insert(item)
+        }
+        save()
+    }
+
     // MARK: - Private
 
     private func save() {

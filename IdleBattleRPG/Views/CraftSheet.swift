@@ -82,6 +82,8 @@ struct CraftSheet: View {
         NavigationStack {
             List {
 
+                NpcIntroSection(actorKey: AppConstants.Actor.blacksmith)
+
                 // ── 升級 Section（可收合）────────────────────────────────
                 upgradeSection
 
@@ -111,7 +113,7 @@ struct CraftSheet: View {
                     recipes: availableRecipes.filter { $0.rarity == .epic }
                 )
             }
-            .navigationTitle("鑄造師")
+            .navigationTitle(player?.npcDisplayName(for: AppConstants.Actor.blacksmith) ?? "鑄造師")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {

@@ -125,6 +125,15 @@ struct ClassSelectionView: View {
                         }
                     }
                 }
+
+                // 你的過去（V10-1 backstory）
+                Divider().padding(.top, 4)
+                Text(classDef.backstory)
+                    .font(.caption2)
+                    .italic()
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .padding(16)
             .frame(maxWidth: .infinity, minHeight: 200)
@@ -160,7 +169,9 @@ struct ClassSelectionView: View {
     private func confirmSelection(_ classDef: ClassDef) {
         guard let player = players.first else { return }
         player.classKey = classDef.key
-        try? context.save()
+        // 發放職業初始裝備（武器 + 副手，全部已裝備），原子寫入
+        let equipService = EquipmentService(context: context)
+        equipService.grantStarterEquipment(for: classDef)
     }
 }
 
