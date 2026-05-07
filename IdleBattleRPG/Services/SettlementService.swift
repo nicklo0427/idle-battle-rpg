@@ -49,6 +49,26 @@ struct SettlementService {
     // MARK: - Private
 
     private func markCompleted(_ task: TaskModel) {
+        // 教程任務：提前處理，不走一般 switch
+        if task.definitionKey == "tutorial_gather" {
+            task.resultWood = 6
+            if let player = (try? context.fetch(FetchDescriptor<PlayerStateModel>()))?.first {
+                player.onboardingStep = 2
+            }
+            task.status = .completed
+            return
+        }
+
+        if task.definitionKey == "tutorial_craft" {
+            if let player = (try? context.fetch(FetchDescriptor<PlayerStateModel>()))?.first,
+               let classDef = ClassDef.find(key: player.classKey) {
+                EquipmentService(context: context).grantStarterEquipment(for: classDef)
+                player.onboardingStep = 3
+            }
+            task.status = .completed
+            return
+        }
+
         switch task.kind {
         case .gather:  fillGatherResults(task)
         case .craft:   break   // resultCraftedEquipKey 在建立時已填入
@@ -57,7 +77,6 @@ struct SettlementService {
         case .farming: fillFarmResults(task)  // V7-4 農田任務
         case .dungeon:
             // V6-3 T01：不預算戰鬥結果，改由玩家即時發起（DungeonBattleSheet）
-            // fillDungeonResults / markDungeonProgression 移至 DungeonBattleSheet.finalizeBattle()
             task.battlePending = true
         }
         task.status = .completed

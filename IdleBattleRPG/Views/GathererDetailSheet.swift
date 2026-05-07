@@ -87,6 +87,11 @@ struct GathererDetailSheet: View {
     var body: some View {
         NavigationStack {
             List {
+                // 教程模式：gatherer_1 + step 0（採集前）
+                if npcDef.actorKey == AppConstants.Actor.gatherer1,
+                   player?.onboardingStep == 0 {
+                    tutorialDispatchSection
+                }
                 NpcIntroSection(actorKey: npcDef.actorKey)
                 detailSection
                 dispatchSection
@@ -119,6 +124,44 @@ struct GathererDetailSheet: View {
                     onCancel: { pendingDispatch = nil }
                 )
             }
+        }
+    }
+
+    // MARK: - Section：教程採集（T06，gatherer_1 + step 0）
+
+    @ViewBuilder
+    private var tutorialDispatchSection: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "bubble.left.fill")
+                        .foregroundStyle(.orange)
+                    Text("要塞需要資源。先去砍點木材吧，打把武器就差這一步了。")
+                        .font(.subheadline)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Button {
+                    startTutorialGather()
+                } label: {
+                    Label("派遣採集（5 秒）", systemImage: "arrow.right.circle.fill")
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.green)
+            }
+            .padding(.vertical, 4)
+        } header: {
+            Text("🎯 引導任務")
+        }
+    }
+
+    private func startTutorialGather() {
+        do {
+            try TaskCreationService(context: context).createTutorialGatherTask()
+            dismiss()
+        } catch {
+            alertMsg = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
     }
 

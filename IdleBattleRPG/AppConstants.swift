@@ -28,8 +28,8 @@ enum AppConstants {
     // MARK: - 初始狀態
     enum Initial {
         static let gold               = 150
-        static let wood               = 6
-        static let ore                = 4
+        static let wood               = 0   // 教程採集前無木材
+        static let ore                = 0   // 教程採集前無礦石
         static let startingWeaponKey  = "rusty_sword"
     }
 

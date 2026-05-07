@@ -20,8 +20,7 @@ final class PlayerStateModel {
     // MARK: - 時間追蹤
     var lastOpenedAt: Date
 
-    // MARK: - 新手保護 Flag（各使用一次後永久消耗）
-    var hasUsedFirstCraftBoost: Bool
+    // MARK: - 新手保護 Flag
     var hasUsedFirstDungeonBoost: Bool
 
     // MARK: - Onboarding 進度（0 = 尚未開始，3 = 完成）
@@ -129,7 +128,6 @@ final class PlayerStateModel {
         defPoints: Int = 3,
         hpPoints: Int = 20,
         lastOpenedAt: Date = .now,
-        hasUsedFirstCraftBoost: Bool = false,
         hasUsedFirstDungeonBoost: Bool = false,
         onboardingStep: Int = 0
     ) {
@@ -140,7 +138,6 @@ final class PlayerStateModel {
         self.defPoints               = defPoints
         self.hpPoints                = hpPoints
         self.lastOpenedAt            = lastOpenedAt
-        self.hasUsedFirstCraftBoost  = hasUsedFirstCraftBoost
         self.hasUsedFirstDungeonBoost = hasUsedFirstDungeonBoost
         self.onboardingStep          = onboardingStep
         // V10-1：敘事 & 命名欄位必須在 init 中明確設定，
