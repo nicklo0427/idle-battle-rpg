@@ -212,13 +212,6 @@ struct BaseView: View {
                 )
             }
         }
-        // V6-1：職業選擇（新遊戲 或 舊存檔 classKey = "" 時強制顯示）
-        .fullScreenCover(isPresented: Binding(
-            get: { players.first?.classKey.isEmpty == true },
-            set: { _ in }   // 不允許外部關閉，必須選職業
-        )) {
-            ClassSelectionView()
-        }
     }
 
     // MARK: - NPC Tab Sections（V7-4 T06）
@@ -264,7 +257,7 @@ struct BaseView: View {
                     .foregroundStyle(Color.teal.opacity(0.7))
                     .frame(width: 24)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("製藥師")
+                    Text(player?.npcDisplayName(for: AppConstants.Actor.pharmacist) ?? "製藥師")
                         .fontWeight(.medium)
                     Text("製藥中：\(PotionDef.find(task.definitionKey)?.name ?? task.definitionKey)")
                         .font(.caption)
@@ -295,7 +288,7 @@ struct BaseView: View {
                         .foregroundStyle(Color.teal)
                         .frame(width: 24)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("製藥師")
+                        Text(player?.npcDisplayName(for: AppConstants.Actor.pharmacist) ?? "製藥師")
                             .fontWeight(.medium)
                             .foregroundStyle(.primary)
                         Text("閒置中，點擊選擇配方")
@@ -331,7 +324,7 @@ struct BaseView: View {
                     .frame(width: 24)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(def.name)
+                    Text(player?.npcDisplayName(for: def.actorKey) ?? def.name)
                         .fontWeight(.medium)
                         .foregroundStyle(.primary)
 
@@ -392,7 +385,7 @@ struct BaseView: View {
                     .frame(width: 24)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("鑄造師")
+                    Text(player?.npcDisplayName(for: AppConstants.Actor.blacksmith) ?? "鑄造師")
                         .fontWeight(.medium)
                         .foregroundStyle(.primary)
 
@@ -453,7 +446,7 @@ struct BaseView: View {
                     .frame(width: 24)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("廚師")
+                    Text(player?.npcDisplayName(for: AppConstants.Actor.chef) ?? "廚師")
                         .fontWeight(.medium)
                         .foregroundStyle(.primary)
 
@@ -512,7 +505,7 @@ struct BaseView: View {
                         .foregroundStyle(.green)
                         .frame(width: 24)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("農夫")
+                        Text(players.first?.npcDisplayName(for: "farmer") ?? "農夫")
                             .fontWeight(.medium)
                         Text("農田 \(plots) 塊解鎖")
                             .font(.caption)
@@ -547,7 +540,7 @@ struct BaseView: View {
                     .frame(width: 24)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("商人")
+                    Text(players.first?.npcDisplayName(for: "merchant") ?? "商人")
                         .fontWeight(.medium)
                         .foregroundStyle(.primary)
                     Text("點擊開啟商店")

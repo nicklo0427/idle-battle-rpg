@@ -47,6 +47,8 @@ struct PharmacySheet: View {
         NavigationStack {
             List {
 
+                NpcIntroSection(actorKey: AppConstants.Actor.pharmacist)
+
                 // ── 升級 Section（可收合）────────────────────────────────
                 upgradeSection
 
@@ -69,7 +71,7 @@ struct PharmacySheet: View {
                         .font(.caption)
                 }
             }
-            .navigationTitle("製藥師")
+            .navigationTitle(player?.npcDisplayName(for: AppConstants.Actor.pharmacist) ?? "製藥師")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {

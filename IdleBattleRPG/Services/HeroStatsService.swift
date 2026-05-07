@@ -29,8 +29,8 @@ struct HeroStatsService {
             let rarityMultiplier: Double = {
                 guard masteryLv > 0 else { return 1.0 }
                 switch equip.rarity {
-                case .refined, .rare, .epic: return masteryBonus
-                case .common:                return 1.0
+                case .refined, .rare, .epic, .legendary, .mythic: return masteryBonus
+                case .common:                                      return 1.0
                 }
             }()
             atk += Int(Double(equip.atkBonus) * rarityMultiplier)

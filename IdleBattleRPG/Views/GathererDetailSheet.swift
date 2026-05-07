@@ -87,10 +87,11 @@ struct GathererDetailSheet: View {
     var body: some View {
         NavigationStack {
             List {
+                NpcIntroSection(actorKey: npcDef.actorKey)
                 detailSection
                 dispatchSection
             }
-            .navigationTitle(npcDef.name)
+            .navigationTitle(player?.npcDisplayName(for: npcDef.actorKey) ?? npcDef.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {

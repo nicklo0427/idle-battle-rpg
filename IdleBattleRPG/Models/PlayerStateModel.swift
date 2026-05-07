@@ -97,6 +97,17 @@ final class PlayerStateModel {
     var gatherer4SkillPoints: Int = 0
     var gatherer4SkillsRaw:   String = ""
 
+    // MARK: - 敘事 & 命名（V10-1）
+
+    /// 是否已看過開場敘事（舊存檔 migration guard 中設為 true）
+    var hasSeenIntro: Bool = false
+    /// 英雄名字（空字串 = 顯示「冒險者」）
+    var heroName: String = ""
+    /// 已看過首次對話的 NPC actorKey，逗號分隔
+    var seenNpcIntroKeysRaw: String = ""
+    /// NPC 自訂名字，格式 "actorKey:名字,actorKey:名字"
+    var npcNamesRaw: String = ""
+
     // MARK: - 生產者技能
 
     var blacksmithSkillPoints: Int = 0
@@ -132,6 +143,12 @@ final class PlayerStateModel {
         self.hasUsedFirstCraftBoost  = hasUsedFirstCraftBoost
         self.hasUsedFirstDungeonBoost = hasUsedFirstDungeonBoost
         self.onboardingStep          = onboardingStep
+        // V10-1：敘事 & 命名欄位必須在 init 中明確設定，
+        // 避免 @Model 的 backing store 在未賦值時回傳非預期值
+        self.hasSeenIntro        = false
+        self.heroName            = ""
+        self.seenNpcIntroKeysRaw = ""
+        self.npcNamesRaw         = ""
     }
 
     // MARK: - 便利查詢
@@ -297,5 +314,60 @@ extension PlayerStateModel {
         case "farmer":      return farmerSkillsRaw
         default: return ""
         }
+    }
+}
+
+// MARK: - NPC 命名便利存取（V10-1）
+
+extension PlayerStateModel {
+
+    /// 已看過首次對話的 NPC actorKey 陣列
+    var seenNpcIntroKeys: [String] {
+        seenNpcIntroKeysRaw
+            .split(separator: ",")
+            .compactMap { s in s.isEmpty ? nil : String(s) }
+    }
+
+    /// 標記某 NPC 的首次對話已看過
+    func markNpcIntroSeen(for actorKey: String) {
+        guard !seenNpcIntroKeys.contains(actorKey) else { return }
+        let updated = (seenNpcIntroKeys + [actorKey]).joined(separator: ",")
+        seenNpcIntroKeysRaw = updated
+    }
+
+    /// NPC 自訂名字字典（actorKey → 名字）
+    private var npcNamesDict: [String: String] {
+        Dictionary(uniqueKeysWithValues:
+            npcNamesRaw
+                .split(separator: ",")
+                .compactMap { pair -> (String, String)? in
+                    let parts = pair.split(separator: ":", maxSplits: 1)
+                    guard parts.count == 2 else { return nil }
+                    return (String(parts[0]), String(parts[1]))
+                }
+        )
+    }
+
+    /// 取得 NPC 自訂名字（未命名回傳 nil）
+    func customNpcName(for actorKey: String) -> String? {
+        let name = npcNamesDict[actorKey]
+        return (name?.isEmpty == false) ? name : nil
+    }
+
+    /// 設定 NPC 自訂名字並寫回 raw string
+    func setCustomNpcName(_ name: String, for actorKey: String) {
+        var dict = npcNamesDict
+        if name.isEmpty {
+            dict.removeValue(forKey: actorKey)
+        } else {
+            dict[actorKey] = name
+        }
+        npcNamesRaw = dict.map { "\($0.key):\($0.value)" }.joined(separator: ",")
+    }
+
+    /// NPC 顯示名（自訂名優先，否則用 NpcIntroDef 的 defaultName）
+    func npcDisplayName(for actorKey: String) -> String {
+        if let custom = customNpcName(for: actorKey) { return custom }
+        return NpcIntroDef.find(actorKey: actorKey)?.defaultName ?? actorKey
     }
 }

@@ -65,10 +65,11 @@ struct FarmerDetailSheet: View {
     var body: some View {
         NavigationStack {
             List {
+                NpcIntroSection(actorKey: "farmer")
                 detailSection
                 farmPlotsSection
             }
-            .navigationTitle("農場")
+            .navigationTitle(player?.npcDisplayName(for: "farmer") ?? "農場")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {

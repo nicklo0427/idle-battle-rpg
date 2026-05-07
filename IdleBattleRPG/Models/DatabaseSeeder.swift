@@ -19,6 +19,7 @@ struct DatabaseSeeder {
         seedDungeonProgression(context: context)
         backfillTalentPoints(context: context)
         backfillSkillPoints(context: context)
+        backfillHasSeenIntro(context: context)
 
         do {
             try context.save()
@@ -115,6 +116,11 @@ struct DatabaseSeeder {
         let existing = (try? context.fetch(descriptor)) ?? []
         guard existing.isEmpty else { return }
 
+        // V10-1: 新玩家裝備由職業選擇時發放；只有舊存檔（classKey 非空但無裝備）才補種
+        let playerDescriptor = FetchDescriptor<PlayerStateModel>()
+        guard let player = (try? context.fetch(playerDescriptor))?.first,
+              !player.classKey.isEmpty else { return }
+
         guard let def = EquipmentDef.find(key: AppConstants.Initial.startingWeaponKey) else {
             assertionFailure("Starting weapon def not found: \(AppConstants.Initial.startingWeaponKey)")
             return
@@ -127,5 +133,14 @@ struct DatabaseSeeder {
             isEquipped: true
         )
         context.insert(sword)
+    }
+
+    /// 舊存檔升級相容：classKey 非空代表已通過職業選擇，不需再看開場敘事
+    @MainActor
+    private static func backfillHasSeenIntro(context: ModelContext) {
+        let descriptor = FetchDescriptor<PlayerStateModel>()
+        guard let player = (try? context.fetch(descriptor))?.first else { return }
+        guard !player.classKey.isEmpty, !player.hasSeenIntro else { return }
+        player.hasSeenIntro = true
     }
 }
