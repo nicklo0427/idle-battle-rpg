@@ -13,6 +13,7 @@ import SwiftData
 struct BaseView: View {
 
     let appState: AppState
+    @Binding var selectedTab: Int
 
     @Environment(\.modelContext) private var context
 
@@ -36,6 +37,7 @@ struct BaseView: View {
     @State private var showPharmacySheet  = false   // V7-4
     @State private var showMerchantSheet  = false
     @State private var showFarmerDetailSheet = false  // V7-4
+    @State private var showArmorSheet        = false  // V10-1 皮甲師
     @State private var baseTab: BaseTab = .gather
 
     // NPC 升級確認 Alert
@@ -45,8 +47,8 @@ struct BaseView: View {
         NavigationStack {
             List {
 
-                // ── 教程進行中提示（T06：step 0~2）────────────────────
-                if let player = players.first, player.onboardingStep < 3 {
+                // ── 教程進行中提示（T06–T11：step 0~7）──────────────
+                if let player = players.first, player.onboardingStep < 8 {
                     tutorialHintBanner(step: player.onboardingStep)
                 }
 
@@ -190,6 +192,15 @@ struct BaseView: View {
             .sheet(isPresented: $showFarmerDetailSheet) {
                 FarmerDetailSheet(viewModel: viewModel, appState: appState)
             }
+            .sheet(isPresented: $showArmorSheet) {
+                ArmorSheet(
+                    appState:           appState,
+                    player:             players.first,
+                    inventory:          inventories.first,
+                    progressionService: appState.progressionService,
+                    selectedTab:        $selectedTab
+                )
+            }
             .alert(item: $pendingUpgradeInfo) { info in
                 let player = players.first
                 let inventory = inventories.first
@@ -226,6 +237,11 @@ struct BaseView: View {
         case 0: "前往採集者（樵夫）採集木材，準備打造初始武器"
         case 1: "等待採集完成..."
         case 2: "前往鑄造師打造你的初始武器"
+        case 3: "前往「角色」頁確認你的武器已裝備"
+        case 4: "前往冒險頁，挑戰荒野邊境的菁英敵人！"
+        case 5: "前往「生產」→「皮甲師」製作你的第一件防具"
+        case 6: "前往「冒險」→ 荒野邊境，一鍵 5 秒探索獲得防具素材"
+        case 7: "素材已備妥！前往皮甲師完成防具鑄造"
         default: ""
         }
         if !hint.isEmpty {
@@ -274,6 +290,12 @@ struct BaseView: View {
             npcPharmacistCard(player: players.first)
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
+            // 皮甲師：教程菁英勝（step >= 5）後解鎖
+            if (players.first?.onboardingStep ?? 0) >= 5 {
+                npcArmorerCard(player: players.first)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            }
         }
     }
 
@@ -638,6 +660,64 @@ struct BaseView: View {
         .buttonStyle(.plain)
     }
 
+    // MARK: - NPC Card: 皮甲師（V10-1）
+
+    @ViewBuilder
+    private func npcArmorerCard(player: PlayerStateModel?) -> some View {
+        let activeTask = tasks.first { $0.actorKey == AppConstants.Actor.armorer && $0.status == .inProgress }
+        let isBusy     = activeTask != nil
+        let caption: String = {
+            guard let task = activeTask else { return "閒置中，點擊委派" }
+            let recipeName = CraftRecipeDef.find(key: task.definitionKey)?.name ?? "防具"
+            return "鑄造中：\(recipeName)\n\(TaskCountdown.remaining(for: task, relativeTo: appState.tick))"
+        }()
+        let progress = isBusy ? activeTask.map { $0.progress(relativeTo: appState.tick) } : nil
+
+        Button { if !isBusy { showArmorSheet = true } } label: {
+            HStack(spacing: 14) {
+                ZStack(alignment: .topTrailing) {
+                    Image(webp: "npc_armorer")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 80, height: 80)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .opacity(isBusy ? 0.85 : 1.0)
+                    npcStatusBadge(isBusy: isBusy)
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(player?.npcDisplayName(for: AppConstants.Actor.armorer) ?? "皮甲師")
+                        .font(.subheadline).fontWeight(.medium).lineLimit(1)
+                    Text(caption)
+                        .font(.caption2)
+                        .foregroundStyle(isBusy ? Color.orange : .secondary)
+                        .lineLimit(2)
+                    if let progress {
+                        ProgressView(value: progress).tint(.orange).scaleEffect(y: 0.6)
+                    }
+                }
+
+                Spacer()
+
+                if isBusy {
+                    Text("鑄造中")
+                        .font(.caption2)
+                        .padding(.horizontal, 8).padding(.vertical, 4)
+                        .background(Color.orange.opacity(0.12))
+                        .foregroundStyle(Color.orange)
+                        .clipShape(Capsule())
+                } else {
+                    Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
+                }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity)
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
+        .buttonStyle(.plain)
+    }
+
     // MARK: - NPC Card: 商人
 
     @ViewBuilder
@@ -894,7 +974,7 @@ private struct NpcUpgradeRequest: Identifiable {
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
         return AppState(context: container.mainContext)
-    }())
+    }(), selectedTab: .constant(0))
     .modelContainer(for: [
         PlayerStateModel.self, MaterialInventoryModel.self,
         EquipmentModel.self, TaskModel.self,

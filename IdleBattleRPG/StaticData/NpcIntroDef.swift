@@ -57,6 +57,11 @@ extension NpcIntroDef {
             defaultName: "魚商",
             introLine:   "大難不死的傢伙！我就說嘛，撿回來的准是人物。什麼都賣什麼都收，素材換金幣，最實在。"
         ),
+        NpcIntroDef(
+            actorKey:    "armorer",
+            defaultName: "皮甲師",
+            introLine:   "你剛才那一戰，我看出來你是個能打的。防具才是長命百歲的關鍵——讓我給你做一件像樣的護甲。"
+        ),
     ]
 
     static func find(actorKey: String) -> NpcIntroDef? {

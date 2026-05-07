@@ -38,6 +38,23 @@ struct EliteDef: Identifiable {
     let atk:               Int         // 菁英 ATK
     let def:               Int         // 菁英 DEF
     let reward:            EliteReward // 通關獎勵
+
+    /// 複製並覆蓋戰鬥數值（教程引導戰用）
+    func copying(overrideHP: Int, overrideATK: Int, overrideDEF: Int) -> EliteDef {
+        EliteDef(
+            key:              key,
+            name:             name,
+            floorKey:         floorKey,
+            regionKey:        regionKey,
+            floorIndex:       floorIndex,
+            lore:             lore,
+            minPowerRequired: minPowerRequired,
+            hp:               overrideHP,
+            atk:              overrideATK,
+            def:              overrideDEF,
+            reward:           reward
+        )
+    }
 }
 
 // MARK: - 靜態資料

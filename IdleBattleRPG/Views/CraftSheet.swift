@@ -55,7 +55,7 @@ struct CraftSheet: View {
 
     /// 已解鎖的所有配方（V1 全顯示；V2-1 需首通樓層）
     private var availableRecipes: [CraftRecipeDef] {
-        CraftRecipeDef.available { floorKey in
+        CraftRecipeDef.available(isCleared: { floorKey in
             // floorKey 格式："{prefix}_floor_{index}"
             // prefix → regionKey 對照表
             guard let sep = floorKey.range(of: "_floor_") else { return false }
@@ -70,7 +70,7 @@ struct CraftSheet: View {
             ]
             guard let regionKey = regionKeyMap[prefix] else { return false }
             return progressionService.isFloorCleared(regionKey: regionKey, floorIndex: index)
-        }
+        }, tutorialArmorUnlocked: player?.tutorialArmorRecipeUnlocked ?? false)
     }
 
     var body: some View {

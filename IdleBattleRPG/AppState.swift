@@ -124,7 +124,7 @@ final class AppState {
     }
 
     /// 顯示輕量 Toast（2.5 秒後自動清除）
-    private func showToast(_ message: String) {
+    func showToast(_ message: String) {
         toastMessage = message
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in
             guard let self, self.toastMessage == message else { return }

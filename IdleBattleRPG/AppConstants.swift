@@ -14,6 +14,7 @@ enum AppConstants {
         static let player      = "player"
         static let chef        = "chef"         // V7-3 廚師 NPC
         static let pharmacist  = "pharmacist"   // V7-4 製藥師 NPC
+        static let armorer     = "armorer"       // V10-1 皮甲師 NPC
     }
 
     // MARK: - 農夫農田 Keys（V7-4）
