@@ -21,21 +21,15 @@ struct HeroStatsService {
         var def = player.defPoints
         var hp  = player.hpPoints
 
-        // bs_mastery：精良及以上裝備屬性倍率（V8-2 T04）
+        // bs_mastery：精良及以上裝備屬性乘數（Lv0 mult = 1.0，行為與現在完全相同）
         let masteryLv    = player.skillLevel(nodeKey: "bs_mastery", actorKey: "blacksmith")
         let masteryBonus = 1.0 + Double(masteryLv) * 0.05
 
         for equip in equipped {
-            let rarityMultiplier: Double = {
-                guard masteryLv > 0 else { return 1.0 }
-                switch equip.rarity {
-                case .refined, .rare, .epic, .legendary, .mythic: return masteryBonus
-                case .common:                                      return 1.0
-                }
-            }()
-            atk += Int(Double(equip.atkBonus) * rarityMultiplier)
-            def += Int(Double(equip.defBonus) * rarityMultiplier)
-            hp  += Int(Double(equip.hpBonus)  * rarityMultiplier)
+            let mult = (masteryLv > 0 && equip.rarity != .common) ? masteryBonus : 1.0
+            atk += Int(Double(equip.atkBonus) * mult)
+            def += Int(Double(equip.defBonus) * mult)
+            hp  += Int(Double(equip.hpBonus)  * mult)
         }
 
         let base = HeroStats(totalATK: atk, totalDEF: def, totalHP: hp,
