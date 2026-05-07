@@ -32,6 +32,10 @@ final class DungeonProgressionModel {
     /// V4-2 新增：菁英通關 → 解鎖下一樓層 / 下一區域
     var clearedEliteKeysJSON: String
 
+    /// 各樓層個人最佳記錄（JSON-encoded [String: FloorBestRecord]）
+    /// V8-3 T04 新增：SwiftData 輕量遷移，預設空字典
+    var floorBestRecordsJSON: String = "{}"
+
     // MARK: - Init
 
     init(

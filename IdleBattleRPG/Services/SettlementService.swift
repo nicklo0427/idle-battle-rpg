@@ -108,49 +108,80 @@ struct SettlementService {
 
     private func fillFarmResults(_ task: TaskModel) {
         guard let seedType = MaterialType(rawValue: task.definitionKey) else {
-            print("[SettlementService] 無法識別種子類型: \(task.definitionKey)")
+            assertionFailure("[SettlementService] 無法識別種子類型: \(task.definitionKey)")
             return
         }
 
-        // 農夫 Tier 決定品質機率（上限 3）
-        let tier = min(
-            (try? context.fetch(FetchDescriptor<PlayerStateModel>()))?.first?.gatherer5Tier ?? 0,
-            3
-        )
+        // 一次 fetch，同時取 tier 與技能等級
+        let player = (try? context.fetch(FetchDescriptor<PlayerStateModel>()))?.first
+        assert(player != nil, "[SettlementService] fillFarmResults: player not found")
 
-        // 品質門檻（roll 值，由小到大：頂級 < 高級分界 < 1.0）
-        let topThreshold:  [Double] = [0.02, 0.06, 0.12, 0.18]
-        let highThreshold: [Double] = [0.20, 0.30, 0.40, 0.50]  // top + high 累計
+        let tier = min(player?.gatherer5Tier ?? 0, 3)
+
+        // fa_quality：每點 +10% 品質門檻
+        let qualityLv    = player?.skillLevel(nodeKey: "fa_quality", actorKey: "farmer") ?? 0
+        let qualityBonus = Double(qualityLv) * 0.10
+
+        // 品質門檻（topThreshold 保證 < highThreshold - 0.05，維持三段分布意義）
+        let baseTop:  [Double] = [0.02, 0.06, 0.12, 0.18]
+        let baseHigh: [Double] = [0.20, 0.30, 0.40, 0.50]
+        let highThreshold = min(baseHigh[tier] + qualityBonus, 0.90)
+        let topThreshold  = min(baseTop[tier]  + qualityBonus, highThreshold - 0.05)
+
+        // fa_yield：每點 +30% 多產機率（每輪獨立判定）
+        let yieldLv     = player?.skillLevel(nodeKey: "fa_yield", actorKey: "farmer") ?? 0
+        let extraChance = Double(yieldLv) * 0.30
+
+        // 從任務時長推算輪數（修正 baseYield = 4 的 bug）
+        let rounds = max(1, Int(task.endsAt.timeIntervalSince(task.startedAt)) / 300)
 
         var rng = DeterministicRNG(task: task)
-        let baseYield = 4
 
-        for _ in 0..<baseYield {
-            let roll   = rng.nextDouble()
-            let isTop  = roll < topThreshold[tier]
-            let isHigh = !isTop && roll < highThreshold[tier]
+        for _ in 0..<rounds {
+            // 基礎產出（每輪一份）
+            let roll = rng.nextDouble()
+            addFarmCrop(seedType: seedType, roll: roll,
+                        topThreshold: topThreshold, highThreshold: highThreshold, to: task)
 
-            switch seedType {
-            case .wheatSeed:
-                if isTop        { task.resultWheatTop  += 1 }
-                else if isHigh  { task.resultWheatHigh += 1 }
-                else            { task.resultWheat     += 1 }
-            case .vegetableSeed:
-                if isTop        { task.resultVegetableTop  += 1 }
-                else if isHigh  { task.resultVegetableHigh += 1 }
-                else            { task.resultVegetable     += 1 }
-            case .fruitSeed:
-                if isTop        { task.resultFruitTop  += 1 }
-                else if isHigh  { task.resultFruitHigh += 1 }
-                else            { task.resultFruit     += 1 }
-            case .spiritGrainSeed:
-                if isTop        { task.resultSpiritGrainTop  += 1 }
-                else if isHigh  { task.resultSpiritGrainHigh += 1 }
-                else            { task.resultSpiritGrain     += 1 }
-            default:
-                // 非種子類型不應出現在農田任務中
-                break
+            // fa_yield 多產判定（Lv0 不進此區塊，RNG 序列與舊版完全相同）
+            guard extraChance > 0 else { continue }
+            if rng.nextDouble() < extraChance {
+                let roll2 = rng.nextDouble()
+                addFarmCrop(seedType: seedType, roll: roll2,
+                            topThreshold: topThreshold, highThreshold: highThreshold, to: task)
             }
+        }
+    }
+
+    private func addFarmCrop(
+        seedType: MaterialType,
+        roll: Double,
+        topThreshold: Double,
+        highThreshold: Double,
+        to task: TaskModel
+    ) {
+        let isTop  = roll < topThreshold
+        let isHigh = !isTop && roll < highThreshold
+
+        switch seedType {
+        case .wheatSeed:
+            if isTop        { task.resultWheatTop  += 1 }
+            else if isHigh  { task.resultWheatHigh += 1 }
+            else            { task.resultWheat     += 1 }
+        case .vegetableSeed:
+            if isTop        { task.resultVegetableTop  += 1 }
+            else if isHigh  { task.resultVegetableHigh += 1 }
+            else            { task.resultVegetable     += 1 }
+        case .fruitSeed:
+            if isTop        { task.resultFruitTop  += 1 }
+            else if isHigh  { task.resultFruitHigh += 1 }
+            else            { task.resultFruit     += 1 }
+        case .spiritGrainSeed:
+            if isTop        { task.resultSpiritGrainTop  += 1 }
+            else if isHigh  { task.resultSpiritGrainHigh += 1 }
+            else            { task.resultSpiritGrain     += 1 }
+        default:
+            break
         }
     }
 

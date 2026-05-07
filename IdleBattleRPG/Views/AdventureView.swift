@@ -80,9 +80,10 @@ struct AdventureView: View {
             .sheet(isPresented: $showBattleLog) {
                 if let floor = activeDungeonFloor {
                     BattleLogSheet(
-                        model:      appState.battleLogPlayback,
-                        title:      floor.name,
-                        enemyLabel: floor.bossName ?? "敵方"
+                        model:          appState.battleLogPlayback,
+                        title:          floor.name,
+                        enemyLabel:     floor.bossName ?? "敵方",
+                        enemyImageName: floor.isBossFloor ? DungeonBattleSheet.bossImageName(for: floor.key) : nil
                     )
                 }
             }
@@ -110,10 +111,12 @@ struct AdventureView: View {
                     showBattleLog = true
                 } label: {
                     HStack(spacing: 12) {
-                        Image(systemName: "map.fill")
-                            .symbolEffect(.pulse)          // T02 動畫
-                            .foregroundStyle(color)          // T01 區域色
-                            .frame(width: 24)
+                        Image(webp: "region_\(activeDungeonFloor?.regionKey ?? "")")
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 32, height: 32)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(color, lineWidth: 1.5))
                         VStack(alignment: .leading, spacing: 2) {
                             Text("正在出征：\(viewModel.activeDungeonName(from: tasks) ?? "—")")
                                 .fontWeight(.semibold)
@@ -157,64 +160,100 @@ struct AdventureView: View {
             let completed = viewModel.isRegionCompleted(region.key, service: appState.progressionService)
             let expanded  = expandedRegionKey == region.key
 
-            Section {
+            VStack(spacing: 0) {
                 Button {
                     guard unlocked else { return }
                     expandedRegionKey = expanded ? nil : region.key
                 } label: {
-                    regionHeader(region: region, unlocked: unlocked, completed: completed, expanded: expanded)
+                    regionBannerCard(region: region, unlocked: unlocked, completed: completed, expanded: expanded)
                 }
                 .buttonStyle(.plain)
 
                 if unlocked && expanded {
-                    ForEach(region.floors) { floor in
-                        floorRow(floor: floor, region: region)
+                    VStack(spacing: 0) {
+                        ForEach(region.floors) { floor in
+                            floorRow(floor: floor, region: region)
+                            if floor.id != region.floors.last?.id {
+                                Divider().padding(.leading, 76)  // 14 hPad + 48 icon + 14 spacing
+                            }
+                        }
                     }
+                    .padding(.top, 4)
+                    .background(Color(.secondarySystemGroupedBackground))
+                    .clipShape(UnevenRoundedRectangle(
+                        bottomLeadingRadius: 14, bottomTrailingRadius: 14
+                    ))
                 }
             }
+            .shadow(color: .black.opacity(0.07), radius: 4, y: 2)
+            .listRowInsets(.init(top: 10, leading: 12, bottom: 10, trailing: 12))
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
         }
     }
 
-    // MARK: - Region Header
+    // MARK: - Region Banner Card（V9-2 T05）
 
     @ViewBuilder
-    private func regionHeader(
+    private func regionBannerCard(
         region: DungeonRegionDef,
         unlocked: Bool,
         completed: Bool,
         expanded: Bool
     ) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: unlocked ? (completed ? "checkmark.seal.fill" : "lock.open.fill") : "lock.fill")
-                .foregroundStyle(completed ? .green : (unlocked ? Color.dungeonRegion(region.key) : .secondary))
-                .frame(width: 26)
+        let clearedCount = viewModel.clearedFloorCount(regionKey: region.key, service: appState.progressionService)
+        let unlockCaption: String = {
+            guard let idx = DungeonRegionDef.all.firstIndex(where: { $0.key == region.key }), idx > 0 else { return "" }
+            return "通關\(DungeonRegionDef.all[idx - 1].name) Boss"
+        }()
 
-            Text(region.name)
-                .fontWeight(.semibold)
-                .foregroundStyle(unlocked ? .primary : .secondary)
+        ZStack(alignment: .bottomLeading) {
+            Image(webp: "region_\(region.key)")
+                .resizable()
+                .scaledToFill()
+                .frame(maxWidth: .infinity)
+                .frame(height: 150)
+                .clipped()
+                .opacity(unlocked ? 1.0 : 0.25)
+                .grayscale(unlocked ? 0.0 : 1.0)
 
-            Spacer()
+            LinearGradient(
+                colors: [.black.opacity(0.0), .black.opacity(0.65)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
 
-            if unlocked {
-                Image(systemName: expanded ? "chevron.up" : "chevron.down")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            } else {
-                regionUnlockLabel(region: region)
+            HStack(alignment: .bottom) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(region.name)
+                        .font(.headline).fontWeight(.bold)
+                        .foregroundStyle(.white)
+                    if unlocked {
+                        Text("\(clearedCount) / \(region.floors.count) 層首通")
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.8))
+                    }
+                }
+                Spacer()
+                if !unlocked {
+                    Label(unlockCaption, systemImage: "lock.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 8).padding(.vertical, 4)
+                        .background(.black.opacity(0.35))
+                        .clipShape(Capsule())
+                } else if completed {
+                    Image(systemName: "checkmark.seal.fill")
+                        .foregroundStyle(.green)
+                } else {
+                    Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                        .foregroundStyle(.white.opacity(0.7))
+                }
             }
+            .padding(12)
         }
-        .padding(.vertical, 2)
-        .opacity(unlocked ? 1.0 : 0.5)
-    }
-
-    @ViewBuilder
-    private func regionUnlockLabel(region: DungeonRegionDef) -> some View {
-        if let idx = DungeonRegionDef.all.firstIndex(where: { $0.key == region.key }), idx > 0 {
-            let prev = DungeonRegionDef.all[idx - 1]
-            Text("通關\(prev.name) Boss")
-                .font(.caption2)
-                .foregroundStyle(.orange)
-        }
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .contentShape(RoundedRectangle(cornerRadius: 14))
     }
 
     // MARK: - Floor Row
@@ -248,16 +287,29 @@ struct AdventureView: View {
                 ZStack {
                     Circle()
                         .fill(floor.isBossFloor
-                              ? Color.dungeonRegion(region.key).opacity(0.2)     // T01 Boss 圓圈
+                              ? Color.dungeonRegion(region.key).opacity(0.2)
                               : Color.secondary.opacity(0.1))
-                        .frame(width: 30, height: 30)
-                    if floor.isBossFloor {
+                        .frame(width: 48, height: 48)
+                    if floor.isBossFloor,
+                       let imgName = DungeonBattleSheet.bossImageName(for: floor.key) {
+                        Image(webp: imgName)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 44, height: 44)
+                            .clipShape(Circle())
+                    } else if floor.isBossFloor {
                         Image(systemName: "crown.fill")
-                            .frame(width: 14, height: 14)
+                            .frame(width: 22, height: 22)
                             .foregroundStyle(Color.dungeonRegion(region.key))
+                    } else if let imgName = DungeonBattleSheet.mobImageName(for: floor.key) {
+                        Image(webp: imgName)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 44, height: 44)
+                            .clipShape(Circle())
                     } else {
                         Text("\(floor.floorIndex)")
-                            .font(.caption)
+                            .font(.subheadline)
                             .fontWeight(.bold)
                             .foregroundStyle(.secondary)
                     }
@@ -267,7 +319,7 @@ struct AdventureView: View {
                     HStack(spacing: 4) {
                         Text(floor.name)
                             .font(.subheadline)
-                            .fontWeight(unlocked ? .medium : .regular)
+                            .fontWeight(unlocked ? .semibold : .regular)
                             .foregroundStyle(unlocked ? .primary : .secondary)
                         if cleared {
                             Image(systemName: "checkmark.circle.fill")
@@ -304,8 +356,10 @@ struct AdventureView: View {
                 if unlocked {
                     if isActiveFloor {
                         HStack(spacing: 4) {
-                            Image(systemName: "text.alignleft")
-                                .font(.caption)
+                            Image(webp: "icon_march")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 16, height: 16)
                             Text("出征中")
                                 .font(.caption)
                         }
@@ -321,7 +375,8 @@ struct AdventureView: View {
                     }
                 }
             }
-            .padding(.vertical, 2)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 14)
             .opacity(unlocked ? 1.0 : 0.45)
         }
         .buttonStyle(.plain)
@@ -428,6 +483,7 @@ private struct FloorDetailSheet: View {
     @State private var eliteCleared      = false
     @State private var selectedCuisineKey = ""   // V7-4
     @State private var selectedPotionKey  = ""   // V7-4
+    @State private var infoExpanded = false
     @Environment(\.dismiss) private var dismiss
     @Query private var players:     [PlayerStateModel]
     @Query private var consumables: [ConsumableInventoryModel]   // V7-4
@@ -446,12 +502,37 @@ private struct FloorDetailSheet: View {
         NavigationStack {
             List {
                 floorInfoSection
-                if let stats = heroStats { powerSection(stats: stats) }
-                dropTableSection
-                unlockPreviewSection
-                eliteSection
-                consumableSection   // V7-4
+                consumableSection
                 launchSection
+                unlockAndEliteSection
+
+                Section {
+                    DisclosureGroup("掉落物", isExpanded: $infoExpanded) {
+                        ForEach(floor.dropTable, id: \.material) { entry in
+                            HStack {
+                                Text("\(entry.material.icon) \(entry.material.displayName)")
+                                Spacer()
+                                Text("\(Int(entry.dropRate * 100))%")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text("×\(entry.quantityRange.lowerBound)–\(entry.quantityRange.upperBound)")
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                        HStack {
+                            HStack(spacing: 4) {
+                                Image(systemName: "coins").frame(width: 14, height: 14).foregroundStyle(.yellow)
+                                Text("金幣")
+                            }
+                            Spacer()
+                            let r = floor.goldPerBattleRange
+                            Text("\(r.lowerBound)–\(r.upperBound) / 場")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
             }
             .navigationTitle(floor.name)
             .navigationBarTitleDisplayMode(.inline)
@@ -480,187 +561,101 @@ private struct FloorDetailSheet: View {
 
     // MARK: - Sheet Sections
 
+    @ViewBuilder
     private var floorInfoSection: some View {
-        Section {
-            HStack {
+        let hasBoss = floor.isBossFloor && floor.bossName != nil
+        let best = appState.progressionService.getBest(floorKey: floor.key)
+        if hasBoss || best != nil {
+            Section {
                 VStack(alignment: .leading, spacing: 4) {
                     if floor.isBossFloor, let bossName = floor.bossName {
-                        Label(bossName, systemImage: "crown.fill")
-                            .font(.subheadline)
-                            .foregroundStyle(.orange)
+                        HStack(spacing: 8) {
+                            if let imgName = DungeonBattleSheet.bossImageName(for: floor.key) {
+                                Image(webp: imgName)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 24, height: 24)
+                                    .clipShape(RoundedRectangle(cornerRadius: 5))
+                            } else {
+                                Image(systemName: "crown.fill")
+                                    .font(.subheadline)
+                            }
+                            Text(bossName)
+                                .font(.subheadline)
+                        }
+                        .foregroundStyle(.orange)
                     }
-                    if isCleared {
-                        Label("已首通", systemImage: "checkmark.circle.fill")
+                    if let best {
+                        Label("最佳：\(best.wins) 勝 / 💰\(best.gold)", systemImage: "trophy.fill")
                             .font(.caption)
-                            .foregroundStyle(.green)
+                            .foregroundStyle(.yellow)
                     }
                 }
-                Spacer()
-                Text("推薦戰力 \(floor.recommendedPower)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
         }
     }
+
+    // MARK: - Unlock & Elite Section
 
     @ViewBuilder
-    private func powerSection(stats: HeroStats) -> some View {
-        let rate = Int(HeroStats.winRate(power: stats.power, recommendedPower: floor.recommendedPower) * 100)
-        Section("戰力評估") {
-            HStack {
-                Text("當前戰力")
-                Spacer()
-                Text("\(stats.power)")
-                    .fontWeight(.semibold)
-                    .monospacedDigit()
-            }
-            HStack {
-                Text("推薦戰力")
-                Spacer()
-                Text("\(floor.recommendedPower)")
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
-            }
-            HStack {
-                Text("預估勝率")
-                Spacer()
-                Text("\(rate)%")
-                    .fontWeight(.bold)
-                    .foregroundStyle(Color.winRate(rate))
-            }
-        }
-    }
-
-    private var dropTableSection: some View {
-        Section("掉落物") {
-            ForEach(floor.dropTable, id: \.material) { entry in
-                HStack {
-                    Text("\(entry.material.icon) \(entry.material.displayName)")
-                    Spacer()
-                    Text("\(Int(entry.dropRate * 100))%")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text("×\(entry.quantityRange.lowerBound)–\(entry.quantityRange.upperBound)")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
-            }
-            HStack {
-                HStack(spacing: 4) {
-                    Image(systemName: "coins").frame(width: 14, height: 14).foregroundStyle(.yellow)
-                    Text("金幣")
-                }
-                Spacer()
-                let r = floor.goldPerBattleRange
-                Text("\(r.lowerBound)–\(r.upperBound) / 場")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-
-    private var unlockPreviewSection: some View {
-        Section("首通解鎖") {
+    private var unlockAndEliteSection: some View {
+        Section {
             HStack {
                 Text(floor.unlocksSlot.icon + " \(floor.unlocksSlot.displayName)配方")
                 Spacer()
                 if isCleared {
-                    Text("已解鎖")
-                        .font(.caption)
-                        .foregroundStyle(.green)
+                    Text("已解鎖").font(.caption).foregroundStyle(.green)
                 } else {
-                    Text("未解鎖")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Text("未解鎖").font(.caption).foregroundStyle(.secondary)
                 }
             }
-        }
-    }
 
-    // MARK: - Elite Section
-
-    @ViewBuilder
-    private var eliteSection: some View {
-        if let elite = EliteDef.find(floorKey: floor.key) {
-            Section("地區菁英") {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Text(elite.name)
-                            .fontWeight(.semibold)
-                        Spacer()
-                        if eliteCleared {
-                            Label("已擊敗", systemImage: "star.fill")
-                                .font(.caption)
-                                .foregroundStyle(.yellow)
-                                .padding(.horizontal, 6).padding(.vertical, 2)
-                                .background(Color.yellow.opacity(0.15))
-                                .clipShape(Capsule())
-                        }
-                    }
-                    Text(elite.lore)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                HStack(spacing: 16) {
-                    eliteStatPill("HP",  "\(elite.hp)",  .red)
-                    eliteStatPill("ATK", "\(elite.atk)", .orange)
-                    eliteStatPill("DEF", "\(elite.def)", .blue)
+            if let elite = EliteDef.find(floorKey: floor.key) {
+                HStack {
+                    Image(webp: elite.key)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 24, height: 24)
+                        .clipShape(RoundedRectangle(cornerRadius: 5))
+                    Text(elite.name).fontWeight(.semibold)
                     Spacer()
-                    Text("需 \(elite.minPowerRequired) 戰力")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-
-                HStack(spacing: 8) {
-                    HStack(spacing: 3) {
-                        Image(systemName: "coins").frame(width: 12, height: 12).foregroundStyle(.yellow)
-                        Text("\(elite.reward.gold) 金幣")
+                    if eliteCleared {
+                        Label("已擊敗", systemImage: "star.fill")
+                            .font(.caption).foregroundStyle(.yellow)
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(Color.yellow.opacity(0.15))
+                            .clipShape(Capsule())
+                    } else {
+                        Text("需 \(elite.minPowerRequired) 戰力")
+                            .font(.caption2).foregroundStyle(.secondary)
                     }
-                    .font(.caption)
-                    Text("+")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                    Text("\(elite.reward.material.icon) \(elite.reward.material.displayName) ×\(elite.reward.materialCount)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
 
                 if eliteCleared {
                     Label("菁英已擊敗，獎勵已領取", systemImage: "checkmark.circle.fill")
-                        .font(.caption)
-                        .foregroundStyle(.green)
+                        .font(.caption).foregroundStyle(.green)
                 } else if let power = heroStats?.power, power >= elite.minPowerRequired {
                     Button {
                         showEliteBattle = true
                     } label: {
-                        Label("挑戰菁英", systemImage: "shield.lefthalf.filled")
-                            .fontWeight(.semibold)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 4)
+                        HStack(spacing: 6) {
+                            Image(webp: "icon_elite")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 20, height: 20)
+                            Text("挑戰菁英").fontWeight(.semibold)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 4)
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(.orange)
                     .disabled(isBusy)
                 } else {
                     Label("戰力不足（需 \(elite.minPowerRequired)）", systemImage: "exclamationmark.triangle.fill")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
+                        .font(.caption).foregroundStyle(.orange)
                 }
             }
-        }
-    }
-
-    @ViewBuilder
-    private func eliteStatPill(_ label: String, _ value: String, _ color: Color) -> some View {
-        VStack(spacing: 1) {
-            Text(label)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-            Text(value)
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundStyle(color)
         }
     }
 
@@ -702,9 +697,12 @@ private struct FloorDetailSheet: View {
         Section {
             if isBusy, let task = activeDungeonTask {
                 HStack {
-                    Image(systemName: "map.fill")
-                        .symbolEffect(.pulse)                    // T02 動畫
-                        .foregroundStyle(Color.dungeonRegion(floor.regionKey))
+                    Image(webp: "region_\(floor.regionKey)")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 32, height: 32)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.dungeonRegion(floor.regionKey), lineWidth: 1.5))
                     Text("英雄出征中").foregroundStyle(.secondary)
                     Spacer()
                     Text(TaskCountdown.remaining(for: task, relativeTo: tick))
@@ -724,10 +722,15 @@ private struct FloorDetailSheet: View {
                 Button {
                     onStart(selectedDuration, selectedCuisineKey, selectedPotionKey)
                 } label: {
-                    Label("出發", systemImage: "paperplane.fill")
-                        .fontWeight(.semibold)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 4)
+                    HStack(spacing: 6) {
+                        Image(webp: "icon_launch")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 20, height: 20)
+                        Text("出發").fontWeight(.semibold)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 4)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(Color.dungeonRegion(floor.regionKey))  // T01 出發按鈕用區域色

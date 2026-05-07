@@ -56,13 +56,16 @@ struct BattleEvent {
     let chargeTarget: Double
     /// T07：施放的技能 key（僅 .skill 事件且為真實技能施放時有效，其餘為 nil）
     let skillKey:     String?
+    /// V8-3 T03：本次事件的傷害量（.attack / .damage / .skill 傷害型 / .statusTick 有值，其餘為 0）
+    let damageAmount: Int
 
     init(type: EventType, description: String,
          heroHpAfter: Int, enemyHpAfter: Int,
          heroMaxHp: Int, enemyMaxHp: Int,
          chargeTime: Double, isCrit: Bool,
          chargeTarget: Double = 1.0,
-         skillKey: String? = nil) {
+         skillKey: String? = nil,
+         damageAmount: Int = 0) {
         self.type         = type
         self.description  = description
         self.heroHpAfter  = heroHpAfter
@@ -73,6 +76,7 @@ struct BattleEvent {
         self.isCrit       = isCrit
         self.chargeTarget = chargeTarget
         self.skillKey     = skillKey
+        self.damageAmount = damageAmount
     }
 }
 
@@ -128,11 +132,12 @@ struct BattleLogGenerator {
         var heroMaxHp = max(50, snapshotPower * 2)
         var heroAtk   = max(10, snapshotPower / 4)
         var heroDef   = max(5,  snapshotPower / 10)
-        // V7-4：套用料理加成
+        // V7-4：套用料理加成；V8-2 T03：ch_flavor 技能提升加成倍率
         if let cuisine = cuisineDef {
-            heroAtk   += cuisine.atkBonus
-            heroDef   += cuisine.defBonus
-            heroMaxHp += cuisine.hpBonus
+            let flavorMultiplier = 1.0 + Double(task.snapshotChFlavorLevel) * 0.10
+            heroAtk   += Int(Double(cuisine.atkBonus) * flavorMultiplier)
+            heroDef   += Int(Double(cuisine.defBonus) * flavorMultiplier)
+            heroMaxHp += Int(Double(cuisine.hpBonus)  * flavorMultiplier)
         }
 
         // ATB 填充時間
@@ -196,7 +201,8 @@ struct BattleLogGenerator {
                 enemyAtk:        enemyAtk,
                 enemyDef:        enemyDef,
                 enemyChargeTime: enemyChargeTime,
-                potionDef:       potionDef
+                potionDef:       potionDef,
+                potencyLevel:    task.snapshotPhPotencyLevel
             )
         }
 
@@ -226,6 +232,7 @@ struct BattleLogGenerator {
         enemyDef:        Int,
         enemyChargeTime: Double,
         potionDef:       PotionDef? = nil,   // V7-4 T05
+        potencyLevel:    Int = 0,            // V8-2 T03：ph_potency 技能等級
         onEvent:         ((BattleEvent) -> Void)?
     ) -> CombatOutcome {
 
@@ -258,7 +265,8 @@ struct BattleLogGenerator {
                         description: "🔥 \(enemyName) 燃燒傷害 \(dpt)（剩餘 \(max(0, turns - 1)) 回合）",
                         heroHpAfter: heroHp, enemyHpAfter: enemyHp,
                         heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
-                        chargeTime: 0, isCrit: false
+                        chargeTime: 0, isCrit: false,
+                        damageAmount: dpt
                     ))
                     if turns > 1 {
                         nextStatuses.append(.burn(remainingTurns: turns - 1, dpt: dpt))
@@ -279,7 +287,8 @@ struct BattleLogGenerator {
                         description: "☠️ \(enemyName) 中毒傷害 \(poisonDmg)（\(stacks) 層）",
                         heroHpAfter: heroHp, enemyHpAfter: enemyHp,
                         heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
-                        chargeTime: 0, isCrit: false
+                        chargeTime: 0, isCrit: false,
+                        damageAmount: poisonDmg
                     ))
                     nextStatuses.append(status)   // 中毒不自動消退
                 case .stun, .weakened:
@@ -289,10 +298,11 @@ struct BattleLogGenerator {
             enemyStatuses = nextStatuses
             if enemyHp <= 0 { break }   // 狀態效果擊殺
 
-            // V7-4 T05：藥水觸發（HP < 50% 時一次性回復）
+            // V7-4 T05：藥水觸發（HP < 50% 時一次性回復）；V8-2 T03：ph_potency 提升回復量
             if let potion = potionDef, !potionUsed, heroHp < heroMaxHp / 2, heroHp > 0 {
                 potionUsed = true
-                let healed = Int(Double(heroMaxHp) * potion.healPercent)
+                let potencyMultiplier = 1.0 + Double(potencyLevel) * 0.10
+                let healed = Int(Double(heroMaxHp) * potion.healPercent * potencyMultiplier)
                 heroHp = min(heroMaxHp, heroHp + healed)
                 onEvent?(BattleEvent(
                     type: .potionUsed,
@@ -323,7 +333,8 @@ struct BattleLogGenerator {
                         description: "【\(skill.name)】對 \(enemyName) 造成 \(dmg) 傷害",
                         heroHpAfter: heroHp, enemyHpAfter: enemyHp,
                         heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
-                        chargeTime: 0, isCrit: false, skillKey: skill.key
+                        chargeTime: 0, isCrit: false, skillKey: skill.key,
+                        damageAmount: dmg
                     ))
                     if enemyHp <= 0 { break combatLoop }
 
@@ -348,7 +359,8 @@ struct BattleLogGenerator {
                         description: "【\(skill.name)】造成 \(dmg) 傷害，恢復 \(restored) HP",
                         heroHpAfter: heroHp, enemyHpAfter: enemyHp,
                         heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
-                        chargeTime: 0, isCrit: false, skillKey: skill.key
+                        chargeTime: 0, isCrit: false, skillKey: skill.key,
+                        damageAmount: dmg
                     ))
                     if enemyHp <= 0 { break combatLoop }
 
@@ -384,7 +396,8 @@ struct BattleLogGenerator {
                         description: "【\(skill.name)】造成 \(dmg) 傷害，\(enemyName) 下次攻擊削弱 \(Int(scaledR * 100))%",
                         heroHpAfter: heroHp, enemyHpAfter: enemyHp,
                         heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
-                        chargeTime: 0, isCrit: false, skillKey: skill.key
+                        chargeTime: 0, isCrit: false, skillKey: skill.key,
+                        damageAmount: dmg
                     ))
                     if enemyHp <= 0 { break combatLoop }
 
@@ -398,7 +411,8 @@ struct BattleLogGenerator {
                         description: "【\(skill.name)】造成 \(dmg) 傷害",
                         heroHpAfter: heroHp, enemyHpAfter: enemyHp,
                         heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
-                        chargeTime: 0, isCrit: false, skillKey: skill.key
+                        chargeTime: 0, isCrit: false, skillKey: skill.key,
+                        damageAmount: dmg
                     ))
                     onEvent?(BattleEvent(
                         type: .statusApplied,
@@ -422,7 +436,8 @@ struct BattleLogGenerator {
                                 description: "【\(skill.name)】造成 \(dmg) 傷害，中毒加深（\(newStacks) 層）",
                                 heroHpAfter: heroHp, enemyHpAfter: enemyHp,
                                 heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
-                                chargeTime: 0, isCrit: false, skillKey: skill.key
+                                chargeTime: 0, isCrit: false, skillKey: skill.key,
+                                damageAmount: dmg
                             ))
                         }
                     } else {
@@ -432,7 +447,8 @@ struct BattleLogGenerator {
                             description: "【\(skill.name)】造成 \(dmg) 傷害，施加中毒",
                             heroHpAfter: heroHp, enemyHpAfter: enemyHp,
                             heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
-                            chargeTime: 0, isCrit: false, skillKey: skill.key
+                            chargeTime: 0, isCrit: false, skillKey: skill.key,
+                            damageAmount: dmg
                         ))
                         onEvent?(BattleEvent(
                             type: .statusApplied,
@@ -453,7 +469,8 @@ struct BattleLogGenerator {
                         description: "【\(skill.name)】造成 \(dmg) 傷害",
                         heroHpAfter: heroHp, enemyHpAfter: enemyHp,
                         heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
-                        chargeTime: 0, isCrit: false, skillKey: skill.key
+                        chargeTime: 0, isCrit: false, skillKey: skill.key,
+                        damageAmount: dmg
                     ))
                     onEvent?(BattleEvent(
                         type: .statusApplied,
@@ -474,7 +491,8 @@ struct BattleLogGenerator {
                         description: "【\(skill.name)】造成 \(dmg) 傷害",
                         heroHpAfter: heroHp, enemyHpAfter: enemyHp,
                         heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
-                        chargeTime: 0, isCrit: false, skillKey: skill.key
+                        chargeTime: 0, isCrit: false, skillKey: skill.key,
+                        damageAmount: dmg
                     ))
                     onEvent?(BattleEvent(
                         type: .statusApplied,
@@ -503,7 +521,8 @@ struct BattleLogGenerator {
                                     : "發動斬擊 → 造成 \(heroDmg) 傷害",
                 heroHpAfter: heroHp, enemyHpAfter: enemyHp,
                 heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
-                chargeTime: heroChargeTime, isCrit: isCrit
+                chargeTime: heroChargeTime, isCrit: isCrit,
+                damageAmount: heroDmg
             ))
 
             guard enemyHp > 0 else { break }
@@ -554,7 +573,8 @@ struct BattleLogGenerator {
                     description: "\(enemyName) 反擊 → 受到 \(enemyDmg) 傷害",
                     heroHpAfter: heroHp, enemyHpAfter: enemyHp,
                     heroMaxHp: heroMaxHp, enemyMaxHp: enemyMaxHp,
-                    chargeTime: enemyChargeTime, isCrit: false
+                    chargeTime: enemyChargeTime, isCrit: false,
+                    damageAmount: enemyDmg
                 ))
 
                 // T05: 弱化倒數（每次敵方攻擊後 -1 回合）
@@ -656,7 +676,8 @@ struct BattleLogGenerator {
         enemyAtk:        Int,
         enemyDef:        Int,
         enemyChargeTime: Double,
-        potionDef:       PotionDef? = nil   // V7-4 T05
+        potionDef:       PotionDef? = nil,   // V7-4 T05
+        potencyLevel:    Int = 0             // V8-2 T03：ph_potency 技能等級
     ) -> [BattleEvent] {
         // 探索 seed（文字選取）：原有 per-battle seed
         var exploreRng = DeterministicRNG(seed: taskSeed ^ UInt64(battleIndex &+ 1))
@@ -764,6 +785,7 @@ struct BattleLogGenerator {
             enemyDef:        enemyDef,
             enemyChargeTime: enemyChargeTime,
             potionDef:       potionDef,
+            potencyLevel:    potencyLevel,
             onEvent:         { events.append($0) }
         )
 

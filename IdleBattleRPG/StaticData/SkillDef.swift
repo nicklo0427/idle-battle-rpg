@@ -62,12 +62,16 @@ extension SkillDef {
     static let all: [SkillDef] = [
         // 劍士
         sw_heavy_slash, sw_battle_cry, sw_whirlwind, sw_intimidate, sw_deathblow,
+        sw_dragon_slayer, sw_judgment_falls,
         // 弓手
         ar_rapid_shot, ar_cripple, ar_barrage, ar_eagle_shot, ar_lethal_aim,
+        ar_piercing_shot, ar_soul_destroyer,
         // 法師
         mg_fireball, mg_frost_nova, mg_arcane_blast, mg_mana_shield, mg_meteor,
+        mg_frost_flame, mg_dimensional_collapse,
         // 聖騎士
         pl_holy_strike, pl_divine_shield, pl_consecration, pl_holy_light, pl_judgment,
+        pl_holy_burst, pl_celestial_judgment,
     ]
 
     static func find(key: String) -> SkillDef? {
@@ -213,6 +217,28 @@ extension SkillDef {
         effect:          .damage(multiplier: 3.0),
         maxLevel:        3
     )
+
+    static let sw_dragon_slayer = SkillDef(
+        key:             "sw_dragon_slayer",
+        classKey:        "swordsman",
+        requiredLevel:   23,
+        name:            "屠龍者",
+        description:     "斬穿龍鱗的霸道一擊，傷害極高。",
+        cooldownSeconds: 50,
+        effect:          .damage(multiplier: 3.2),
+        maxLevel:        3
+    )
+
+    static let sw_judgment_falls = SkillDef(
+        key:             "sw_judgment_falls",
+        classKey:        "swordsman",
+        requiredLevel:   28,
+        name:            "審判降臨",
+        description:     "天降神罰，重創敵人同時削弱其戰意。",
+        cooldownSeconds: 60,
+        effect:          .damageAndWeaken(dmgMultiplier: 4.0, reduction: 0.40, duration: 2),
+        maxLevel:        3
+    )
 }
 
 // MARK: - 弓手技能（速攻 + 減益型）
@@ -271,6 +297,28 @@ extension SkillDef {
         description:     "鎖定致命要害，一擊決勝負。",
         cooldownSeconds: 42,
         effect:          .damage(multiplier: 3.4),
+        maxLevel:        3
+    )
+
+    static let ar_piercing_shot = SkillDef(
+        key:             "ar_piercing_shot",
+        classKey:        "archer",
+        requiredLevel:   23,
+        name:            "穿透射擊",
+        description:     "箭矢貫穿目標，引燃持續烈焰。",
+        cooldownSeconds: 48,
+        effect:          .damageAndBurn(dmgMultiplier: 2.8, dpt: 15, duration: 3),
+        maxLevel:        3
+    )
+
+    static let ar_soul_destroyer = SkillDef(
+        key:             "ar_soul_destroyer",
+        classKey:        "archer",
+        requiredLevel:   28,
+        name:            "滅魂箭",
+        description:     "蓄滿全力的必殺一箭，摧毀敵人靈魂。",
+        cooldownSeconds: 58,
+        effect:          .damage(multiplier: 4.0),
         maxLevel:        3
     )
 }
@@ -333,6 +381,28 @@ extension SkillDef {
         effect:          .damage(multiplier: 3.1),
         maxLevel:        3
     )
+
+    static let mg_frost_flame = SkillDef(
+        key:             "mg_frost_flame",
+        classKey:        "mage",
+        requiredLevel:   23,
+        name:            "冰炎融合",
+        description:     "冰與火的悖論共存，持續腐蝕敵人生命。",
+        cooldownSeconds: 45,
+        effect:          .damageAndPoison(dmgMultiplier: 2.6, dptPerStack: 18),
+        maxLevel:        3
+    )
+
+    static let mg_dimensional_collapse = SkillDef(
+        key:             "mg_dimensional_collapse",
+        classKey:        "mage",
+        requiredLevel:   28,
+        name:            "次元崩裂",
+        description:     "撕裂空間結構，使敵人暫時失去行動能力。",
+        cooldownSeconds: 60,
+        effect:          .stunAndDamage(dmgMultiplier: 3.8, stunDuration: 2),
+        maxLevel:        3
+    )
 }
 
 // MARK: - 聖騎士技能（坦克 + 治癒型）
@@ -391,6 +461,28 @@ extension SkillDef {
         description:     "以神之名降下審判，給予敵方毀滅性打擊。",
         cooldownSeconds: 55,
         effect:          .damage(multiplier: 2.8),
+        maxLevel:        3
+    )
+
+    static let pl_holy_burst = SkillDef(
+        key:             "pl_holy_burst",
+        classKey:        "paladin",
+        requiredLevel:   23,
+        name:            "神聖爆發",
+        description:     "聖光爆炸衝擊敵人，同時治癒自身傷勢。",
+        cooldownSeconds: 50,
+        effect:          .damageAndHeal(dmgMultiplier: 2.8, healMultiplier: 0.20),
+        maxLevel:        3
+    )
+
+    static let pl_celestial_judgment = SkillDef(
+        key:             "pl_celestial_judgment",
+        classKey:        "paladin",
+        requiredLevel:   28,
+        name:            "天啟審判",
+        description:     "神明降下懲戒，重創並大幅削弱敵人攻擊力。",
+        cooldownSeconds: 60,
+        effect:          .damageAndEnemyAtkDown(dmgMultiplier: 3.5, reduction: 0.50),
         maxLevel:        3
     )
 }

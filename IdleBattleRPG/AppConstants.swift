@@ -37,7 +37,7 @@ enum AppConstants {
     enum Game {
         static let maxOfflineSeconds      = 12 * 3600  // 12 小時離線上限
         static let secondsPerBattle       = 60          // 每場戰鬥 60 秒
-        static let heroMaxLevel           = 20
+        static let heroMaxLevel           = 30
         static let statPointsPerLevel     = 3
         static let firstBoostSeconds      = 30          // 新手特快時長（秒）
         static let forcedBattlesFirstRun  = 5           // 首次出征固定場數
@@ -90,7 +90,10 @@ enum AppConstants {
             6: 600,  7: 850,  8: 1100, 9: 1500, 10: 2000,
             // Lv.10 → 20（中後期大幅拉長，讓沉落王城成為長期目標）
             11: 2800,  12: 3600,  13: 4500,  14: 5500,  15: 6800,
-            16: 8400,  17: 10200, 18: 12500, 19: 15500, 20: 19000
+            16: 8400,  17: 10200, 18: 12500, 19: 15500, 20: 19000,
+            // Lv.20 → 30（後期長征，對應 Lv23/28 進階技能解鎖）
+            21: 23_500, 22: 29_000, 23: 35_500, 24: 43_000, 25: 52_000,
+            26: 62_500, 27: 75_000, 28: 90_000, 29: 108_000, 30: 130_000
         ]
         /// 升至目標等級所需 EXP；超出範圍回傳 nil
         static func required(toLevel level: Int) -> Int? {

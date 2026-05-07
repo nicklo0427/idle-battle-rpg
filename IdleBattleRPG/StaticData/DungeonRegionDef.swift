@@ -89,16 +89,15 @@ extension DungeonRegionDef {
 
     static let wildland = DungeonRegionDef(
         key:               "wildland",
-        name:              "荒野邊境",
-        regionDescription: "文明邊界外圍，秩序崩鬆的生存地帶。",
-        suiteName:         "邊境生存者套裝",
+        name:              "金穗之野",
+        regionDescription: "豐饒農地被野獸與惡靈侵擾，收穫與危險並存。",
+        suiteName:         "農地衛守套裝",
         floors: [
 
-            // 第 1 層：殘木前哨（解鎖飾品）
-            // 初始可打（rusty_sword 24 power ≈ 23% 勝率）；V1 普通裝備後 ≈ 95% cap
+            // 第 1 層：穀倉前道（解鎖飾品）
             DungeonFloorDef(
                 key:                 "wildland_floor_1",
-                name:                "殘木前哨",
+                name:                "穀倉前道",
                 regionKey:           "wildland",
                 floorIndex:          1,
                 isBossFloor:         false,
@@ -110,14 +109,13 @@ extension DungeonRegionDef {
                 unlocksEquipmentKey: "wildland_accessory",
                 unlocksSlot:         .accessory,
                 bossName:            nil,
-                commonEnemyNames:    ["荒野哨兵", "殘林追獵者", "蠻地斥候"]
+                commonEnemyNames:    ["野豬掠奪者", "偷糧鳥獸", "田間流氓"]
             ),
 
-            // 第 2 層：獸痕荒徑（解鎖防具）
-            // V1 普通全套 68 power → 68/65 ≈ 59% 可打；裝備飾品後 104 → 93%
+            // 第 2 層：荒廢農舍（解鎖防具）
             DungeonFloorDef(
                 key:                 "wildland_floor_2",
-                name:                "獸痕荒徑",
+                name:                "荒廢農舍",
                 regionKey:           "wildland",
                 floorIndex:          2,
                 isBossFloor:         false,
@@ -129,14 +127,13 @@ extension DungeonRegionDef {
                 unlocksEquipmentKey: "wildland_armor",
                 unlocksSlot:         .armor,
                 bossName:            nil,
-                commonEnemyNames:    ["野地獵手", "荒原狂戰士", "裂骨掠奪者"]
+                commonEnemyNames:    ["稻草人惡靈", "農場狂戰士", "豐收鬼魂"]
             ),
 
-            // 第 3 層：掠影交界（解鎖副手）
-            // 裝備飾品 + V1 普通 → 104 power; 104/90 ≈ 68%；再裝防具 → 134/90 ≈ 88%
+            // 第 3 層：豐收穀倉（解鎖副手）
             DungeonFloorDef(
                 key:                 "wildland_floor_3",
-                name:                "掠影交界",
+                name:                "豐收穀倉",
                 regionKey:           "wildland",
                 floorIndex:          3,
                 isBossFloor:         false,
@@ -148,14 +145,13 @@ extension DungeonRegionDef {
                 unlocksEquipmentKey: "wildland_offhand",
                 unlocksSlot:         .offhand,
                 bossName:            nil,
-                commonEnemyNames:    ["裂角戰士", "荊棘蠻衛", "邊境狙殺者"]
+                commonEnemyNames:    ["倉庫守衛長", "巨型倉鼠王", "飢餓農奴"]
             ),
 
-            // 第 4 層：裂牙王庭（Boss 層，解鎖武器）
-            // 荒野 3 件 + V1 普通武器 → 176/120 ≈ 88%；荒野全套（鑄造武器）→ 184/120 ≈ 88%
+            // 第 4 層：農神祭壇（Boss 層，解鎖武器）
             DungeonFloorDef(
                 key:                 "wildland_floor_4",
-                name:                "裂牙王庭",
+                name:                "農神祭壇",
                 regionKey:           "wildland",
                 floorIndex:          4,
                 isBossFloor:         true,
@@ -166,7 +162,7 @@ extension DungeonRegionDef {
                 ],
                 unlocksEquipmentKey: "wildland_weapon",
                 unlocksSlot:         .weapon,
-                bossName:            "裂牙掠首",
+                bossName:            "豐收惡神",
                 commonEnemyNames:    []
             ),
         ]
@@ -179,16 +175,15 @@ extension DungeonRegionDef {
 
     static let abandonedMine = DungeonRegionDef(
         key:               "abandoned_mine",
-        name:              "廢棄礦坑",
-        regionDescription: "被遺棄的地下採掘場，深處由穴居巨獸盤據。",
-        suiteName:         "礦脈工匠套裝",
+        name:              "暮色古林",
+        regionDescription: "古老森林深處靈氣充溢，卻被腐化的精靈與獸靈盤據。",
+        suiteName:         "森林獵人套裝",
         floors: [
 
-            // 第 1 層：殘軌礦道（解鎖飾品）
-            // 荒野全套（鑄造武器）184 power → 184/155 ≈ 71%；Boss 掉落最優 → 200/155 ≈ 78%
+            // 第 1 層：林道入口（解鎖飾品）
             DungeonFloorDef(
                 key:                 "mine_floor_1",
-                name:                "殘軌礦道",
+                name:                "林道入口",
                 regionKey:           "abandoned_mine",
                 floorIndex:          1,
                 isBossFloor:         false,
@@ -200,14 +195,13 @@ extension DungeonRegionDef {
                 unlocksEquipmentKey: "mine_accessory",
                 unlocksSlot:         .accessory,
                 bossName:            nil,
-                commonEnemyNames:    ["礦坑守衛", "坑道挖掘者", "礦脈巡查兵"]
+                commonEnemyNames:    ["森林狼群", "荊棘射手", "藤蔓蟲群"]
             ),
 
-            // 第 2 層：支架裂層（解鎖防具）
-            // 荒野全套 + mine_accessory → 201 power（需 Lv.5 補足：+24 → 225/190 ≈ 70%）
+            // 第 2 層：古樹迷宮（解鎖防具）
             DungeonFloorDef(
                 key:                 "mine_floor_2",
-                name:                "支架裂層",
+                name:                "古樹迷宮",
                 regionKey:           "abandoned_mine",
                 floorIndex:          2,
                 isBossFloor:         false,
@@ -219,14 +213,13 @@ extension DungeonRegionDef {
                 unlocksEquipmentKey: "mine_armor",
                 unlocksSlot:         .armor,
                 bossName:            nil,
-                commonEnemyNames:    ["脈鐵鑿工", "深坑採礦手", "裂岩衛士"]
+                commonEnemyNames:    ["腐木傀儡", "精靈游獵者", "暗夜追蹤者"]
             ),
 
-            // 第 3 層：沉脈深坑（解鎖副手）
-            // 荒野武器 + mine 2 件 + Lv.6 → ≈ 240+24=264/225 ≈ 71%（裝上 mine_armor 後更易）
+            // 第 3 層：幽暗深處（解鎖副手）
             DungeonFloorDef(
                 key:                 "mine_floor_3",
-                name:                "沉脈深坑",
+                name:                "幽暗深處",
                 regionKey:           "abandoned_mine",
                 floorIndex:          3,
                 isBossFloor:         false,
@@ -238,14 +231,13 @@ extension DungeonRegionDef {
                 unlocksEquipmentKey: "mine_offhand",
                 unlocksSlot:         .offhand,
                 bossName:            nil,
-                commonEnemyNames:    ["承脈重甲", "礦核執行者", "鑄岩傭兵"]
+                commonEnemyNames:    ["古林守護者", "黑夜獸靈", "腐化樹人"]
             ),
 
-            // 第 4 層：吞岩巢庭（Boss 層，解鎖武器）
-            // 荒野武器 + mine 3 件 + Lv.7 → 246+36=282/260 ≈ 62%（第一次挑戰有一定難度）
+            // 第 4 層：古林王座（Boss 層，解鎖武器）
             DungeonFloorDef(
                 key:                 "mine_floor_4",
-                name:                "吞岩巢庭",
+                name:                "古林王座",
                 regionKey:           "abandoned_mine",
                 floorIndex:          4,
                 isBossFloor:         true,
@@ -256,7 +248,7 @@ extension DungeonRegionDef {
                 ],
                 unlocksEquipmentKey: "mine_weapon",
                 unlocksSlot:         .weapon,
-                bossName:            "深坑吞岩獸",
+                bossName:            "千年古林王",
                 commonEnemyNames:    []
             ),
         ]
@@ -269,17 +261,15 @@ extension DungeonRegionDef {
 
     static let ancientRuins = DungeonRegionDef(
         key:               "ancient_ruins",
-        name:              "古代遺跡",
-        regionDescription: "古王誓約仍未消散的神殿遺構。",
-        suiteName:         "遺跡守誓套裝",
+        name:              "血色曠野",
+        regionDescription: "廣闊草原上游牧部落互相征伐，天際染血的戰場。",
+        suiteName:         "草原霸主套裝",
         floors: [
 
-            // 第 1 層：破階外庭（解鎖飾品）
-            // 礦坑全套（鑄造武器）282 power + Lv.7（+36）= 318/295 ≈ 62%
-            // 若持有礦坑 Boss 掉落武器最優（+16 power）→ 334/295 ≈ 68%
+            // 第 1 層：草原邊緣（解鎖飾品）
             DungeonFloorDef(
                 key:                 "ruins_floor_1",
-                name:                "破階外庭",
+                name:                "草原邊緣",
                 regionKey:           "ancient_ruins",
                 floorIndex:          1,
                 isBossFloor:         false,
@@ -291,14 +281,13 @@ extension DungeonRegionDef {
                 unlocksEquipmentKey: "ruins_accessory",
                 unlocksSlot:         .accessory,
                 bossName:            nil,
-                commonEnemyNames:    ["遺跡守誓者", "碎壁巡守", "廢墟浪人"]
+                commonEnemyNames:    ["游牧斥候", "草原鬣狗", "騎馬獵手"]
             ),
 
-            // 第 2 層：斷碑迴廊（解鎖防具）
-            // 礦坑全套 + ruins_accessory（+19） + Lv.8（+42）= 343/330 ≈ 62%
+            // 第 2 層：遊牧廢營（解鎖防具）
             DungeonFloorDef(
                 key:                 "ruins_floor_2",
-                name:                "斷碑迴廊",
+                name:                "遊牧廢營",
                 regionKey:           "ancient_ruins",
                 floorIndex:          2,
                 isBossFloor:         false,
@@ -310,14 +299,13 @@ extension DungeonRegionDef {
                 unlocksEquipmentKey: "ruins_armor",
                 unlocksSlot:         .armor,
                 bossName:            nil,
-                commonEnemyNames:    ["碑紋祭司", "符文詠唱者", "遺靈術士"]
+                commonEnemyNames:    ["部落戰士", "祭祀巫師", "旗手騎兵"]
             ),
 
-            // 第 3 層：守誓前殿（解鎖副手）
-            // 礦坑武器 + ruins 2 件 + Lv.9（+48）→ 80+126+72+58+48=384/368 ≈ 62%
+            // 第 3 層：衝突前線（解鎖副手）
             DungeonFloorDef(
                 key:                 "ruins_floor_3",
-                name:                "守誓前殿",
+                name:                "衝突前線",
                 regionKey:           "ancient_ruins",
                 floorIndex:          3,
                 isBossFloor:         false,
@@ -329,15 +317,13 @@ extension DungeonRegionDef {
                 unlocksEquipmentKey: "ruins_offhand",
                 unlocksSlot:         .offhand,
                 bossName:            nil,
-                commonEnemyNames:    ["前殿衛士", "殿堂執行者", "古誓騎士"]
+                commonEnemyNames:    ["精銳重甲兵", "前線指揮官", "衝鋒戰士"]
             ),
 
-            // 第 4 層：王印聖所（Boss 層，解鎖武器）
-            // 遺跡全套（鑄造武器）399 + Lv.10 全 ATK 54 = 453/410 ≈ 64%
-            // Boss 掉落最優（ATK 72）→ 419+54=473/410 ≈ 68%（Farming 動機）
+            // 第 4 層：血旗王庭（Boss 層，解鎖武器）
             DungeonFloorDef(
                 key:                 "ruins_floor_4",
-                name:                "王印聖所",
+                name:                "血旗王庭",
                 regionKey:           "ancient_ruins",
                 floorIndex:          4,
                 isBossFloor:         true,
@@ -348,7 +334,7 @@ extension DungeonRegionDef {
                 ],
                 unlocksEquipmentKey: "ruins_weapon",
                 unlocksSlot:         .weapon,
-                bossName:            "王誓執行者",
+                bossName:            "血旗草原王",
                 commonEnemyNames:    []
             ),
         ]
@@ -361,16 +347,15 @@ extension DungeonRegionDef {
 
     static let sunkenCity = DungeonRegionDef(
         key:               "sunken_city",
-        name:              "沉落王城",
-        regionDescription: "被詛咒沉入地下暗水的王都，腐蝕魔力與幽暗水流充斥廢墟。",
-        suiteName:         "沉城深淵套裝",
+        name:              "烈焰沙海",
+        regionDescription: "永恆烈日下，古老法老的詛咒在廢墟中沸騰。",
+        suiteName:         "沙漠遠征套裝",
         floors: [
 
-            // 第 1 層：沉塔入口（解鎖飾品）
-            // 遺跡全套（鑄造武器）≈ 532 power + Lv.20 全 ATK（+60）→ 592/530 ≈ 66%
+            // 第 1 層：沙丘入口（解鎖飾品）
             DungeonFloorDef(
                 key:                 "sunken_floor_1",
-                name:                "沉塔入口",
+                name:                "沙丘入口",
                 regionKey:           "sunken_city",
                 floorIndex:          1,
                 isBossFloor:         false,
@@ -382,13 +367,13 @@ extension DungeonRegionDef {
                 unlocksEquipmentKey: "sunken_city_accessory",
                 unlocksSlot:         .accessory,
                 bossName:            nil,
-                commonEnemyNames:    ["沉城守衛", "溺甲巡邏者", "深淵前哨兵"]
+                commonEnemyNames:    ["沙漠蠍兵", "骷髏流浪者", "熱焰精靈"]
             ),
 
-            // 第 2 層：溺殿迴廊（解鎖防具）
+            // 第 2 層：沙暴迴廊（解鎖防具）
             DungeonFloorDef(
                 key:                 "sunken_floor_2",
-                name:                "溺殿迴廊",
+                name:                "沙暴迴廊",
                 regionKey:           "sunken_city",
                 floorIndex:          2,
                 isBossFloor:         false,
@@ -400,13 +385,13 @@ extension DungeonRegionDef {
                 unlocksEquipmentKey: "sunken_city_armor",
                 unlocksSlot:         .armor,
                 bossName:            nil,
-                commonEnemyNames:    ["晶液術士", "腐化侍從", "淵底召喚師"]
+                commonEnemyNames:    ["沙漠術士", "沙暴戰士", "沙中游魂"]
             ),
 
-            // 第 3 層：王室深淵（解鎖副手）
+            // 第 3 層：法老深墓（解鎖副手）
             DungeonFloorDef(
                 key:                 "sunken_floor_3",
-                name:                "王室深淵",
+                name:                "法老深墓",
                 regionKey:           "sunken_city",
                 floorIndex:          3,
                 isBossFloor:         false,
@@ -418,13 +403,13 @@ extension DungeonRegionDef {
                 unlocksEquipmentKey: "sunken_city_offhand",
                 unlocksSlot:         .offhand,
                 bossName:            nil,
-                commonEnemyNames:    ["溺冕衛兵", "沉冕執法者", "王室禁衛"]
+                commonEnemyNames:    ["木乃伊衛兵", "古墓祭司", "守墓傀儡"]
             ),
 
-            // 第 4 層：沉王聖座（Boss，解鎖武器）
+            // 第 4 層：烈陽神座（Boss，解鎖武器）
             DungeonFloorDef(
                 key:                 "sunken_floor_4",
-                name:                "沉王聖座",
+                name:                "烈陽神座",
                 regionKey:           "sunken_city",
                 floorIndex:          4,
                 isBossFloor:         true,
@@ -435,7 +420,7 @@ extension DungeonRegionDef {
                 ],
                 unlocksEquipmentKey: "sunken_city_weapon",
                 unlocksSlot:         .weapon,
-                bossName:            "沉落王・深淵甦醒",
+                bossName:            "不死沙漠法老",
                 commonEnemyNames:    []
             ),
         ]

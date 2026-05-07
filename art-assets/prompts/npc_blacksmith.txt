@@ -1,0 +1,12 @@
+Use case: stylized-concept
+Asset type: mobile game NPC portrait
+Primary request: blacksmith NPC portrait for a JRPG idle RPG
+Scene/background: simple forge workshop backdrop with a soft ember glow, dark enough to frame the character but still warm and readable
+Subject: centered chibi blacksmith bust portrait with a short dark beard, sturdy build, leather apron with subtle wear, soot mark on the forehead, hammer nearby, friendly confident expression
+Style/medium: JRPG / anime game illustration, clean cel-shaded rendering, polished mobile game NPC portrait, light adventure fantasy, chibi character design, not pixel art, not photoreal
+Composition/framing: centered head-and-shoulders portrait with oversized chibi proportions, very clear silhouette, readable after downscaling to a small UI icon
+Lighting/mood: warm forge-orange rim light with clean iron-gray shadow shapes, welcoming workshop mood
+Color palette: warm orange, iron gray, leather brown, charcoal, soft skin tones
+Materials/textures: leather apron, metal hammer head, gentle forge glow, lightly sooted surfaces
+Constraints: no text, no logos, no UI, no watermark, no extra characters, simple background, cute and readable design
+Avoid: pixel art, flat editorial illustration, photorealism, horror mood, oppressive dark fantasy, grim realism, painterly blur

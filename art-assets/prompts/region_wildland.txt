@@ -1,0 +1,12 @@
+Use case: stylized-concept
+Asset type: mobile game region banner
+Primary request: JRPG region banner for a warm frontier wilderness in a light adventure fantasy world
+Scene/background: rolling amber grasslands, a few twisted old trees, orange dusk sky, a crumbling stone watchtower in the distance, hints of small wolves or beasts hidden in tall dry grass
+Subject: wide environmental panorama with landscape first, no hero character
+Style/medium: JRPG / anime game environment illustration, clean cel-shaded rendering, polished mobile RPG banner art, light adventure fantasy, not pixel art, not photoreal
+Composition/framing: wide panorama with clear silhouettes and readable shapes, focus on the watchtower and tree line, safe for a later center crop to a 2:1 banner
+Lighting/mood: warm dusk exploration mood, adventurous and slightly wild rather than scary
+Color palette: amber orange, ochre, warm brown, muted gold, soft smoky gray
+Materials/textures: dry grass, eroded stone, dust haze
+Constraints: no text, no logos, no UI, no watermark, keep the scene uncluttered enough to stay readable at thumbnail size
+Avoid: pixel art, flat editorial illustration, photorealism, horror mood, oppressive dark fantasy, harsh lens flare, busy foreground clutter

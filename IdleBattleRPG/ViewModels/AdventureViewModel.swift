@@ -70,6 +70,14 @@ final class AdventureViewModel {
         service.hasSeenBossMaterial(regionKey)
     }
 
+    /// 指定地區已首通的樓層數（V9-2 T05）
+    func clearedFloorCount(regionKey: String, service: DungeonProgressionService) -> Int {
+        guard let region = DungeonRegionDef.find(key: regionKey) else { return 0 }
+        return region.floors.filter {
+            isFloorCleared(regionKey: regionKey, floorIndex: $0.floorIndex, service: service)
+        }.count
+    }
+
     // MARK: - 地下城任務狀態
 
     /// 玩家目前進行中的地下城任務（nil = 英雄閒置）

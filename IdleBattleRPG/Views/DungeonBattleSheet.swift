@@ -34,6 +34,10 @@ struct DungeonBattleSheet: View {
     @State private var finalResult:       FloorDungeonResult? = nil
     /// 本次首通的樓層（nil = 非首通）
     @State private var firstClearFloor:   DungeonFloorDef?    = nil
+    /// V8-3 T03：累積所有場次事件（用於戰鬥統計）
+    @State private var allCollectedEvents: [BattleEvent]      = []
+    /// V8-3 T03：戰鬥詳情折疊狀態
+    @State private var statsExpanded:     Bool                = false
 
     // MARK: - 靜態計算
 
@@ -65,9 +69,10 @@ struct DungeonBattleSheet: View {
         Group {
             if let floor {
                 BattleLogSheet(
-                    model:      playbackModel,
-                    title:      floor.name,
-                    enemyLabel: floor.bossName ?? (floor.commonEnemyNames.first ?? "怪物")
+                    model:          playbackModel,
+                    title:          floor.name,
+                    enemyLabel:     floor.bossName ?? (floor.commonEnemyNames.first ?? "怪物"),
+                    enemyImageName: floor.isBossFloor ? Self.bossImageName(for: floor.key) : nil
                 )
                 .safeAreaInset(edge: .bottom) {
                     if isFinished { finishedPanel }
@@ -113,6 +118,8 @@ struct DungeonBattleSheet: View {
             cuisineDef:      snapshotCuisineDef,
             potionDef:       snapshotPotionDef
         )
+        // V8-3 T03：累積事件供戰鬥統計使用
+        allCollectedEvents.append(contentsOf: events)
 
         // T09：傳入裝備技能定義，啟用 CD 面板
         let activeSkills = task.snapshotSkillKeys.compactMap { SkillDef.find(key: $0) }
@@ -173,10 +180,50 @@ struct DungeonBattleSheet: View {
             firstClearFloor = floor   // 供 finishedPanel 顯示解鎖通知
         }
 
+        // ── V8-3 T04：更新個人最佳記錄 ──────────────────────────────────
+        appState.progressionService.updateBest(
+            floorKey: floor.key,
+            wins: result.battlesWon,
+            gold: result.gold
+        )
+
         // ── 清除 battlePending，持久化 ──────────────────────────────────
         task.battlePending = false
         try? context.save()
         isFinished = true
+    }
+
+    // MARK: - 戰鬥統計（V8-3 T03）
+
+    private struct DungeonRunStats {
+        var totalDamageDealt:    Int  = 0
+        var totalDamageReceived: Int  = 0
+        var critCount:           Int  = 0
+        var skillsTriggered:     Int  = 0
+        var potionUsed:          Bool = false
+    }
+
+    private func computeRunStats() -> DungeonRunStats {
+        var stats = DungeonRunStats()
+        for event in allCollectedEvents {
+            switch event.type {
+            case .attack:
+                stats.totalDamageDealt += event.damageAmount
+                if event.isCrit { stats.critCount += 1 }
+            case .skill:
+                stats.totalDamageDealt += event.damageAmount
+                if event.skillKey != nil { stats.skillsTriggered += 1 }
+            case .statusTick:
+                stats.totalDamageDealt += event.damageAmount
+            case .damage:
+                stats.totalDamageReceived += event.damageAmount
+            case .potionUsed:
+                stats.potionUsed = true
+            default:
+                break
+            }
+        }
+        return stats
     }
 
     // MARK: - 結束面板
@@ -221,6 +268,71 @@ struct DungeonBattleSheet: View {
                     .foregroundStyle(Color.accentColor)
             }
 
+            // V8-3 T03：戰鬥詳情摺疊區塊
+            VStack(spacing: 6) {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { statsExpanded.toggle() }
+                } label: {
+                    HStack {
+                        Text("⚔️ 戰鬥詳情")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Image(systemName: statsExpanded ? "chevron.up" : "chevron.down")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 20)
+                }
+                .buttonStyle(.plain)
+
+                if statsExpanded {
+                    let stats = computeRunStats()
+                    VStack(spacing: 3) {
+                        HStack {
+                            Text("造成傷害")
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Text("\(stats.totalDamageDealt)")
+                                .foregroundStyle(.orange)
+                        }
+                        HStack {
+                            Text("承受傷害")
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Text("\(stats.totalDamageReceived)")
+                                .foregroundStyle(.red)
+                        }
+                        HStack {
+                            Text("暴擊次數")
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Text("\(stats.critCount)")
+                                .foregroundStyle(.yellow)
+                        }
+                        HStack {
+                            Text("技能施放")
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Text("\(stats.skillsTriggered)")
+                                .foregroundStyle(.purple)
+                        }
+                        if stats.potionUsed {
+                            HStack {
+                                Text("藥水使用")
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Text("✓")
+                                    .foregroundStyle(.green)
+                            }
+                        }
+                    }
+                    .font(.caption)
+                    .padding(.horizontal, 24)
+                    .transition(.opacity)
+                }
+            }
+
             // 收下按鈕：清除戰鬥狀態 + 入帳所有獎勵
             Button {
                 appState.clearDungeonBattle()
@@ -238,6 +350,21 @@ struct DungeonBattleSheet: View {
         .padding(.top, 14)
         .padding(.bottom, 24)
         .background(.ultraThinMaterial)
+    }
+
+    // "wildland_floor_4" → "boss_wildland_4"
+    static func bossImageName(for floorKey: String) -> String? {
+        let parts = floorKey.split(separator: "_").map(String.init)
+        guard parts.count >= 3, let index = parts.last, Int(index) != nil else { return nil }
+        return "boss_\(parts[0])_\(index)"
+    }
+
+    // "wildland_floor_1" → "mob_wildland_1"（Boss 層 F4 回傳 nil）
+    static func mobImageName(for floorKey: String) -> String? {
+        let parts = floorKey.split(separator: "_").map(String.init)
+        guard parts.count >= 3, let index = parts.last, let i = Int(index) else { return nil }
+        guard i != 4 else { return nil }
+        return "mob_\(parts[0])_\(index)"
     }
 }
 

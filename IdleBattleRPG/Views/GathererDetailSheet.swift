@@ -88,6 +88,12 @@ struct GathererDetailSheet: View {
         NavigationStack {
             List {
                 NpcIntroSection(actorKey: npcDef.actorKey)
+                Section {
+                    npcHeaderView
+                }
+                .listRowBackground(Color.clear)
+                .listRowInsets(.init())
+
                 detailSection
                 dispatchSection
             }
@@ -122,6 +128,34 @@ struct GathererDetailSheet: View {
         }
     }
 
+    // MARK: - NPC Header（V9-2 T04）
+
+    private var npcHeaderView: some View {
+        VStack(spacing: 10) {
+            Image(webp: "npc_\(npcDef.actorKey)")
+                .resizable()
+                .scaledToFill()
+                .frame(width: 96, height: 96)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
+
+            VStack(spacing: 4) {
+                Text(npcDef.name)
+                    .font(.title3).fontWeight(.bold)
+
+                HStack(spacing: 6) {
+                    TierBadgeView(tier: currentTier, alwaysShow: true, color: .green)
+                    if currentTier > 0 {
+                        Text("採集加成 +\(gatherBonus)")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+    }
+
     // MARK: - Section：採集者資訊（可收合）
     //
     // 不使用 DisclosureGroup-in-List：DisclosureGroup 的 content rows 會被 List
@@ -135,14 +169,10 @@ struct GathererDetailSheet: View {
 
                 // ── 標題列 ─────────────────────────────────────────────
                 HStack(spacing: 10) {
-                    Image(systemName: npcDef.icon)
-                        .foregroundStyle(.green)
-                        .frame(width: 22)
-                    Text(gatherBonus > 0 ? "採集加成 +\(gatherBonus)" : "尚無採集加成")
+                    Text(gatherBonus > 0 ? "採集加成 +\(gatherBonus)" : "升級技能")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     Spacer()
-                    TierBadgeView(tier: currentTier, alwaysShow: true, color: .green)
                     Image(systemName: "chevron.down")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)

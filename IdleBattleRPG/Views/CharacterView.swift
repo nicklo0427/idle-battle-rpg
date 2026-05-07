@@ -1,16 +1,4 @@
 // CharacterView.swift
-// 角色 Tab — V2-2 Ticket 04 更新（加入強化 / 拆解 SwipeActions）
-//
-// Segment Control：裝備 / 背包
-//
-// 裝備 Segment：
-//   - 英雄狀態（等級、金幣、戰力、ATK/DEF/HP + 屬性點分配按鈕）
-//   - 升級區塊（費用、升級按鈕）
-//   - 已裝備欄位（4 部位：武器 / 副手 / 防具 / 飾品，點擊 → 裝備選擇 Sheet）
-//
-// 背包 Segment：
-//   - 素材庫存（5 種）
-//   - 未裝備裝備列表（點擊 → 裝備）
 
 import SwiftUI
 import SwiftData
@@ -18,10 +6,16 @@ import SwiftData
 // MARK: - Segment 定義
 
 private enum CharacterSegment: String, CaseIterable {
+    case status      = "狀態"
     case gear        = "裝備"
     case backpack    = "背包"
-    case skills      = "技能"    // 主動 + 被動合併
+    case skills      = "技能"
     case achievement = "成就"
+}
+
+private enum SkillSubTab: String, CaseIterable {
+    case active  = "主動技能"
+    case talent  = "天賦樹"
 }
 
 private enum BackpackTab: String, CaseIterable {
@@ -45,12 +39,15 @@ struct CharacterView: View {
     @Query private var tasks:              [TaskModel]
 
     @State private var viewModel    = CharacterViewModel()
-    @State private var segment      = CharacterSegment.gear
+    @State private var segment      = CharacterSegment.status
     @State private var backpackTab  = BackpackTab.equipment
+    @State private var skillSubTab  = SkillSubTab.active
     @State private var alertMsg: String?
 
     /// 裝備槽顯示順序（武器→副手→防具→飾品）
     private let slotDisplayOrder: [EquipmentSlot] = [.weapon, .offhand, .armor, .accessory]
+    /// 背包裝備 3 欄 Grid（對齊商人商店）
+    private let backpackGridColumns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 3)
 
     // 裝備選擇 Sheet：記錄要切換的部位
     @State private var equipSheetSlot: EquipmentSlot?
@@ -86,17 +83,31 @@ struct CharacterView: View {
     var body: some View {
         NavigationStack {
             List {
-                // ── Segment Picker ───────────────────────────────────
-                Picker("", selection: $segment) {
-                    ForEach(CharacterSegment.allCases, id: \.self) { seg in
-                        Text(seg.rawValue).tag(seg)
+                // ── Segment Tab Bar（可滾動）──────────────────────────
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(CharacterSegment.allCases, id: \.self) { seg in
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.15)) { segment = seg }
+                            } label: {
+                                Text(seg.rawValue)
+                                    .font(.subheadline.weight(.medium))
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 7)
+                                    .background(segment == seg ? Color.accentColor : Color(.systemFill))
+                                    .foregroundStyle(segment == seg ? .white : .primary)
+                                    .clipShape(Capsule())
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
+                    .padding(.horizontal, 4)
                 }
-                .pickerStyle(.segmented)
                 .listRowBackground(Color.clear)
                 .listRowInsets(.init(top: 4, leading: 0, bottom: 4, trailing: 0))
 
                 switch segment {
+                case .status:      statusSegment
                 case .gear:        gearSegment
                 case .backpack:    backpackSegment
                 case .skills:      skillsSegment
@@ -193,10 +204,10 @@ struct CharacterView: View {
         }
     }
 
-    // MARK: - 裝備 Segment
+    // MARK: - 狀態 Segment
 
     @ViewBuilder
-    private var gearSegment: some View {
+    private var statusSegment: some View {
 
         // ── 職業徽章 ────────────────────────────────────────────────
         if let player, let classDef = ClassDef.find(key: player.classKey) {
@@ -206,9 +217,10 @@ struct CharacterView: View {
                         Circle()
                             .fill(classDef.themeColor.opacity(0.15))
                             .frame(width: 36, height: 36)
-                        Image(systemName: classDef.iconName)
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(classDef.themeColor)
+                        Image(webp: "class_\(classDef.key)")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 24, height: 24)
                     }
                     VStack(alignment: .leading, spacing: 2) {
                         Text(classDef.name)
@@ -235,17 +247,17 @@ struct CharacterView: View {
         // ── 英雄屬性 ────────────────────────────────────────────────
         Section {
             if let player {
-                infoRow(label: "等級", value: "Lv.\(player.heroLevel)")
-                infoRow(label: "金幣", value: "\(player.gold)")
+                iconInfoRow(webp: "icon_level", label: "等級", value: "Lv.\(player.heroLevel)")
+                iconInfoRow(webp: "icon_gold",  label: "金幣", value: "\(player.gold)")
             }
             if let stats = heroStats {
                 powerRow(stats.power)
                 if let player {
-                    statAllocRow(icon: "figure.fencing",    label: "ATK", value: stats.totalATK, pending: viewModel.pendingAtk, stat: .atk, player: player)
-                    statAllocRow(icon: "shield.fill",   label: "DEF", value: stats.totalDEF, pending: viewModel.pendingDef, stat: .def, player: player)
-                    statAllocRow(icon: "heart.fill",    label: "HP",  value: stats.totalHP,  pending: viewModel.pendingHp,  stat: .hp,  player: player)
-                    statAllocRow(icon: "figure.run",    label: "AGI", hint: "ATB 速度", value: stats.totalAGI, pending: viewModel.pendingAgi, stat: .agi, player: player)
-                    statAllocRow(icon: "scope",         label: "DEX", hint: "暴擊率",   value: stats.totalDEX, pending: viewModel.pendingDex, stat: .dex, player: player)
+                    statAllocRow(icon: "attr_atk", label: "ATK", value: stats.totalATK, pending: viewModel.pendingAtk, stat: .atk, player: player)
+                    statAllocRow(icon: "attr_def", label: "DEF", value: stats.totalDEF, pending: viewModel.pendingDef, stat: .def, player: player)
+                    statAllocRow(icon: "attr_hp",  label: "HP",  value: stats.totalHP,  pending: viewModel.pendingHp,  stat: .hp,  player: player)
+                    statAllocRow(icon: "attr_agi", label: "AGI", hint: "ATB 速度", value: stats.totalAGI, pending: viewModel.pendingAgi, stat: .agi, player: player)
+                    statAllocRow(icon: "attr_dex", label: "DEX", hint: "暴擊率",   value: stats.totalDEX, pending: viewModel.pendingDex, stat: .dex, player: player)
 
                     let remaining = viewModel.remainingPendingPoints(player: player)
                     if remaining > 0 {
@@ -326,29 +338,28 @@ struct CharacterView: View {
                 Text("升級")
             }
         }
+    }
 
-        // ── 已裝備欄位 ──────────────────────────────────────────────
+    // MARK: - 裝備 Segment
+
+    @ViewBuilder
+    private var gearSegment: some View {
         Section {
-            ForEach(slotDisplayOrder, id: \.self) { slot in
-                let item = equippedItems.first { $0.slot == slot }
-                equippedSlotRow(slot: slot, item: item)
+            LazyVGrid(
+                columns: [GridItem(.flexible()), GridItem(.flexible())],
+                spacing: 12
+            ) {
+                ForEach(slotDisplayOrder, id: \.self) { slot in
+                    let item = equippedItems.first { $0.slot == slot }
+                    equippedSlotCard(slot: slot, item: item)
+                }
             }
+            .padding(.vertical, 4)
         } header: {
             Text("已裝備（\(viewModel.equippedCount(from: equipments)) / 4）")
         } footer: {
-            Text("點擊裝備欄位可切換，點擊已裝備圖示可卸除")
+            Text("點擊卡片可切換裝備 · 錘子圖示可強化")
                 .font(.caption)
-        }
-
-        // ── 累計統計 ────────────────────────────────────────────────
-        if let player {
-            Section("累計統計") {
-                statRow("coins",       label: "累計金幣收入", value: "\(player.totalGoldEarned)")
-                statRow("figure.fencing",       label: "地下城勝場",   value: "\(player.totalBattlesWon)")
-                statRow("shield.fill",      label: "地下城敗場",   value: "\(player.totalBattlesLost)")
-                statRow("hammer.fill",      label: "裝備獲得件數", value: "\(player.totalItemsCrafted)")
-                statRow("bolt.fill",        label: "歷史最高戰力", value: "\(player.highestPowerReached)")
-            }
         }
     }
 
@@ -396,35 +407,12 @@ struct CharacterView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 24)
             } else {
-                ForEach(unequipped) { item in
-                    Button {
-                        viewModel.equip(item, context: context)
-                    } label: {
-                        backpackItemRow(item)
-                    }
-                    .buttonStyle(.plain)
-                    // 右滑 → 強化（滿強化時不顯示）
-                    .swipeActions(edge: .leading, allowsFullSwipe: false) {
-                        if item.enhancementLevel < EnhancementDef.maxLevel {
-                            Button {
-                                pendingEnhanceItem = item
-                            } label: {
-                                Label("強化", systemImage: "hammer.fill")
-                            }
-                            .tint(.orange)
-                        }
-                    }
-                    // 左滑 → 拆解（不可拆解的裝備不顯示）
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        if EnhancementDef.disassembleRefund(defKey: item.defKey) != nil {
-                            Button(role: .destructive) {
-                                pendingDisassembleItem = item
-                            } label: {
-                                Label("拆解", systemImage: "trash.fill")
-                            }
-                        }
+                LazyVGrid(columns: backpackGridColumns, spacing: 10) {
+                    ForEach(unequipped) { item in
+                        backpackItemCard(item)
                     }
                 }
+                .padding(.vertical, 4)
             }
         } header: {
             VStack(alignment: .leading, spacing: 4) {
@@ -432,7 +420,7 @@ struct CharacterView: View {
                 rarityLegendView
             }
         } footer: {
-            Text("點擊穿上 · 右滑強化 · 左滑拆解")
+            Text("點擊穿上 · 長按可強化或拆解")
                 .font(.caption)
         }
     }
@@ -464,9 +452,12 @@ struct CharacterView: View {
 
         Section("通用素材") {
             if let inv = inventory, hasAny {
-                ForEach(basicMats, id: \.self) { mat in
-                    materialRow(mat, inventory: inv)
+                LazyVGrid(columns: backpackGridColumns, spacing: 10) {
+                    ForEach(basicMats.filter { inv.amount(of: $0) > 0 }, id: \.self) { mat in
+                        materialCard(mat, amount: inv.amount(of: mat))
+                    }
                 }
+                .padding(.vertical, 4)
             } else {
                 Text("尚無通用素材")
                     .foregroundStyle(.secondary)
@@ -487,29 +478,49 @@ struct CharacterView: View {
         if let inv = inventory {
             let hasAny = (wildland + mine + ruins + sunkenCity).contains { inv.amount(of: $0) > 0 }
             if hasAny {
-                let hasWildland   = wildland.contains   { inv.amount(of: $0) > 0 }
-                let hasMine       = mine.contains       { inv.amount(of: $0) > 0 }
-                let hasRuins      = ruins.contains      { inv.amount(of: $0) > 0 }
-                let hasSunkenCity = sunkenCity.contains { inv.amount(of: $0) > 0 }
+                let ownedWildland   = wildland.filter   { inv.amount(of: $0) > 0 }
+                let ownedMine       = mine.filter       { inv.amount(of: $0) > 0 }
+                let ownedRuins      = ruins.filter      { inv.amount(of: $0) > 0 }
+                let ownedSunkenCity = sunkenCity.filter { inv.amount(of: $0) > 0 }
 
-                if hasWildland {
+                if !ownedWildland.isEmpty {
                     Section("荒野邊境") {
-                        ForEach(wildland, id: \.self) { mat in materialRow(mat, inventory: inv) }
+                        LazyVGrid(columns: backpackGridColumns, spacing: 10) {
+                            ForEach(ownedWildland, id: \.self) { mat in
+                                materialCard(mat, amount: inv.amount(of: mat))
+                            }
+                        }
+                        .padding(.vertical, 4)
                     }
                 }
-                if hasMine {
+                if !ownedMine.isEmpty {
                     Section("廢棄礦坑") {
-                        ForEach(mine, id: \.self) { mat in materialRow(mat, inventory: inv) }
+                        LazyVGrid(columns: backpackGridColumns, spacing: 10) {
+                            ForEach(ownedMine, id: \.self) { mat in
+                                materialCard(mat, amount: inv.amount(of: mat))
+                            }
+                        }
+                        .padding(.vertical, 4)
                     }
                 }
-                if hasRuins {
+                if !ownedRuins.isEmpty {
                     Section("古代遺跡") {
-                        ForEach(ruins, id: \.self) { mat in materialRow(mat, inventory: inv) }
+                        LazyVGrid(columns: backpackGridColumns, spacing: 10) {
+                            ForEach(ownedRuins, id: \.self) { mat in
+                                materialCard(mat, amount: inv.amount(of: mat))
+                            }
+                        }
+                        .padding(.vertical, 4)
                     }
                 }
-                if hasSunkenCity {
+                if !ownedSunkenCity.isEmpty {
                     Section("沉落王城") {
-                        ForEach(sunkenCity, id: \.self) { mat in materialRow(mat, inventory: inv) }
+                        LazyVGrid(columns: backpackGridColumns, spacing: 10) {
+                            ForEach(ownedSunkenCity, id: \.self) { mat in
+                                materialCard(mat, amount: inv.amount(of: mat))
+                            }
+                        }
+                        .padding(.vertical, 4)
                     }
                 }
             } else {
@@ -524,13 +535,25 @@ struct CharacterView: View {
         }
     }
 
-    // MARK: - 技能 Segment（主動 + 被動合併）
+    // MARK: - 技能 Segment
 
     @ViewBuilder
     private var skillsSegment: some View {
+        // 子選單 Picker（主動技能 / 天賦樹）
+        Picker("", selection: $skillSubTab) {
+            ForEach(SkillSubTab.allCases, id: \.self) { tab in
+                Text(tab.rawValue).tag(tab)
+            }
+        }
+        .pickerStyle(.segmented)
+        .listRowBackground(Color.clear)
+        .listRowInsets(.init(top: 4, leading: 0, bottom: 4, trailing: 0))
+
         if let player {
-            activeSkillsSection(player: player)
-            passiveSkillsSection(player: player)
+            switch skillSubTab {
+            case .active: activeSkillsSection(player: player)
+            case .talent: passiveSkillsSection(player: player)
+            }
         } else {
             Section { Text("—").foregroundStyle(.secondary) }
         }
@@ -902,6 +925,17 @@ struct CharacterView: View {
 
     @ViewBuilder
     private var achievementSegment: some View {
+        // ── 累計統計（從裝備頁搬來） ────────────────────────────────
+        if let player {
+            Section("累計統計") {
+                statRow("coins",          label: "累計金幣收入", value: "\(player.totalGoldEarned)")
+                statRow("figure.fencing", label: "地下城勝場",   value: "\(player.totalBattlesWon)")
+                statRow("shield.fill",    label: "地下城敗場",   value: "\(player.totalBattlesLost)")
+                statRow("hammer.fill",    label: "裝備獲得件數", value: "\(player.totalItemsCrafted)")
+                statRow("bolt.fill",      label: "歷史最高戰力", value: "\(player.highestPowerReached)")
+            }
+        }
+
         let progress       = achievementModels.first
         let unlockedKeys   = progress?.unlockedKeys ?? []
         let unlockedCount  = AchievementDef.all.filter { unlockedKeys.contains($0.key) }.count
@@ -959,7 +993,29 @@ struct CharacterView: View {
         .padding(.vertical, 2)
     }
 
-    // ── 素材列 helper ────────────────────────────────────────────────
+    // ── 素材方格卡片（商店風格，3 欄 Grid 用）────────────────────────
+
+    @ViewBuilder
+    private func materialCard(_ mat: MaterialType, amount: Int) -> some View {
+        VStack(spacing: 5) {
+            Text(mat.icon).font(.system(size: 26))
+            Text(mat.displayName)
+                .font(.caption2).lineLimit(1).minimumScaleFactor(0.7)
+                .multilineTextAlignment(.center)
+            Text("×\(amount)")
+                .font(.caption2).fontWeight(.semibold)
+                .monospacedDigit()
+        }
+        .padding(8)
+        .frame(maxWidth: .infinity)
+        .aspectRatio(1.0, contentMode: .fit)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.secondary.opacity(0.06))
+        )
+    }
+
+    // ── 素材列 helper（保留供其他地方使用）─────────────────────────
 
     @ViewBuilder
     private func materialRow(_ mat: MaterialType, inventory inv: MaterialInventoryModel) -> some View {
@@ -1004,6 +1060,22 @@ struct CharacterView: View {
     }
 
     @ViewBuilder
+    private func iconInfoRow(webp name: String, label: String, value: String) -> some View {
+        HStack {
+            HStack(spacing: 4) {
+                Image(webp: name)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 16, height: 16)
+                    .opacity(0.7)
+                Text(label).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Text(value).fontWeight(.medium)
+        }
+    }
+
+    @ViewBuilder
     private func powerRow(_ power: Int) -> some View {
         HStack {
             Text("戰力").foregroundStyle(.secondary)
@@ -1025,9 +1097,11 @@ struct CharacterView: View {
     ) -> some View {
         HStack {
             HStack(spacing: 4) {
-                Image(systemName: icon)
+                Image(webp: icon)
+                    .resizable()
+                    .scaledToFit()
                     .frame(width: 14, height: 14)
-                    .foregroundStyle(.secondary)
+                    .opacity(0.7)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(label).foregroundStyle(.secondary)
                     if let hint {
@@ -1077,72 +1151,80 @@ struct CharacterView: View {
         }
     }
 
-    /// 裝備槽 row：點整列 → 開 EquipSelectSheet；點右側卸除圖示 → 卸除
+    /// 裝備槽卡片：點整卡 → 開 EquipSelectSheet；錘子 → 強化；× → 卸除
     @ViewBuilder
-    private func equippedSlotRow(slot: EquipmentSlot, item: EquipmentModel?) -> some View {
-        HStack {
-            Rectangle()
-                .fill(item.map { $0.rarity.hasAccent ? $0.rarity.displayColor.opacity(0.8) : Color.secondary.opacity(0.35) } ?? Color.clear)
-                .frame(width: 3)
-                .clipShape(Capsule())
-            Text(slot.icon).frame(width: 28)
-            Text(slot.displayName).foregroundStyle(.secondary)
-            Spacer()
+    private func equippedSlotCard(slot: EquipmentSlot, item: EquipmentModel?) -> some View {
+        VStack(alignment: .center, spacing: 4) {
+            // ① 部位 emoji
+            Text(slot.icon).font(.system(size: 28))
+
             if let item {
-                VStack(alignment: .trailing, spacing: 1) {
-                    // Boss 武器加 ✦ 表示浮動值
-                    HStack(spacing: 2) {
-                        if item.isRolledBossWeapon {
-                            Text("✦").font(.caption2).foregroundStyle(.yellow)
-                        }
-                        Text(item.displayName)
-                            .fontWeight(.medium)
-                            .foregroundStyle(item.rarity.hasAccent ? item.rarity.displayColor : Color.primary)
+                // ② 名稱
+                HStack(spacing: 2) {
+                    if item.isRolledBossWeapon {
+                        Text("✦").font(.caption2).foregroundStyle(.yellow)
                     }
+                    Text(item.displayName)
+                        .font(.caption).fontWeight(.semibold)
+                        .lineLimit(1).minimumScaleFactor(0.75)
+                        .foregroundStyle(item.rarity.hasAccent ? item.rarity.displayColor : .primary)
+                }
+                // ③ 強化等級
+                if item.enhancementLevel > 0 {
+                    Text("+\(item.enhancementLevel)")
+                        .font(.caption2).foregroundStyle(item.rarity.displayColor)
+                }
+                // ④ 屬性橫排
+                HStack(spacing: 4) {
                     if item.atkBonus > 0 {
-                        Text("ATK +\(item.atkBonus)")
-                            .font(.caption2)
+                        Text("ATK+\(item.atkBonus)")
                             .foregroundStyle(item.isRolledBossWeapon ? .yellow : .red)
                     }
+                    if item.defBonus > 0 { Text("DEF+\(item.defBonus)").foregroundStyle(.blue) }
+                    if item.hpBonus  > 0 { Text("HP+\(item.hpBonus)").foregroundStyle(.pink) }
                 }
-                if isOnExpedition {
-                    // 出征中：顯示鎖定標記，禁止任何操作
-                    HStack(spacing: 3) {
-                        Image(systemName: "lock.fill")
-                        Text("出征中")
-                    }
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .padding(.leading, 8)
-                } else {
-                    // 強化按鈕（滿強化 +5 時不顯示）
-                    if item.enhancementLevel < EnhancementDef.maxLevel {
-                        Button {
-                            pendingEnhanceItem = item
-                        } label: {
-                            Image(systemName: "hammer")
-                                .foregroundStyle(.orange)
+                .font(.caption2)
+                // ⑤ 操作列
+                if !isOnExpedition {
+                    HStack {
+                        if item.enhancementLevel < EnhancementDef.maxLevel {
+                            Button { pendingEnhanceItem = item } label: {
+                                Image(systemName: "hammer").font(.caption2)
+                            }.buttonStyle(.bordered).tint(.orange)
                         }
-                        .buttonStyle(.plain)
-                        .padding(.leading, 8)
+                        Spacer()
+                        Button { viewModel.unequip(item, context: context) } label: {
+                            Image(systemName: "xmark").font(.caption2)
+                        }.buttonStyle(.bordered).tint(.secondary)
                     }
-                    // 卸除按鈕
-                    Button {
-                        viewModel.unequip(item, context: context)
-                    } label: {
-                        Image(systemName: "xmark.circle")
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.leading, 8)
+                } else {
+                    Label("出征中", systemImage: "lock.fill")
+                        .font(.caption2).foregroundStyle(.secondary)
                 }
             } else {
-                Text("未裝備")
-                    .foregroundStyle(.secondary)
-                    .font(.callout)
+                Text("未裝備").font(.caption2).foregroundStyle(.tertiary)
             }
         }
-        .contentShape(Rectangle())
+        .padding(10)
+        .frame(maxWidth: .infinity)
+        .aspectRatio(1.0, contentMode: .fit)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(item.map {
+                    $0.rarity.hasAccent
+                        ? $0.rarity.displayColor.opacity(0.08)
+                        : Color.secondary.opacity(0.06)
+                } ?? Color.secondary.opacity(0.06))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(item.map {
+                    $0.rarity.hasAccent
+                        ? $0.rarity.displayColor.opacity(0.25)
+                        : Color.clear
+                } ?? Color.clear, lineWidth: 1)
+        )
+        .contentShape(RoundedRectangle(cornerRadius: 12))
         .onTapGesture {
             guard !isOnExpedition else { return }
             equipSheetSlot = slot
@@ -1150,43 +1232,65 @@ struct CharacterView: View {
     }
 
     @ViewBuilder
-    private func backpackItemRow(_ item: EquipmentModel) -> some View {
-        HStack {
-            Rectangle()
-                .fill(item.rarity.hasAccent ? item.rarity.displayColor.opacity(0.8) : Color.secondary.opacity(0.35))
-                .frame(width: 3)
-                .clipShape(Capsule())
-            Text(item.slot.icon).frame(width: 28)
-            VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: 2) {
-                    if item.isRolledBossWeapon {
-                        Text("✦").font(.caption2).foregroundStyle(.yellow)
-                    }
-                    Text(item.displayName)
-                        .fontWeight(.medium)
-                        .foregroundStyle(item.rarity.hasAccent ? item.rarity.displayColor : Color.primary)
+    private func backpackItemCard(_ item: EquipmentModel) -> some View {
+        VStack(spacing: 5) {
+            // ① 部位 emoji
+            Text(item.slot.icon).font(.system(size: 26))
+            // ② 名稱
+            HStack(spacing: 2) {
+                if item.isRolledBossWeapon {
+                    Text("✦").font(.caption2).foregroundStyle(.yellow)
                 }
+                Text(item.displayName)
+                    .font(.caption2).lineLimit(1).minimumScaleFactor(0.7)
+                    .foregroundStyle(item.rarity.hasAccent ? item.rarity.displayColor : .primary)
             }
-            Spacer()
-            VStack(alignment: .trailing, spacing: 1) {
+            // ③ 強化等級
+            if item.enhancementLevel > 0 {
+                Text("+\(item.enhancementLevel)")
+                    .font(.caption2).foregroundStyle(item.rarity.displayColor)
+            }
+            // ④ 屬性縱排
+            VStack(spacing: 1) {
                 if item.atkBonus > 0 {
                     Text("ATK +\(item.atkBonus)")
-                        .font(.caption)
-                        .foregroundStyle(item.isRolledBossWeapon ? .yellow : .red)
+                        .foregroundStyle(item.isRolledBossWeapon ? Color.yellow : Color.red)
                 }
-                if item.defBonus > 0 { Text("DEF +\(item.defBonus)").font(.caption).foregroundStyle(.blue) }
-                if item.hpBonus  > 0 { Text("HP +\(item.hpBonus)").font(.caption).foregroundStyle(.pink) }
+                if item.defBonus > 0 { Text("DEF +\(item.defBonus)").foregroundStyle(Color.blue) }
+                if item.hpBonus  > 0 { Text("HP +\(item.hpBonus)").foregroundStyle(Color.pink) }
             }
-            let diff = viewModel.equipDiff(
-                candidate: item,
-                equipped: equipments.filter { $0.isEquipped }
-            )
-            if diff.hasAnyChange {
-                diffBadge(diff)
+            .font(.caption2)
+        }
+        .padding(8)
+        .frame(maxWidth: .infinity)
+        .aspectRatio(1.0, contentMode: .fit)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(item.rarity.hasAccent
+                    ? item.rarity.displayColor.opacity(0.08)
+                    : Color.secondary.opacity(0.06))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(item.rarity.hasAccent
+                    ? item.rarity.displayColor.opacity(0.25)
+                    : Color.clear, lineWidth: 1)
+        )
+        .contentShape(RoundedRectangle(cornerRadius: 12))
+        .onTapGesture {
+            viewModel.equip(item, context: context)
+        }
+        .contextMenu {
+            if item.enhancementLevel < EnhancementDef.maxLevel {
+                Button { pendingEnhanceItem = item } label: {
+                    Label("強化", systemImage: "hammer.fill")
+                }
             }
-            Image(systemName: "arrow.up.circle")
-                .foregroundStyle(.green)
-                .padding(.leading, 4)
+            if EnhancementDef.disassembleRefund(defKey: item.defKey) != nil {
+                Button(role: .destructive) { pendingDisassembleItem = item } label: {
+                    Label("拆解", systemImage: "trash.fill")
+                }
+            }
         }
     }
 

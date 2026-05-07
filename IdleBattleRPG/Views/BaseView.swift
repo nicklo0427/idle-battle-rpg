@@ -141,6 +141,15 @@ struct BaseView: View {
                     .tint(.purple)
                 } header: {
                     Text("V8-1 驗證")
+                }
+
+                Section {
+                    Button { devSetupV8_2Test() } label: {
+                        Label("V8-2 驗證資料（生產者技能 + 精良裝備 + 消耗品）", systemImage: "star.fill")
+                    }
+                    .tint(.purple)
+                } header: {
+                    Text("V8-2 驗證")
                 } footer: {
                     Text("此區塊僅在 Debug build 顯示，Release / TestFlight 不可見。")
                         .font(.caption)
@@ -214,350 +223,397 @@ struct BaseView: View {
         }
     }
 
-    // MARK: - NPC Tab Sections（V7-4 T06）
+    // MARK: - NPC Tab Sections（V9-2 T01）
 
     @ViewBuilder
     private func npcGatherSection() -> some View {
         Section("採集者營地") {
             ForEach(GathererNpcDef.all) { npc in
-                npcGathererRow(def: npc, player: players.first)
+                npcGathererCard(def: npc, player: players.first)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
             }
+            npcFarmerCard()
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
         }
-        npcFarmerSection()
     }
 
     @ViewBuilder
     private func npcProduceSection() -> some View {
         Section("生產者小屋") {
-            npcBlacksmithRow(player: players.first)
-            npcChefRow(player: players.first)
-            npcPharmacistRow(player: players.first)
+            npcBlacksmithCard(player: players.first)
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+            npcChefCard(player: players.first)
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+            npcPharmacistCard(player: players.first)
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
         }
     }
 
     @ViewBuilder
     private func npcShopSection() -> some View {
         Section("商人的市集") {
-            npcMerchantRow()
+            npcMerchantCard()
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
         }
     }
 
-    // MARK: - NPC Row: 製藥師（V7-4 T06）
+    // MARK: - NPC Card: 共用狀態圓點（V9-2 T01）
 
-    @ViewBuilder
-    private func npcPharmacistRow(player: PlayerStateModel?) -> some View {
-        let activeTask = viewModel.pharmacistTask(from: tasks)
-        let tier = player?.tier(for: AppConstants.Actor.pharmacist) ?? 0
-
-        if let task = activeTask {
-            // 製藥中 — 進度條 + 倒數
-            HStack(spacing: 12) {
-                Image(systemName: "cross.vial.fill")
-                    .symbolEffect(.pulse, isActive: true)
-                    .foregroundStyle(Color.teal.opacity(0.7))
-                    .frame(width: 24)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(player?.npcDisplayName(for: AppConstants.Actor.pharmacist) ?? "製藥師")
-                        .fontWeight(.medium)
-                    Text("製藥中：\(PotionDef.find(task.definitionKey)?.name ?? task.definitionKey)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(TaskCountdown.remaining(for: task, relativeTo: appState.tick))
-                        .font(.caption)
-                        .foregroundStyle(.teal)
-                    ProgressView(value: task.progress(relativeTo: appState.tick))
-                        .tint(.teal)
-                        .scaleEffect(y: 0.7)
-                        .padding(.top, 1)
-                }
-                Spacer()
-                TierBadgeView(tier: tier)
-                Text("製藥中")
-                    .font(.caption)
-                    .padding(.horizontal, 8).padding(.vertical, 3)
-                    .background(Color.teal.opacity(0.12))
-                    .foregroundStyle(.teal)
-                    .clipShape(Capsule())
-            }
-            .padding(.vertical, 2)
-        } else {
-            // 閒置 — 點擊開啟 PharmacySheet
-            Button(action: { showPharmacySheet = true }) {
-                HStack(spacing: 12) {
-                    Image(systemName: "cross.vial.fill")
-                        .foregroundStyle(Color.teal)
-                        .frame(width: 24)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(player?.npcDisplayName(for: AppConstants.Actor.pharmacist) ?? "製藥師")
-                            .fontWeight(.medium)
-                            .foregroundStyle(.primary)
-                        Text("閒置中，點擊選擇配方")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    TierBadgeView(tier: tier)
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
-                .padding(.vertical, 2)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(NPCDispatchButtonStyle(enabled: true))
-        }
+    private func npcStatusBadge(isBusy: Bool) -> some View {
+        Circle()
+            .fill(isBusy ? Color.green : Color.secondary.opacity(0.3))
+            .frame(width: 10, height: 10)
+            .padding(6)
     }
 
-    // MARK: - NPC Row: 採集者
+    // MARK: - NPC Card: 採集者
 
     @ViewBuilder
-    private func npcGathererRow(def: GathererNpcDef, player: PlayerStateModel?) -> some View {
+    private func npcGathererCard(def: GathererNpcDef, player: PlayerStateModel?) -> some View {
         let activeTask = viewModel.gatherTaskForActor(def.actorKey, from: tasks)
-        let isBusy = activeTask != nil
-        let tier = player?.tier(for: def.actorKey) ?? 0
+        let isBusy     = activeTask != nil
+        let tier       = player?.tier(for: def.actorKey) ?? 0
+        let caption: String = {
+            guard let task = activeTask,
+                  let locDef = GatherLocationDef.find(key: task.definitionKey) else { return "閒置中" }
+            return "採集中：\(locDef.name)\n\(TaskCountdown.remaining(for: task, relativeTo: appState.tick))"
+        }()
+        let progress = activeTask.map { $0.progress(relativeTo: appState.tick) }
 
-        Button(action: { selectedGathererDef = def }) {
-            HStack(spacing: 12) {
-                Image(systemName: def.icon)
-                    .gatheringSymbolEffect(isActive: isBusy)   // T02 採集動畫（iOS 18 呼吸 / iOS 17 脈衝）
-                    .foregroundStyle(Color.green.opacity(isBusy ? 0.7 : 1.0))
-                    .frame(width: 24)
+        Button { selectedGathererDef = def } label: {
+            HStack(spacing: 14) {
+                ZStack(alignment: .topTrailing) {
+                    Image(webp: "npc_\(def.actorKey)")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 80, height: 80)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .opacity(isBusy ? 0.85 : 1.0)
+                    npcStatusBadge(isBusy: isBusy)
+                }
+                .overlay(alignment: .topLeading) {
+                    if tier > 0 { TierBadgeView(tier: tier).padding(4) }
+                }
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text(player?.npcDisplayName(for: def.actorKey) ?? def.name)
-                        .fontWeight(.medium)
-                        .foregroundStyle(.primary)
-
-                    if let task = activeTask, let locDef = GatherLocationDef.find(key: task.definitionKey) {
-                        Text("採集中：\(locDef.name)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text(TaskCountdown.remaining(for: task, relativeTo: appState.tick))
-                            .font(.caption)
-                            .foregroundStyle(.green)
-                        ProgressView(value: task.progress(relativeTo: appState.tick))
+                        .font(.subheadline).fontWeight(.medium)
+                        .lineLimit(1)
+                    Text(caption)
+                        .font(.caption2)
+                        .foregroundStyle(isBusy ? Color.green : .secondary)
+                        .lineLimit(2)
+                    if let progress {
+                        ProgressView(value: progress)
                             .tint(.green)
-                            .scaleEffect(y: 0.7)
-                            .padding(.top, 1)
-                    } else {
-                        Text("閒置中，點擊查看")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .scaleEffect(y: 0.6)
                     }
                 }
 
                 Spacer()
-
-                TierBadgeView(tier: tier)
 
                 if isBusy {
                     Text("採集中")
-                        .font(.caption)
-                        .padding(.horizontal, 8).padding(.vertical, 3)
+                        .font(.caption2)
+                        .padding(.horizontal, 8).padding(.vertical, 4)
                         .background(Color.green.opacity(0.12))
-                        .foregroundStyle(.green)
+                        .foregroundStyle(Color.green)
                         .clipShape(Capsule())
                 } else {
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
-            }
-            .padding(.vertical, 2)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(NPCDispatchButtonStyle(enabled: true))
-    }
-
-    // MARK: - NPC Row: 鑄造師
-
-    @ViewBuilder
-    private func npcBlacksmithRow(player: PlayerStateModel?) -> some View {
-        let activeTask = viewModel.craftTask(from: tasks)
-        let isBusy = activeTask != nil
-        let tier = player?.tier(for: AppConstants.Actor.blacksmith) ?? 0
-
-        Button(action: { if !isBusy { showCraftSheet = true } }) {
-            HStack(spacing: 12) {
-                Image(systemName: "hammer.fill")
-                    .symbolEffect(.pulse, isActive: isBusy)    // T02 動畫
-                    .foregroundStyle(Color.orange.opacity(isBusy ? 0.7 : 1.0))
-                    .frame(width: 24)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(player?.npcDisplayName(for: AppConstants.Actor.blacksmith) ?? "鑄造師")
-                        .fontWeight(.medium)
-                        .foregroundStyle(.primary)
-
-                    if let task = activeTask, let def = CraftRecipeDef.find(key: task.definitionKey) {
-                        Text("鑄造中：\(def.name)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text(TaskCountdown.remaining(for: task, relativeTo: appState.tick))
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                        ProgressView(value: task.progress(relativeTo: appState.tick))
-                            .tint(.orange)
-                            .scaleEffect(y: 0.7)
-                            .padding(.top, 1)
-                    } else {
-                        Text("閒置中，點擊委派")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Spacer()
-
-                TierBadgeView(tier: tier)
-
-                if isBusy {
-                    Text("鑄造中")
-                        .font(.caption)
-                        .padding(.horizontal, 8).padding(.vertical, 3)
-                        .background(Color.orange.opacity(0.12))
-                        .foregroundStyle(.orange)
-                        .clipShape(Capsule())
-                } else {
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
-            }
-            .padding(.vertical, 2)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(NPCDispatchButtonStyle(enabled: !isBusy))
-    }
-
-    // MARK: - NPC Row: 廚師（V7-3）
-
-    @ViewBuilder
-    private func npcChefRow(player: PlayerStateModel?) -> some View {
-        let activeTask = viewModel.cuisineTask(from: tasks)
-        let isBusy = activeTask != nil
-        let tier = player?.tier(for: AppConstants.Actor.chef) ?? 0
-
-        Button(action: { if !isBusy { showCuisineSheet = true } }) {
-            HStack(spacing: 12) {
-                Image(systemName: "fork.knife")
-                    .symbolEffect(.pulse, isActive: isBusy)
-                    .foregroundStyle(Color.purple.opacity(isBusy ? 0.7 : 1.0))
-                    .frame(width: 24)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(player?.npcDisplayName(for: AppConstants.Actor.chef) ?? "廚師")
-                        .fontWeight(.medium)
-                        .foregroundStyle(.primary)
-
-                    if let task = activeTask, let def = CuisineDef.find(task.definitionKey) {
-                        Text("烹飪中：\(def.icon) \(def.name)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text(TaskCountdown.remaining(for: task, relativeTo: appState.tick))
-                            .font(.caption)
-                            .foregroundStyle(.purple)
-                        ProgressView(value: task.progress(relativeTo: appState.tick))
-                            .tint(.purple)
-                            .scaleEffect(y: 0.7)
-                            .padding(.top, 1)
-                    } else {
-                        Text("閒置中，點擊委派")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Spacer()
-
-                TierBadgeView(tier: tier)
-
-                if isBusy {
-                    Text("烹飪中")
-                        .font(.caption)
-                        .padding(.horizontal, 8).padding(.vertical, 3)
-                        .background(Color.purple.opacity(0.12))
-                        .foregroundStyle(.purple)
-                        .clipShape(Capsule())
-                } else {
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
-            }
-            .padding(.vertical, 2)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(NPCDispatchButtonStyle(enabled: !isBusy))
-    }
-
-    // MARK: - NPC Section: 農場（V7-4）
-
-    @ViewBuilder
-    private func npcFarmerSection() -> some View {
-        let tier  = players.first?.gatherer5Tier ?? 0
-        let plots = min(tier + 1, AppConstants.FarmerPlot.maxPlots)
-
-        Section {
-            Button { showFarmerDetailSheet = true } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: "leaf.fill")
-                        .foregroundStyle(.green)
-                        .frame(width: 24)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(players.first?.npcDisplayName(for: "farmer") ?? "農夫")
-                            .fontWeight(.medium)
-                        Text("農田 \(plots) 塊解鎖")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    TierBadgeView(tier: tier)
                     Image(systemName: "chevron.right")
                         .font(.caption).foregroundStyle(.tertiary)
                 }
-                .padding(.vertical, 2)
-                .contentShape(Rectangle())
             }
-            .buttonStyle(NPCDispatchButtonStyle(enabled: true))
-        } header: {
-            HStack {
-                Image(systemName: "leaf.fill")
-                    .foregroundStyle(.green)
-                Text("農場")
-            }
+            .padding(12)
+            .frame(maxWidth: .infinity)
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
         }
+        .buttonStyle(.plain)
     }
 
-    // MARK: - NPC Row: 商人
+    // MARK: - NPC Card: 農夫
 
     @ViewBuilder
-    private func npcMerchantRow() -> some View {
-        Button(action: { showMerchantSheet = true }) {
-            HStack(spacing: 12) {
-                Image(systemName: "storefront.fill")
-                    .foregroundStyle(Color.yellow)
-                    .frame(width: 24)
+    private func npcFarmerCard() -> some View {
+        let tier  = players.first?.gatherer5Tier ?? 0
+        let plots = min(tier + 1, AppConstants.FarmerPlot.maxPlots)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(players.first?.npcDisplayName(for: "merchant") ?? "商人")
-                        .fontWeight(.medium)
-                        .foregroundStyle(.primary)
-                    Text("點擊開啟商店")
-                        .font(.caption)
+        Button { showFarmerDetailSheet = true } label: {
+            HStack(spacing: 14) {
+                ZStack(alignment: .topTrailing) {
+                    Image(webp: "npc_farmer")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 80, height: 80)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    npcStatusBadge(isBusy: false)
+                }
+                .overlay(alignment: .topLeading) {
+                    if tier > 0 { TierBadgeView(tier: tier).padding(4) }
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(players.first?.npcDisplayName(for: "farmer") ?? "農夫")
+                        .font(.subheadline).fontWeight(.medium)
+                        .lineLimit(1)
+                    Text("農田 \(plots) 塊 · 點擊管理")
+                        .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
 
                 Spacer()
 
                 Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
+                    .font(.caption).foregroundStyle(.tertiary)
             }
-            .padding(.vertical, 2)
-            .contentShape(Rectangle())
+            .padding(12)
+            .frame(maxWidth: .infinity)
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
         }
-        .buttonStyle(NPCDispatchButtonStyle(enabled: true))
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - NPC Card: 鑄造師
+
+    @ViewBuilder
+    private func npcBlacksmithCard(player: PlayerStateModel?) -> some View {
+        let activeTask = viewModel.craftTask(from: tasks)
+        let isBusy     = activeTask != nil
+        let tier       = player?.tier(for: AppConstants.Actor.blacksmith) ?? 0
+        let caption: String = {
+            guard let task = activeTask,
+                  let def = CraftRecipeDef.find(key: task.definitionKey) else { return "閒置中，點擊委派" }
+            return "鑄造中：\(def.name)\n\(TaskCountdown.remaining(for: task, relativeTo: appState.tick))"
+        }()
+        let progress = activeTask.map { $0.progress(relativeTo: appState.tick) }
+
+        Button { if !isBusy { showCraftSheet = true } } label: {
+            HStack(spacing: 14) {
+                ZStack(alignment: .topTrailing) {
+                    Image(webp: "npc_blacksmith")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 80, height: 80)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .opacity(isBusy ? 0.85 : 1.0)
+                    npcStatusBadge(isBusy: isBusy)
+                }
+                .overlay(alignment: .topLeading) {
+                    if tier > 0 { TierBadgeView(tier: tier).padding(4) }
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("鑄造師")
+                        .font(.subheadline).fontWeight(.medium)
+                        .lineLimit(1)
+                    Text(caption)
+                        .font(.caption2)
+                        .foregroundStyle(isBusy ? Color.orange : .secondary)
+                        .lineLimit(2)
+                    if let progress {
+                        ProgressView(value: progress)
+                            .tint(.orange)
+                            .scaleEffect(y: 0.6)
+                    }
+                }
+
+                Spacer()
+
+                if isBusy {
+                    Text("鑄造中")
+                        .font(.caption2)
+                        .padding(.horizontal, 8).padding(.vertical, 4)
+                        .background(Color.orange.opacity(0.12))
+                        .foregroundStyle(Color.orange)
+                        .clipShape(Capsule())
+                } else {
+                    Image(systemName: "chevron.right")
+                        .font(.caption).foregroundStyle(.tertiary)
+                }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity)
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - NPC Card: 廚師
+
+    @ViewBuilder
+    private func npcChefCard(player: PlayerStateModel?) -> some View {
+        let activeTask = viewModel.cuisineTask(from: tasks)
+        let isBusy     = activeTask != nil
+        let tier       = player?.tier(for: AppConstants.Actor.chef) ?? 0
+        let caption: String = {
+            guard let task = activeTask,
+                  let def = CuisineDef.find(task.definitionKey) else { return "閒置中，點擊委派" }
+            return "烹飪中：\(def.icon) \(def.name)\n\(TaskCountdown.remaining(for: task, relativeTo: appState.tick))"
+        }()
+        let progress = activeTask.map { $0.progress(relativeTo: appState.tick) }
+
+        Button { if !isBusy { showCuisineSheet = true } } label: {
+            HStack(spacing: 14) {
+                ZStack(alignment: .topTrailing) {
+                    Image(webp: "npc_chef")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 80, height: 80)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .opacity(isBusy ? 0.85 : 1.0)
+                    npcStatusBadge(isBusy: isBusy)
+                }
+                .overlay(alignment: .topLeading) {
+                    if tier > 0 { TierBadgeView(tier: tier).padding(4) }
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("廚師")
+                        .font(.subheadline).fontWeight(.medium)
+                        .lineLimit(1)
+                    Text(caption)
+                        .font(.caption2)
+                        .foregroundStyle(isBusy ? Color.purple : .secondary)
+                        .lineLimit(2)
+                    if let progress {
+                        ProgressView(value: progress)
+                            .tint(.purple)
+                            .scaleEffect(y: 0.6)
+                    }
+                }
+
+                Spacer()
+
+                if isBusy {
+                    Text("烹飪中")
+                        .font(.caption2)
+                        .padding(.horizontal, 8).padding(.vertical, 4)
+                        .background(Color.purple.opacity(0.12))
+                        .foregroundStyle(Color.purple)
+                        .clipShape(Capsule())
+                } else {
+                    Image(systemName: "chevron.right")
+                        .font(.caption).foregroundStyle(.tertiary)
+                }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity)
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - NPC Card: 製藥師
+
+    @ViewBuilder
+    private func npcPharmacistCard(player: PlayerStateModel?) -> some View {
+        let activeTask = viewModel.pharmacistTask(from: tasks)
+        let isBusy     = activeTask != nil
+        let tier       = player?.tier(for: AppConstants.Actor.pharmacist) ?? 0
+        let caption: String = {
+            guard let task = activeTask,
+                  let def = PotionDef.find(task.definitionKey) else { return "閒置中，點擊選擇" }
+            return "製藥中：\(def.name)\n\(TaskCountdown.remaining(for: task, relativeTo: appState.tick))"
+        }()
+        let progress = activeTask.map { $0.progress(relativeTo: appState.tick) }
+
+        Button { if !isBusy { showPharmacySheet = true } } label: {
+            HStack(spacing: 14) {
+                ZStack(alignment: .topTrailing) {
+                    Image(webp: "npc_pharmacist")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 80, height: 80)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .opacity(isBusy ? 0.85 : 1.0)
+                    npcStatusBadge(isBusy: isBusy)
+                }
+                .overlay(alignment: .topLeading) {
+                    if tier > 0 { TierBadgeView(tier: tier).padding(4) }
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("製藥師")
+                        .font(.subheadline).fontWeight(.medium)
+                        .lineLimit(1)
+                    Text(caption)
+                        .font(.caption2)
+                        .foregroundStyle(isBusy ? Color.teal : .secondary)
+                        .lineLimit(2)
+                    if let progress {
+                        ProgressView(value: progress)
+                            .tint(.teal)
+                            .scaleEffect(y: 0.6)
+                    }
+                }
+
+                Spacer()
+
+                if isBusy {
+                    Text("製藥中")
+                        .font(.caption2)
+                        .padding(.horizontal, 8).padding(.vertical, 4)
+                        .background(Color.teal.opacity(0.12))
+                        .foregroundStyle(Color.teal)
+                        .clipShape(Capsule())
+                } else {
+                    Image(systemName: "chevron.right")
+                        .font(.caption).foregroundStyle(.tertiary)
+                }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity)
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - NPC Card: 商人
+
+    @ViewBuilder
+    private func npcMerchantCard() -> some View {
+        Button { showMerchantSheet = true } label: {
+            HStack(spacing: 14) {
+                ZStack(alignment: .topTrailing) {
+                    Image(webp: "npc_merchant")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 80, height: 80)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    npcStatusBadge(isBusy: false)
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("商人")
+                        .font(.subheadline).fontWeight(.medium)
+                        .lineLimit(1)
+                    Text("點擊開啟商店")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.caption).foregroundStyle(.tertiary)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity)
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
+        .buttonStyle(.plain)
     }
 
     #if DEBUG
@@ -645,6 +701,65 @@ struct BaseView: View {
                 svc.markFloorCleared(regionKey: floor.regionKey, floorIndex: floor.floorIndex)
             }
         }
+    }
+
+    /// V8-2 驗證用：注入所有生產者技能（Lv2~3）+ 精良裝備已裝備 + 消耗品庫存
+    private func devSetupV8_2Test() {
+        guard let player = players.first,
+              let inv    = inventories.first else { return }
+
+        // ── 生產者 Tier ─────────────────────────────────────────────
+        player.blacksmithTier  = 3
+        player.chefTier        = 3
+        player.pharmacistTier  = 3
+        player.gatherer5Tier   = 3   // 農夫 tier
+
+        // ── 生產者技能（直接注入 raw，全部 Lv2）────────────────────
+        // bs_gold Lv2 → 鑄造金幣 -20%；bs_mastery Lv2 → 精良+以上屬性 ×1.10
+        player.blacksmithSkillPoints = 0
+        player.blacksmithSkillsRaw   = "bs_gold,bs_gold,bs_mastery,bs_mastery"
+
+        // ch_portion Lv2 → 25% 多產料理；ch_flavor Lv2 → 料理 buff ×1.20
+        player.chefSkillPoints = 0
+        player.chefSkillsRaw   = "ch_portion,ch_portion,ch_flavor,ch_flavor"
+
+        // ph_yield Lv2 → 20% 多產藥水；ph_potency Lv2 → 藥水回復 ×1.20
+        player.pharmacistSkillPoints = 0
+        player.pharmacistSkillsRaw   = "ph_yield,ph_yield,ph_potency,ph_potency"
+
+        // fa_yield Lv2 → 60% 額外農作物；fa_quality Lv3 → 品質機率 +30%
+        player.farmerSkillPoints = 0
+        player.farmerSkillsRaw   = "fa_yield,fa_yield,fa_quality,fa_quality,fa_quality"
+
+        // ── 金幣 + 素材（鑄造、料理、煉藥用）──────────────────────
+        player.gold += 10_000
+        inv.wood            += 50;  inv.ore             += 50
+        inv.hide            += 50;  inv.crystalShard    += 50
+        inv.ancientFragment += 50;  inv.herb            += 50
+        inv.spiritHerb      += 50;  inv.freshFish       += 50
+        inv.wheatSeed       += 20;  inv.vegetableSeed   += 20
+        inv.fruitSeed       += 20;  inv.spiritGrainSeed += 20
+
+        // ── 精良武器 + 防具（已裝備，用於驗證 bs_mastery）──────────
+        let refinedWeapon = EquipmentModel(
+            defKey: "refined_weapon", slot: .weapon,
+            rarity: .refined, isEquipped: true
+        )
+        let refinedArmor = EquipmentModel(
+            defKey: "refined_armor", slot: .armor,
+            rarity: .refined, isEquipped: true
+        )
+        context.insert(refinedWeapon)
+        context.insert(refinedArmor)
+
+        // ── 消耗品（料理 + 藥水，用於驗證 ch_flavor / ph_potency）──
+        let consumable = (try? context.fetch(FetchDescriptor<ConsumableInventoryModel>()))?.first
+        consumable?.add(of: .fishStew)            // 魚肉燉鍋（料理 buff 驗證）
+        consumable?.add(of: .fishStew)
+        consumable?.add(of: .smallPotion)         // 小型藥水（藥水回復驗證）
+        consumable?.add(of: .smallPotion)
+
+        try? context.save()
     }
 
     /// V8-1 驗證用：注入稀有/史詩素材、鑄造師 Tier 3、稀有/史詩裝備各一件

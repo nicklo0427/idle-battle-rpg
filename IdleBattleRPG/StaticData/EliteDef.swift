@@ -71,11 +71,11 @@ extension EliteDef {
     // F1 推薦戰力 40 → 菁英最低挑戰 44、HP 120、ATK 13、DEF 5
     static let wildland1 = EliteDef(
         key:              "elite_wildland_1",
-        name:             "裂爪前哨長",
+        name:             "穀道裂爪衛",
         floorKey:         "wildland_floor_1",
         regionKey:        "wildland",
         floorIndex:       1,
-        lore:             "統領殘木前哨的老兵，身上的裂爪傷痕是每場廝殺的勳章。",
+        lore:             "守衛穀倉前道多年的傷痕老兵，身上的裂爪傷痕是每場護糧廝殺的勳章。",
         minPowerRequired: 44,
         hp:               120,
         atk:              13,
@@ -86,11 +86,11 @@ extension EliteDef {
     // F2 推薦戰力 65 → 最低 72、HP 195、ATK 22、DEF 8
     static let wildland2 = EliteDef(
         key:              "elite_wildland_2",
-        name:             "獸紋獵首",
+        name:             "田野獵禍首",
         floorKey:         "wildland_floor_2",
         regionKey:        "wildland",
         floorIndex:       2,
-        lore:             "以獸皮纏身的狂戰士，據說曾徒手將裂角獸撕裂。",
+        lore:             "率領獸群掠奪農田的禍首，廢棄農舍中堆滿了其洗劫的穀物與獸骨。",
         minPowerRequired: 72,
         hp:               195,
         atk:              22,
@@ -101,11 +101,11 @@ extension EliteDef {
     // F3 推薦戰力 90 → 最低 99、HP 270、ATK 30、DEF 11
     static let wildland3 = EliteDef(
         key:              "elite_wildland_3",
-        name:             "邊境斬界者",
+        name:             "田界收割者",
         floorKey:         "wildland_floor_3",
         regionKey:        "wildland",
         floorIndex:       3,
-        lore:             "遊走於文明邊界的亡命之徒，以斬殺旅人為樂。",
+        lore:             "被詛咒束縛於穀倉田界的收割者，任何跨越田界的生命都難逃其鐮。",
         minPowerRequired: 99,
         hp:               270,
         atk:              30,
@@ -116,11 +116,11 @@ extension EliteDef {
     // F4 Boss 層 推薦戰力 120 → 最低 132、HP 360、ATK 40、DEF 15
     static let wildland4 = EliteDef(
         key:              "elite_wildland_4",
-        name:             "裂牙掠首・狂怒態",
+        name:             "穀禍裂牙・狂噬態",
         floorKey:         "wildland_floor_4",
         regionKey:        "wildland",
         floorIndex:       4,
-        lore:             "裂牙掠首在王庭深處甦醒的另一面，怒火燃盡後的最終型態。",
+        lore:             "摧毀金穗之野數個豐收季的巨獸，吞盡穀倉後進入無法遏止的狂噬型態。",
         minPowerRequired: 132,
         hp:               360,
         atk:              40,
@@ -136,11 +136,11 @@ extension EliteDef {
     // F1 推薦戰力 155 → 最低 171、HP 465、ATK 52、DEF 19
     static let mine1 = EliteDef(
         key:              "elite_mine_1",
-        name:             "礦脈封鎖者",
+        name:             "林道截殺者",
         floorKey:         "mine_floor_1",
         regionKey:        "abandoned_mine",
         floorIndex:       1,
-        lore:             "礦坑最初的管理者，如今只剩下封鎖一切的本能。",
+        lore:             "古林入口的隱秘獵人，以藤蔓陷阱捕殺入侵者，從未讓獵物逃脫。",
         minPowerRequired: 171,
         hp:               465,
         atk:              52,
@@ -151,11 +151,11 @@ extension EliteDef {
     // F2 推薦戰力 190 → 最低 209、HP 570、ATK 63、DEF 24
     static let mine2 = EliteDef(
         key:              "elite_mine_2",
-        name:             "裂層重鑿兵",
+        name:             "迷林古木傀儡",
         floorKey:         "mine_floor_2",
         regionKey:        "abandoned_mine",
         floorIndex:       2,
-        lore:             "以巨型鑿刀為武器，每一擊都能撕裂礦壁。",
+        lore:             "被腐化靈氣侵蝕的千年樹精，在迷宮深處守護著古樹最後的記憶。",
         minPowerRequired: 209,
         hp:               570,
         atk:              63,
@@ -166,11 +166,11 @@ extension EliteDef {
     // F3 推薦戰力 225 → 最低 248、HP 675、ATK 75、DEF 28
     static let mine3 = EliteDef(
         key:              "elite_mine_3",
-        name:             "深坑承脈守將",
+        name:             "幽林靈脈守將",
         floorKey:         "mine_floor_3",
         regionKey:        "abandoned_mine",
         floorIndex:       3,
-        lore:             "深坑礦脈的最後守護者，以礦石鑲嵌全身。",
+        lore:             "鎮守古林靈脈核心的黑夜獸靈，其嘶吼能令周遭樹木瞬間枯死。",
         minPowerRequired: 248,
         hp:               675,
         atk:              75,
@@ -181,11 +181,11 @@ extension EliteDef {
     // F4 Boss 層 推薦戰力 260 → 最低 286、HP 780、ATK 87、DEF 33
     static let mine4 = EliteDef(
         key:              "elite_mine_4",
-        name:             "深坑吞岩獸・狂嗜態",
+        name:             "腐林吞木獸・狂蝕態",
         floorKey:         "mine_floor_4",
         regionKey:        "abandoned_mine",
         floorIndex:       4,
-        lore:             "吞噬礦核後進入狂嗜狀態的吞岩獸，礦坑的終極威脅。",
+        lore:             "沉睡於古林王座的遠古神獸，吞噬千年樹心後進入無法抑制的狂蝕狀態。",
         minPowerRequired: 286,
         hp:               780,
         atk:              87,
@@ -201,11 +201,11 @@ extension EliteDef {
     // F1 推薦戰力 295 → 最低 325、HP 885、ATK 98、DEF 37
     static let ruins1 = EliteDef(
         key:              "elite_ruins_1",
-        name:             "外庭誓約衛兵",
+        name:             "草原前哨斥候長",
         floorKey:         "ruins_floor_1",
         regionKey:        "ancient_ruins",
         floorIndex:       1,
-        lore:             "以古老誓約束縛自身的遺跡守衛，誓言令其永不退縮。",
+        lore:             "血旗部落的游動斥候首領，以極速奔襲與殘忍手段鎮壓一切入侵者。",
         minPowerRequired: 325,
         hp:               885,
         atk:              98,
@@ -216,11 +216,11 @@ extension EliteDef {
     // F2 推薦戰力 330 → 最低 363、HP 990、ATK 110、DEF 41
     static let ruins2 = EliteDef(
         key:              "elite_ruins_2",
-        name:             "碑紋大祭司",
+        name:             "遊牧巫祭首領",
         floorKey:         "ruins_floor_2",
         regionKey:        "ancient_ruins",
         floorIndex:       2,
-        lore:             "迴廊深處的祭司首領，以符文詛咒所有入侵者。",
+        lore:             "廢棄營地中最後的部落薩滿，以詛咒與鮮血喚醒戰神之力。",
         minPowerRequired: 363,
         hp:               990,
         atk:              110,
@@ -231,11 +231,11 @@ extension EliteDef {
     // F3 推薦戰力 368 → 最低 405、HP 1104、ATK 123、DEF 46
     static let ruins3 = EliteDef(
         key:              "elite_ruins_3",
-        name:             "前殿誓約騎士長",
+        name:             "衝鋒鐵甲統帥",
         floorKey:         "ruins_floor_3",
         regionKey:        "ancient_ruins",
         floorIndex:       3,
-        lore:             "前殿最後的騎士統帥，以古王遺命為最高指引。",
+        lore:             "率領精銳重甲兵衝鋒陷陣的草原統帥，從未嘗過一場敗績。",
         minPowerRequired: 405,
         hp:               1104,
         atk:              123,
@@ -246,11 +246,11 @@ extension EliteDef {
     // F4 Boss 層 推薦戰力 410 → 最低 451、HP 1230、ATK 137、DEF 51
     static let ruins4 = EliteDef(
         key:              "elite_ruins_4",
-        name:             "王誓執行者・封印解除",
+        name:             "血旗戰令者・狂王附體",
         floorKey:         "ruins_floor_4",
         regionKey:        "ancient_ruins",
         floorIndex:       4,
-        lore:             "封印解除後的王誓執行者，古王的怒火在其體內完全甦醒。",
+        lore:             "血旗草原王直屬的戰令執行者，王者怒火完全甦醒後勢不可擋。",
         minPowerRequired: 451,
         hp:               1230,
         atk:              137,
@@ -266,11 +266,11 @@ extension EliteDef {
     // F1 推薦戰力 530 → 最低 583、HP 1590、ATK 177、DEF 66
     static let sunken1 = EliteDef(
         key:              "elite_sunken_1",
-        name:             "沉塔前哨統領",
+        name:             "沙丘哨守統領",
         floorKey:         "sunken_floor_1",
         regionKey:        "sunken_city",
         floorIndex:       1,
-        lore:             "沉落王城入口的最後守衛，腐蝕魔力已滲透其鎧甲與意志。",
+        lore:             "把守法老領地入口的不死守衛，在烈日炙烤下永不疲憊、永不倒下。",
         minPowerRequired: 583,
         hp:               1590,
         atk:              177,
@@ -281,11 +281,11 @@ extension EliteDef {
     // F2 推薦戰力 585 → 最低 644、HP 1755、ATK 195、DEF 73
     static let sunken2 = EliteDef(
         key:              "elite_sunken_2",
-        name:             "溺殿晶液祭主",
+        name:             "沙暴迴廊祭主",
         floorKey:         "sunken_floor_2",
         regionKey:        "sunken_city",
         floorIndex:       2,
-        lore:             "以深淵晶液為媒介施術的祭司首領，迴廊中每一滴水都是他的眼睛。",
+        lore:             "以詛咒符文操控沙暴的法老祭司，每句咒語都能召喚烈焰風沙肆虐。",
         minPowerRequired: 644,
         hp:               1755,
         atk:              195,
@@ -296,11 +296,11 @@ extension EliteDef {
     // F3 推薦戰力 645 → 最低 710、HP 1935、ATK 215、DEF 81
     static let sunken3 = EliteDef(
         key:              "elite_sunken_3",
-        name:             "沉冕王室禁衛長",
+        name:             "法老禁衛統帥",
         floorKey:         "sunken_floor_3",
         regionKey:        "sunken_city",
         floorIndex:       3,
-        lore:             "戴著溺冕的王室最後守護者，誓死捍衛通往沉王聖座的入口。",
+        lore:             "守護法老深墓最後一道門的王室禁衛長，以自身性命為詛咒護盾。",
         minPowerRequired: 710,
         hp:               1935,
         atk:              215,
@@ -311,11 +311,11 @@ extension EliteDef {
     // F4 Boss 層 推薦戰力 710 → 最低 781、HP 2130、ATK 237、DEF 89
     static let sunken4 = EliteDef(
         key:              "elite_sunken_4",
-        name:             "沉落王・深淵甦醒（覺醒態）",
+        name:             "焰獄法老・神力覺醒（覺醒態）",
         floorKey:         "sunken_floor_4",
         regionKey:        "sunken_city",
         floorIndex:       4,
-        lore:             "沉落王城的主宰，深淵之力完全甦醒後的最終型態，幽暗海水在其周圍凝固成刃。",
+        lore:             "在烈陽神座深處覺醒的古老法老，以沙漠之火與詛咒之力對抗一切入侵者。",
         minPowerRequired: 781,
         hp:               2130,
         atk:              237,

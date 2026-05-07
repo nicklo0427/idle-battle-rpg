@@ -202,6 +202,47 @@ struct DungeonProgressionService {
         return true
     }
 
+    // MARK: - 個人最佳記錄（V8-3 T04）
+
+    struct FloorBestRecord: Codable {
+        var wins: Int
+        var gold: Int
+    }
+
+    /// 更新指定樓層的個人最佳記錄（僅在更好時更新）
+    func updateBest(floorKey: String, wins: Int, gold: Int) {
+        let model = repository.fetchOrCreate()
+        var records = decodeBests(model.floorBestRecordsJSON)
+
+        if let existing = records[floorKey] {
+            guard wins > existing.wins || (wins == existing.wins && gold > existing.gold) else { return }
+        }
+        records[floorKey] = FloorBestRecord(wins: wins, gold: gold)
+        model.floorBestRecordsJSON = encodeBests(records)
+        repository.save()
+    }
+
+    /// 取得指定樓層的個人最佳記錄（無記錄回傳 nil）
+    func getBest(floorKey: String) -> FloorBestRecord? {
+        let model = repository.fetch()
+        return decodeBests(model?.floorBestRecordsJSON)[floorKey]
+    }
+
+    private func decodeBests(_ json: String?) -> [String: FloorBestRecord] {
+        guard let json,
+              let data = json.data(using: .utf8),
+              let dict = try? JSONDecoder().decode([String: FloorBestRecord].self, from: data)
+        else { return [:] }
+        return dict
+    }
+
+    private func encodeBests(_ dict: [String: FloorBestRecord]) -> String {
+        guard let data = try? JSONEncoder().encode(dict),
+              let str = String(data: data, encoding: .utf8)
+        else { return "{}" }
+        return str
+    }
+
     // MARK: - Private：JSON 編解碼
 
     private func decodeKeys(_ json: String?) -> Set<String> {

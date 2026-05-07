@@ -90,6 +90,8 @@ struct TaskCreationService {
             endsAt:        now.addingTimeInterval(TimeInterval(duration))
         )
         repository.insert(task)
+        NotificationService.requestPermissionIfNeeded()
+        NotificationService.schedule(for: task)
     }
 
     // MARK: - 鑄造任務
@@ -114,8 +116,13 @@ struct TaskCreationService {
         guard let player    = (try? context.fetch(playerDesc))?.first    else { throw TaskCreationError.noPlayerState }
         guard let inventory = (try? context.fetch(inventoryDesc))?.first else { throw TaskCreationError.noInventory }
 
+        // bs_gold 折扣（Lv0 = 無折扣）
+        let bsGoldLv      = player.skillLevel(nodeKey: "bs_gold", actorKey: "blacksmith")
+        let bsDiscount    = Double(bsGoldLv) * 0.10
+        let effectiveGold = max(0, Int(Double(def.goldCost) * (1.0 - bsDiscount)))
+
         // 驗證資源
-        guard player.gold >= def.goldCost else { throw TaskCreationError.insufficientGold }
+        guard player.gold >= effectiveGold else { throw TaskCreationError.insufficientGold }
         for req in def.requiredMaterials {
             guard inventory.amount(of: req.material) >= req.amount else {
                 throw TaskCreationError.insufficientMaterials
@@ -123,7 +130,7 @@ struct TaskCreationService {
         }
 
         // 扣除資源
-        player.gold -= def.goldCost
+        player.gold -= effectiveGold
         for req in def.requiredMaterials {
             inventory.deduct(req.amount, of: req.material)
         }
@@ -158,6 +165,8 @@ struct TaskCreationService {
         )
         // repository.insert 內部呼叫 context.save()，原子儲存扣除+建立
         repository.insert(task)
+        NotificationService.requestPermissionIfNeeded()
+        NotificationService.schedule(for: task)
     }
 
     // MARK: - 料理任務（V7-3）
@@ -214,6 +223,8 @@ struct TaskCreationService {
         )
         task.resultCuisineKey = def.key
         repository.insert(task)
+        NotificationService.requestPermissionIfNeeded()
+        NotificationService.schedule(for: task)
     }
 
     // MARK: - 農田任務（V7-4）
@@ -266,6 +277,8 @@ struct TaskCreationService {
             endsAt:        now.addingTimeInterval(TimeInterval(effectiveDuration))
         )
         repository.insert(task)
+        NotificationService.requestPermissionIfNeeded()
+        NotificationService.schedule(for: task)
     }
 
     // MARK: - 煉藥任務（V7-4）
@@ -321,6 +334,8 @@ struct TaskCreationService {
             endsAt:        now.addingTimeInterval(TimeInterval(duration))
         )
         repository.insert(task)
+        NotificationService.requestPermissionIfNeeded()
+        NotificationService.schedule(for: task)
     }
 
     // MARK: - 地下城任務
@@ -389,7 +404,11 @@ struct TaskCreationService {
         task.snapshotSkillLevelsRaw = player.skillLevelsRaw
         task.snapshotCuisineKey     = cuisineKey
         task.snapshotPotionKey      = potionKey
+        task.snapshotChFlavorLevel  = player.skillLevel(nodeKey: "ch_flavor",  actorKey: "chef")
+        task.snapshotPhPotencyLevel = player.skillLevel(nodeKey: "ph_potency", actorKey: "pharmacist")
         repository.insert(task)
+        NotificationService.requestPermissionIfNeeded()
+        NotificationService.schedule(for: task)
     }
 
     private func fetchConsumableInventory() -> ConsumableInventoryModel? {
@@ -449,5 +468,7 @@ struct TaskCreationService {
         task.snapshotSkillKeysRaw   = equippedSkillKeys.joined(separator: ",")
         task.snapshotSkillLevelsRaw = player.skillLevelsRaw
         repository.insert(task)
+        NotificationService.requestPermissionIfNeeded()
+        NotificationService.schedule(for: task)
     }
 }

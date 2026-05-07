@@ -24,13 +24,19 @@ enum EliteBattleOutcome {
 
 struct BattleLogSheet: View {
 
-    let model:      BattleLogPlaybackModel
-    let title:      String
-    let enemyLabel: String
-    var eliteResult: EliteBattleOutcome? = nil
-    var onRetry:     (() -> Void)? = nil
+    let model:          BattleLogPlaybackModel
+    let title:          String
+    let enemyLabel:     String
+    var enemyImageName: String?            = nil
+    var eliteResult:    EliteBattleOutcome? = nil
+    var onRetry:        (() -> Void)?       = nil
 
     @Environment(\.dismiss) private var dismiss
+
+    @State private var heroDamageFlash:    Int?  = nil
+    @State private var enemyDamageFlash:   Int?  = nil
+    @State private var heroDamageFlashID:  UUID  = UUID()
+    @State private var enemyDamageFlashID: UUID  = UUID()
 
     // MARK: - HP 計算（從當前場次事件取）
 
@@ -50,7 +56,38 @@ struct BattleLogSheet: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                hpBarsView
+                battleVisualsView
+                    .onChange(of: model.displayedCount) { _, _ in
+                        guard let event = model.currentBattleEvents.prefix(model.displayedCount).last else { return }
+                        switch event.type {
+                        case .damage where event.damageAmount > 0:
+                            let id = UUID()
+                            heroDamageFlashID = id
+                            withAnimation { heroDamageFlash = event.damageAmount }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
+                                guard heroDamageFlashID == id else { return }
+                                withAnimation { heroDamageFlash = nil }
+                            }
+                        case .attack where event.damageAmount > 0,
+                             .skill  where event.damageAmount > 0:
+                            let id = UUID()
+                            enemyDamageFlashID = id
+                            withAnimation { enemyDamageFlash = event.damageAmount }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
+                                guard enemyDamageFlashID == id else { return }
+                                withAnimation { enemyDamageFlash = nil }
+                            }
+                        case .heal where event.damageAmount > 0:
+                            let id = UUID()
+                            heroDamageFlashID = id
+                            withAnimation { heroDamageFlash = -(event.damageAmount) }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
+                                guard heroDamageFlashID == id else { return }
+                                withAnimation { heroDamageFlash = nil }
+                            }
+                        default: break
+                        }
+                    }
                 if !model.skillCooldownFractions.isEmpty {
                     skillCooldownPanel
                     Divider()
@@ -74,78 +111,89 @@ struct BattleLogSheet: View {
         // onDisappear 刻意不呼叫 model.stop()
     }
 
-    // MARK: - HP + ATB 血量條
+    // MARK: - 左右對峙版面（E + D）
 
-    private var hpBarsView: some View {
-        VStack(spacing: 4) {
-            hpBar(icon: "person.fill", label: "英雄",
-                  current: currentHeroHp, maxHp: heroMaxHp, color: .blue)
-            atbBar(progress: model.heroATBProgress,
-                   color: model.isExploring ? .teal : .yellow)
-
-            if model.isBattleActive {
-                Spacer().frame(height: 4)
-                hpBar(icon: "skull.fill", label: enemyLabel,
-                      current: currentEnemyHp, maxHp: enemyMaxHp, color: .red)
-                atbBar(progress: model.enemyATBProgress, color: .orange)
-            }
+    private var battleVisualsView: some View {
+        HStack(alignment: .top, spacing: 12) {
+            heroColumn
+            Spacer()
+            Image(systemName: model.isBattleActive ? "figure.fencing" : "map.fill")
+                .foregroundStyle(.secondary)
+                .font(.caption)
+                .padding(.top, 6)
+            Spacer()
+            enemyColumn
         }
         .padding(.horizontal)
         .padding(.vertical, 10)
         .background(Color(.systemGroupedBackground))
-        .animation(.easeInOut(duration: 0.25), value: model.isBattleActive)
     }
 
-    private func hpBar(icon: String, label: String,
-                       current: Int, maxHp: Int, color: Color) -> some View {
-        HStack(spacing: 8) {
-            // label：固定最小寬度，超過自然 shrink，不截斷
+    private var heroColumn: some View {
+        VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 4) {
-                Image(systemName: icon)
-                    .frame(width: 14, height: 14)
-                    .foregroundStyle(color)
-                Text(label)
-                    .font(.caption)
-                    .lineLimit(1)
-                    .fixedSize(horizontal: true, vertical: false)
+                Image(systemName: "person.fill").foregroundStyle(.blue)
+                Text("英雄").font(.caption).fontWeight(.semibold)
             }
-            .frame(minWidth: 60, maxWidth: 120, alignment: .leading)
-
-            ProgressView(value: Double(Swift.max(0, current)),
-                         total:  Double(Swift.max(1, maxHp)))
-                .tint(color)
-                .frame(maxWidth: .infinity)
-                .animation(.easeInOut(duration: 0.2), value: current)
-
-            // HP 數字：不用固定寬，讓 layout 自然對齊
-            Text("\(Swift.max(0, current))/\(maxHp)")
-                .font(.caption2)
-                .monospacedDigit()
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: true, vertical: false)
-                .frame(minWidth: 50, alignment: .trailing)
+            ProgressView(value: Double(max(0, currentHeroHp)), total: Double(max(1, heroMaxHp)))
+                .tint(.blue)
+                .animation(.easeInOut(duration: 0.2), value: currentHeroHp)
+                .overlay(alignment: .trailing) {
+                    if let dmg = heroDamageFlash {
+                        Text(dmg < 0 ? "+\(-dmg)" : "-\(dmg)")
+                            .font(.caption2).fontWeight(.bold)
+                            .foregroundStyle(dmg < 0 ? .green : .red)
+                            .padding(.trailing, 4)
+                    }
+                }
+            Text("\(max(0, currentHeroHp))/\(heroMaxHp)")
+                .font(.caption2).monospacedDigit().foregroundStyle(.secondary)
+            ProgressView(value: model.heroATBProgress, total: 1.0)
+                .tint(model.isExploring ? .teal : .yellow)
+                .animation(.linear(duration: 0.055), value: model.heroATBProgress)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func atbBar(progress: Double, color: Color) -> some View {
-        HStack(spacing: 8) {
-            // 對齊 hpBar 的 label 區域（用透明 Text 佔位，不硬編碼寬度）
-            Text("　")
-                .font(.caption)
-                .frame(minWidth: 60, maxWidth: 120)
-                .hidden()
-
-            ProgressView(value: progress, total: 1.0)
-                .tint(color)
-                .frame(maxWidth: .infinity)
-                .animation(.linear(duration: 0.055), value: progress)
-
-            // 對齊 HP 數字區域
-            Text("　")
-                .font(.caption2)
-                .frame(minWidth: 50)
-                .hidden()
+    private var enemyColumn: some View {
+        VStack(alignment: .trailing, spacing: 4) {
+            HStack(spacing: 4) {
+                Text(enemyLabel).font(.caption).fontWeight(.semibold)
+                if let imgName = enemyImageName {
+                    Image(webp: imgName)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 26, height: 26)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                } else {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color.secondary.opacity(0.12))
+                            .frame(width: 26, height: 26)
+                        Image(systemName: "skull")
+                            .font(.caption2).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            ProgressView(value: Double(max(0, currentEnemyHp)), total: Double(max(1, enemyMaxHp)))
+                .tint(.red)
+                .animation(.easeInOut(duration: 0.2), value: currentEnemyHp)
+                .overlay(alignment: .trailing) {
+                    if let dmg = enemyDamageFlash {
+                        Text("-\(dmg)")
+                            .font(.caption2).fontWeight(.bold).foregroundStyle(.orange)
+                            .padding(.trailing, 4)
+                    }
+                }
+            Text("\(max(0, currentEnemyHp))/\(enemyMaxHp)")
+                .font(.caption2).monospacedDigit().foregroundStyle(.secondary)
+            ProgressView(value: model.enemyATBProgress, total: 1.0)
+                .tint(.orange)
+                .animation(.linear(duration: 0.055), value: model.enemyATBProgress)
         }
+        .frame(maxWidth: .infinity, alignment: .trailing)
+        .opacity(model.isBattleActive ? 1 : 0)
+        .animation(.easeInOut(duration: 0.25), value: model.isBattleActive)
     }
 
     // MARK: - T09：技能 CD 面板
@@ -200,16 +248,29 @@ struct BattleLogSheet: View {
         }
     }
 
+    private func isHighlightedEvent(_ event: BattleEvent) -> Bool {
+        switch event.type {
+        case .skill, .victory, .defeat, .encounter: return true
+        case .attack: return event.isCrit
+        default: return false
+        }
+    }
+
     private func eventRow(_ event: BattleEvent) -> some View {
-        HStack(alignment: .top, spacing: 8) {
+        let highlight = isHighlightedEvent(event)
+        return HStack(alignment: .top, spacing: 8) {
             eventIconView(event.type)
-                .frame(width: 16, height: 16)
+                .frame(width: highlight ? 18 : 16, height: highlight ? 18 : 16)
                 .padding(.top, 2)
             Text(event.description)
-                .font(.subheadline)
+                .font(highlight ? .subheadline.weight(.semibold) : .subheadline)
                 .foregroundStyle(eventColor(event.type))
                 .fixedSize(horizontal: false, vertical: true)
         }
+        .padding(.horizontal, highlight ? 8 : 0)
+        .padding(.vertical, highlight ? 4 : 0)
+        .background(highlight ? eventColor(event.type).opacity(0.08) : .clear)
+        .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 
     // MARK: - 菁英模式底部（V4-2 預留）

@@ -36,11 +36,12 @@ struct EliteBattleSheet: View {
 
     var body: some View {
         BattleLogSheet(
-            model:       playbackModel,
-            title:       elite.name,
-            enemyLabel:  elite.name,
-            eliteResult: battleResult?.outcome,
-            onRetry:     rewardGranted ? nil : { runBattle() }
+            model:          playbackModel,
+            title:          elite.name,
+            enemyLabel:     elite.name,
+            enemyImageName: DungeonBattleSheet.bossImageName(for: elite.floorKey),
+            eliteResult:    battleResult?.outcome,
+            onRetry:        rewardGranted ? nil : { runBattle() }
         )
         .onAppear { runBattle() }
     }

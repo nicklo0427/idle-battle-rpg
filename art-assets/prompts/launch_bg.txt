@@ -1,0 +1,12 @@
+Use case: stylized-concept
+Asset type: mobile game launch screen background
+Primary request: JRPG launch screen background with a chibi adventurer standing before a glowing dungeon gate
+Scene/background: tall phone-friendly composition, twilight fantasy landscape, deep navy sky with soft golden particles, ancient stone gate, gentle mist near the ground, large empty negative space in the upper third for later title placement
+Subject: one cute but heroic chibi adventurer in simple armor facing the dungeon entrance, readable silhouette, lower-middle placement
+Style/medium: JRPG / anime game illustration, clean cel-shaded rendering, polished mobile game key art, light adventure fantasy, not pixel art, not photoreal
+Composition/framing: centered vertical composition, clear top-center breathing room, dungeon gate and adventurer grouped in the lower middle, safe for later center crop to a taller phone aspect ratio
+Lighting/mood: adventurous twilight mood, magical warm glow from the dungeon, inviting mystery rather than oppressive darkness
+Color palette: deep navy, dusk blue, warm gold, soft amber, muted stone gray
+Materials/textures: ancient stone blocks, soft mist, subtle magical glow, clean stylized armor surfaces
+Constraints: no text, no logos, no UI, no watermark, no extra characters, keep the scene friendly and adventurous
+Avoid: pixel art, flat editorial illustration, photorealism, horror mood, oppressive dark fantasy, cluttered foreground, heavy bloom

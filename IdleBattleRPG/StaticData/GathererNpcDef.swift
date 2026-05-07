@@ -68,4 +68,8 @@ extension GathererNpcDef {
     static func find(actorKey: String) -> GathererNpcDef? {
         all.first { $0.actorKey == actorKey }
     }
+
+    static func displayName(for actorKey: String) -> String? {
+        find(actorKey: actorKey)?.name
+    }
 }

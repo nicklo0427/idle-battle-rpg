@@ -221,12 +221,12 @@ extension EquipmentDef {
             hpBonus:  20
         ),
 
-        // ── V2-1 荒野邊境套裝：邊境生存者套裝 ──────────────────────────
+        // ── V2-1 金穗之野套裝：農地衛守套裝 ──────────────────────────
         // 設計目標：每件介於 V1 普通（≈87 全套）與 V1 精良（≈176 全套）之間；
         //           4 件全套戰力目標 ≈ 184（含副手）略高於 V1 精良 3 件。
         EquipmentDef(
             key:      "wildland_accessory",
-            name:     "前哨護符",
+            name:     "農地護符",
             slot:     .accessory,
             rarity:   .refined,
             atkBonus: 8,    // power: 8×2 + 4×1.5 + 14 = 36  (普通 19 → 36 → 精良 48)
@@ -235,7 +235,7 @@ extension EquipmentDef {
         ),
         EquipmentDef(
             key:      "wildland_armor",
-            name:     "荒徑皮甲",
+            name:     "田野皮甲",
             slot:     .armor,
             rarity:   .refined,
             atkBonus: 0,    // power: 16×1.5 + 38 = 62  (普通 32 → 62 → 精良 64)
@@ -244,7 +244,7 @@ extension EquipmentDef {
         ),
         EquipmentDef(
             key:      "wildland_offhand",
-            name:     "裂角臂扣",
+            name:     "豐收臂環",
             slot:     .offhand,
             rarity:   .refined,
             atkBonus: 0,    // power: 12×1.5 + 24 = 42  (副手新部位)
@@ -253,7 +253,7 @@ extension EquipmentDef {
         ),
         EquipmentDef(
             key:      "wildland_weapon",
-            name:     "裂牙獵刃",
+            name:     "農神鐮刀",
             slot:     .weapon,
             rarity:   .refined,
             atkBonus: 22,   // 鑄造固定值，power 44 (普通 36 → 44 → 精良 64)
@@ -262,11 +262,11 @@ extension EquipmentDef {
             atkRange: 24...36   // Boss 掉落浮動範圍；下限 = 鑄造 +2，最高 72 power
         ),
 
-        // ── V2-1 廢棄礦坑套裝：礦脈工匠套裝 ──────────────────────────
+        // ── V2-1 暮色古林套裝：森林獵人套裝 ──────────────────────────
         // 設計目標：≈ V1 精良裝備水準，部分顯著超越；4 件全套戰力目標 ≈ 282。
         EquipmentDef(
             key:      "mine_accessory",
-            name:     "礦燈墜飾",
+            name:     "林靈護符",
             slot:     .accessory,
             rarity:   .refined,
             atkBonus: 12,   // power: 12×2 + 6×1.5 + 20 = 53  (≈ 精良 48，略超)
@@ -275,7 +275,7 @@ extension EquipmentDef {
         ),
         EquipmentDef(
             key:      "mine_armor",
-            name:     "脈鐵工作甲",
+            name:     "荊棘葉甲",
             slot:     .armor,
             rarity:   .refined,
             atkBonus: 0,    // power: 24×1.5 + 55 = 91  (顯著超過精良 64)
@@ -284,7 +284,7 @@ extension EquipmentDef {
         ),
         EquipmentDef(
             key:      "mine_offhand",
-            name:     "承脈護架",
+            name:     "藤蔓護腕",
             slot:     .offhand,
             rarity:   .refined,
             atkBonus: 0,    // power: 16×1.5 + 34 = 58
@@ -293,7 +293,7 @@ extension EquipmentDef {
         ),
         EquipmentDef(
             key:      "mine_weapon",
-            name:     "吞岩重鑿",
+            name:     "古林巨斧",
             slot:     .weapon,
             rarity:   .refined,
             atkBonus: 40,   // 鑄造固定值，power 80 (顯著超過精良 64)
@@ -302,12 +302,12 @@ extension EquipmentDef {
             atkRange: 42...56   // Boss 掉落浮動範圍；下限 = 鑄造 +2，最高 112 power
         ),
 
-        // ── V2-1 古代遺跡套裝：遺跡守誓套裝 ──────────────────────────
+        // ── V2-1 血色曠野套裝：草原霸主套裝 ──────────────────────────
         // 設計目標：最終裝備層；4 件全套鑄造版戰力目標 ≈ 399。
         // 全套 + Lv.10 全 ATK（+54）≈ 453，對應 Boss 推薦戰力 410，勝率約 64%。
         EquipmentDef(
             key:      "ruins_accessory",
-            name:     "守誓印環",
+            name:     "草原獸牙環",
             slot:     .accessory,
             rarity:   .refined,
             atkBonus: 16,   // power: 16×2 + 8×1.5 + 28 = 72
@@ -316,7 +316,7 @@ extension EquipmentDef {
         ),
         EquipmentDef(
             key:      "ruins_armor",
-            name:     "碑紋誓甲",
+            name:     "游牧皮甲",
             slot:     .armor,
             rarity:   .refined,
             atkBonus: 0,    // power: 34×1.5 + 75 = 126
@@ -325,7 +325,7 @@ extension EquipmentDef {
         ),
         EquipmentDef(
             key:      "ruins_offhand",
-            name:     "前殿聖徽",
+            name:     "戰旗護盾",
             slot:     .offhand,
             rarity:   .refined,
             atkBonus: 0,    // power: 22×1.5 + 44 = 77
@@ -334,7 +334,7 @@ extension EquipmentDef {
         ),
         EquipmentDef(
             key:      "ruins_weapon",
-            name:     "王誓聖刃",
+            name:     "草原彎刀",
             slot:     .weapon,
             rarity:   .refined,
             atkBonus: 62,   // 鑄造固定值，power 124
@@ -343,12 +343,12 @@ extension EquipmentDef {
             atkRange: 64...84   // Boss 掉落浮動範圍；下限 = 鑄造 +2，最高 168 power（Farming 最高目標）
         ),
 
-        // ── V4-3 沉落王城套裝：沉城深淵套裝 ──────────────────────────
+        // ── V4-3 烈焰沙海套裝：沙漠遠征套裝 ──────────────────────────
         // 設計目標：ruins ×1.28 比例。4 件全套鑄造版戰力約 +532。
         // 全套 + Lv.20 全 ATK（+60）≈ 592，對應 F1 推薦戰力 530，勝率約 66%。
         EquipmentDef(
             key:      "sunken_city_accessory",
-            name:     "沉紋護符",
+            name:     "沙漠護符",
             slot:     .accessory,
             rarity:   .refined,
             atkBonus: 20,   // power: 20×2 + 10×1.5 + 35 = 90
@@ -357,7 +357,7 @@ extension EquipmentDef {
         ),
         EquipmentDef(
             key:      "sunken_city_armor",
-            name:     "深淵溺甲",
+            name:     "法老甲冑",
             slot:     .armor,
             rarity:   .refined,
             atkBonus: 0,    // power: 44×1.5 + 96 = 162
@@ -366,7 +366,7 @@ extension EquipmentDef {
         ),
         EquipmentDef(
             key:      "sunken_city_offhand",
-            name:     "沉冕王徽",
+            name:     "古墓護盾",
             slot:     .offhand,
             rarity:   .refined,
             atkBonus: 0,    // power: 28×1.5 + 56 = 98
@@ -375,7 +375,7 @@ extension EquipmentDef {
         ),
         EquipmentDef(
             key:      "sunken_city_weapon",
-            name:     "沉王裂水刃",
+            name:     "法老鑲金劍",
             slot:     .weapon,
             rarity:   .refined,
             atkBonus: 80,   // 鑄造固定值，power 160
