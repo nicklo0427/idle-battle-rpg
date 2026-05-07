@@ -56,7 +56,6 @@ struct AdventureView: View {
                 activeBannerSection
                 tutorialStep4BannerSection
                 tutorialStep6ExploreSection
-                firstBoostBannerSection
                 regionListSection
             }
             .navigationTitle("冒險")
@@ -183,20 +182,6 @@ struct AdventureView: View {
                 }
                 .padding(.vertical, 4)
             } header: { Text("🎯 引導任務") }
-        }
-    }
-
-    @ViewBuilder
-    private var firstBoostBannerSection: some View {
-        if let player = players.first, !player.hasUsedFirstDungeonBoost {
-            Section {
-                Label(
-                    "首次出征特快！選 15 分鐘出征，只需 30 秒即可完成，固定 5 場戰鬥。",
-                    systemImage: "bolt.fill"
-                )
-                .font(.subheadline)
-                .foregroundStyle(.purple)
-            }
         }
     }
 

@@ -199,6 +199,92 @@ struct TaskCreationService {
         NotificationService.schedule(for: task)
     }
 
+    // MARK: - 副手鑄造任務（V10-1 T12）
+
+    func createOffhandCraftTask(recipeKey: String) throws {
+        guard let def = CraftRecipeDef.find(key: recipeKey) else {
+            throw TaskCreationError.recipeNotFound(recipeKey)
+        }
+
+        let inProgress = repository.fetchInProgress()
+        if inProgress.contains(where: { $0.actorKey == AppConstants.Actor.weaponsmith }) {
+            throw TaskCreationError.actorBusy(AppConstants.Actor.weaponsmith)
+        }
+
+        let playerDesc    = FetchDescriptor<PlayerStateModel>()
+        let inventoryDesc = FetchDescriptor<MaterialInventoryModel>()
+        guard let player    = (try? context.fetch(playerDesc))?.first    else { throw TaskCreationError.noPlayerState }
+        guard let inventory = (try? context.fetch(inventoryDesc))?.first else { throw TaskCreationError.noInventory }
+
+        guard player.gold >= def.goldCost else { throw TaskCreationError.insufficientGold }
+        for req in def.requiredMaterials {
+            guard inventory.amount(of: req.material) >= req.amount else {
+                throw TaskCreationError.insufficientMaterials
+            }
+        }
+
+        player.gold -= def.goldCost
+        for req in def.requiredMaterials {
+            inventory.deduct(req.amount, of: req.material)
+        }
+
+        let now = Date.now
+        let task = TaskModel(
+            kind:                  .craft,
+            actorKey:              AppConstants.Actor.weaponsmith,
+            definitionKey:         recipeKey,
+            startedAt:             now,
+            endsAt:                now.addingTimeInterval(TimeInterval(def.durationSeconds)),
+            resultCraftedEquipKey: def.outputEquipmentKey
+        )
+        repository.insert(task)
+        NotificationService.requestPermissionIfNeeded()
+        NotificationService.schedule(for: task)
+    }
+
+    // MARK: - 飾品鑄造任務（V10-1 T13）
+
+    func createAccessoryCraftTask(recipeKey: String) throws {
+        guard let def = CraftRecipeDef.find(key: recipeKey) else {
+            throw TaskCreationError.recipeNotFound(recipeKey)
+        }
+
+        let inProgress = repository.fetchInProgress()
+        if inProgress.contains(where: { $0.actorKey == AppConstants.Actor.jeweler }) {
+            throw TaskCreationError.actorBusy(AppConstants.Actor.jeweler)
+        }
+
+        let playerDesc    = FetchDescriptor<PlayerStateModel>()
+        let inventoryDesc = FetchDescriptor<MaterialInventoryModel>()
+        guard let player    = (try? context.fetch(playerDesc))?.first    else { throw TaskCreationError.noPlayerState }
+        guard let inventory = (try? context.fetch(inventoryDesc))?.first else { throw TaskCreationError.noInventory }
+
+        guard player.gold >= def.goldCost else { throw TaskCreationError.insufficientGold }
+        for req in def.requiredMaterials {
+            guard inventory.amount(of: req.material) >= req.amount else {
+                throw TaskCreationError.insufficientMaterials
+            }
+        }
+
+        player.gold -= def.goldCost
+        for req in def.requiredMaterials {
+            inventory.deduct(req.amount, of: req.material)
+        }
+
+        let now = Date.now
+        let task = TaskModel(
+            kind:                  .craft,
+            actorKey:              AppConstants.Actor.jeweler,
+            definitionKey:         recipeKey,
+            startedAt:             now,
+            endsAt:                now.addingTimeInterval(TimeInterval(def.durationSeconds)),
+            resultCraftedEquipKey: def.outputEquipmentKey
+        )
+        repository.insert(task)
+        NotificationService.requestPermissionIfNeeded()
+        NotificationService.schedule(for: task)
+    }
+
     // MARK: - 料理任務（V7-3）
 
     /// 建立料理任務。
@@ -408,15 +494,7 @@ struct TaskCreationService {
             }
         }
 
-        var durationOverride: Int? = nil
-        var forcedBattles: Int? = nil
-        if !player.hasUsedFirstDungeonBoost && durationSeconds == AppConstants.DungeonDuration.short {
-            durationOverride = AppConstants.Game.firstBoostSeconds
-            forcedBattles    = AppConstants.Game.forcedBattlesFirstRun
-            player.hasUsedFirstDungeonBoost = true
-        }
-
-        let duration = durationOverride ?? durationSeconds
+        let duration = durationSeconds
         let now = Date.now
         let task = TaskModel(
             kind:          .dungeon,
@@ -424,8 +502,8 @@ struct TaskCreationService {
             definitionKey: floorKey,
             startedAt:     now,
             endsAt:        now.addingTimeInterval(TimeInterval(duration)),
-            durationOverride: durationOverride,
-            forcedBattles:    forcedBattles,
+            durationOverride: nil,
+            forcedBattles:    nil,
             snapshotPower:    heroStats.power,
             snapshotAgi:      heroStats.totalAGI,
             snapshotDex:      heroStats.totalDEX
@@ -550,17 +628,8 @@ struct TaskCreationService {
             throw TaskCreationError.noPlayerState
         }
 
-        // 首次出征特快（選 15 分鐘時觸發，生涯僅一次）
-        var durationOverride: Int? = nil
-        var forcedBattles: Int? = nil
-        if !player.hasUsedFirstDungeonBoost && durationSeconds == AppConstants.DungeonDuration.short {
-            durationOverride = AppConstants.Game.firstBoostSeconds
-            forcedBattles    = AppConstants.Game.forcedBattlesFirstRun
-            player.hasUsedFirstDungeonBoost = true
-        }
-
         // V6-1：技能改為主動觸發，snapshotPower 只含職業加成 + 裝備 + 屬性點
-        let duration = durationOverride ?? durationSeconds
+        let duration = durationSeconds
         let now = Date.now
         let task = TaskModel(
             kind:          .dungeon,
@@ -568,8 +637,8 @@ struct TaskCreationService {
             definitionKey: areaKey,
             startedAt:     now,
             endsAt:        now.addingTimeInterval(TimeInterval(duration)),
-            durationOverride: durationOverride,
-            forcedBattles:    forcedBattles,
+            durationOverride: nil,
+            forcedBattles:    nil,
             snapshotPower:    heroStats.power,
             snapshotAgi:      heroStats.totalAGI,
             snapshotDex:      heroStats.totalDEX
