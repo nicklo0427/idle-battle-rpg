@@ -72,6 +72,11 @@ extension NpcIntroDef {
             defaultName: "飾品師",
             introLine:   "珠寶？不，我做的是戰鬥飾品。攻擊、防禦、生命——看你需要什麼，我替你鑲嵌。"
         ),
+        NpcIntroDef(
+            actorKey:    "tailor",
+            defaultName: "裁縫師",
+            introLine:   "皮料、布料、鏈環——什麼材料我都能用。想要輕盈的還是厚實的？說出需求，我替你量身裁製。"
+        ),
     ]
 
     static func find(actorKey: String) -> NpcIntroDef? {
