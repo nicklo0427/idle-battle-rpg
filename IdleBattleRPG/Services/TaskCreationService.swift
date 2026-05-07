@@ -116,10 +116,10 @@ struct TaskCreationService {
         guard let player    = (try? context.fetch(playerDesc))?.first    else { throw TaskCreationError.noPlayerState }
         guard let inventory = (try? context.fetch(inventoryDesc))?.first else { throw TaskCreationError.noInventory }
 
-        // bs_gold 折扣（Lv0 = 無折扣）
-        let bsGoldLv      = player.skillLevel(nodeKey: "bs_gold", actorKey: "blacksmith")
-        let bsDiscount    = Double(bsGoldLv) * 0.10
-        let effectiveGold = max(0, Int(Double(def.goldCost) * (1.0 - bsDiscount)))
+        // bs_gold：每點降低 10% 鑄造金幣成本
+        let goldLv        = player.skillLevel(nodeKey: "bs_gold", actorKey: AppConstants.Actor.blacksmith)
+        let goldDiscount  = Double(goldLv) * 0.10
+        let effectiveGold = max(0, Int(Double(def.goldCost) * (1.0 - goldDiscount)))
 
         // 驗證資源
         guard player.gold >= effectiveGold else { throw TaskCreationError.insufficientGold }
@@ -135,24 +135,12 @@ struct TaskCreationService {
             inventory.deduct(req.amount, of: req.material)
         }
 
-        // 首件鑄造特快（30 秒完成，生涯僅一次）
-        var durationOverride: Int? = nil
-        if !player.hasUsedFirstCraftBoost {
-            durationOverride = AppConstants.Game.firstBoostSeconds
-            player.hasUsedFirstCraftBoost = true
-        }
-
-        let duration: Int
-        if let override = durationOverride {
-            duration = override
-        } else {
-            let tierMult  = NpcUpgradeDef.craftDurationMultiplier(tier: player.blacksmithTier)
-            let speedNode = ProducerSkillNodeDef.nodes(for: AppConstants.Actor.blacksmith)
-                .first { $0.speedReductionPerPoint > 0 }
-            let speedLv   = speedNode.map { player.skillLevel(nodeKey: $0.key, actorKey: AppConstants.Actor.blacksmith) } ?? 0
-            let skillMult = 1.0 - Double(speedLv) * (speedNode?.speedReductionPerPoint ?? 0)
-            duration = max(30, Int(Double(def.durationSeconds) * tierMult * skillMult))
-        }
+        let tierMult  = NpcUpgradeDef.craftDurationMultiplier(tier: player.blacksmithTier)
+        let speedNode = ProducerSkillNodeDef.nodes(for: AppConstants.Actor.blacksmith)
+            .first { $0.speedReductionPerPoint > 0 }
+        let speedLv   = speedNode.map { player.skillLevel(nodeKey: $0.key, actorKey: AppConstants.Actor.blacksmith) } ?? 0
+        let skillMult = 1.0 - Double(speedLv) * (speedNode?.speedReductionPerPoint ?? 0)
+        let duration  = max(30, Int(Double(def.durationSeconds) * tierMult * skillMult))
         let now = Date.now
         let task = TaskModel(
             kind:          .craft,
@@ -160,7 +148,6 @@ struct TaskCreationService {
             definitionKey: recipeKey,
             startedAt:     now,
             endsAt:        now.addingTimeInterval(TimeInterval(duration)),
-            durationOverride:      durationOverride,
             resultCraftedEquipKey: def.outputEquipmentKey
         )
         // repository.insert 內部呼叫 context.save()，原子儲存扣除+建立
@@ -404,8 +391,8 @@ struct TaskCreationService {
         task.snapshotSkillLevelsRaw = player.skillLevelsRaw
         task.snapshotCuisineKey     = cuisineKey
         task.snapshotPotionKey      = potionKey
-        task.snapshotChFlavorLevel  = player.skillLevel(nodeKey: "ch_flavor",  actorKey: "chef")
-        task.snapshotPhPotencyLevel = player.skillLevel(nodeKey: "ph_potency", actorKey: "pharmacist")
+        task.snapshotChFlavorLevel  = player.skillLevel(nodeKey: "ch_flavor",  actorKey: AppConstants.Actor.chef)
+        task.snapshotPhPotencyLevel = player.skillLevel(nodeKey: "ph_potency", actorKey: AppConstants.Actor.pharmacist)
         repository.insert(task)
         NotificationService.requestPermissionIfNeeded()
         NotificationService.schedule(for: task)
@@ -414,6 +401,45 @@ struct TaskCreationService {
     private func fetchConsumableInventory() -> ConsumableInventoryModel? {
         let descriptor = FetchDescriptor<ConsumableInventoryModel>()
         return (try? context.fetch(descriptor))?.first
+    }
+
+    // MARK: - 教程任務（T06）
+
+    /// 教程採集任務：gatherer_1 採集 5 秒，直接給 6 木材，不扣素材，onboardingStep → 1
+    func createTutorialGatherTask() throws {
+        guard let player = (try? context.fetch(FetchDescriptor<PlayerStateModel>()))?.first else {
+            throw TaskCreationError.noPlayerState
+        }
+
+        let now = Date.now
+        let task = TaskModel(
+            kind:          .gather,
+            actorKey:      AppConstants.Actor.gatherer1,
+            definitionKey: "tutorial_gather",
+            startedAt:     now,
+            endsAt:        now.addingTimeInterval(5)
+        )
+        player.onboardingStep = 1
+        repository.insert(task)
+    }
+
+    /// 教程鑄造任務：blacksmith 鑄造 5 秒，不扣素材/金幣，onboardingStep 由結算推進
+    func createTutorialCraftTask(for classDef: ClassDef) throws {
+        guard let player = (try? context.fetch(FetchDescriptor<PlayerStateModel>()))?.first else {
+            throw TaskCreationError.noPlayerState
+        }
+
+        let now = Date.now
+        let task = TaskModel(
+            kind:          .craft,
+            actorKey:      AppConstants.Actor.blacksmith,
+            definitionKey: "tutorial_craft",
+            startedAt:     now,
+            endsAt:        now.addingTimeInterval(5)
+        )
+        // resultCraftedEquipKey 不設（裝備由 SettlementService 統一透過 grantStarterEquipment 授予）
+        _ = player  // onboardingStep 由結算時設為 3
+        repository.insert(task)
     }
 
     /// 建立地下城任務（V1 路徑，以 DungeonAreaDef key 為 definitionKey）。

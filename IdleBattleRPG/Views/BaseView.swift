@@ -45,15 +45,9 @@ struct BaseView: View {
         NavigationStack {
             List {
 
-                // ── Onboarding 引導 Banner（完成後自動隱藏）────────────
+                // ── 教程進行中提示（T06：step 0~2）────────────────────
                 if let player = players.first, player.onboardingStep < 3 {
-                    OnboardingBannerView(step: player.onboardingStep) {
-                        viewModel.advanceOnboarding(
-                            expectedStep: player.onboardingStep,
-                            player: player,
-                            context: context
-                        )
-                    }
+                    tutorialHintBanner(step: player.onboardingStep)
                 }
 
                 // ── NPC 分頁 Picker（V7-4 T06）────────────────────────
@@ -121,7 +115,7 @@ struct BaseView: View {
                     }
                     .tint(.red)
                     Button { devResetFirstBoosts() } label: {
-                        Label("重置首次加速 Flag（鑄造 / 出征）", systemImage: "flag.slash")
+                        Label("重置教程 & 首次出征 Flag", systemImage: "flag.slash")
                     }
                     .tint(.red)
                 }
@@ -223,6 +217,35 @@ struct BaseView: View {
         }
     }
 
+    // MARK: - Tutorial（T06）
+
+    /// 教程進行中的頂部提示 Banner
+    @ViewBuilder
+    private func tutorialHintBanner(step: Int) -> some View {
+        let hint: String = switch step {
+        case 0: "前往採集者（樵夫）採集木材，準備打造初始武器"
+        case 1: "等待採集完成..."
+        case 2: "前往鑄造師打造你的初始武器"
+        default: ""
+        }
+        if !hint.isEmpty {
+            Section {
+                Label(hint, systemImage: "flag.fill")
+                    .font(.subheadline)
+                    .foregroundStyle(.orange)
+                    .listRowBackground(Color.orange.opacity(0.08))
+            }
+        }
+    }
+
+    /// 教程期間（step < 3）判斷 NPC 是否可互動
+    private func isNpcUnlocked(actorKey: String, step: Int) -> Bool {
+        if step >= 3 { return true }
+        if step <= 1 { return actorKey == AppConstants.Actor.gatherer1 }
+        // step == 2
+        return actorKey == AppConstants.Actor.gatherer1 || actorKey == AppConstants.Actor.blacksmith
+    }
+
     // MARK: - NPC Tab Sections（V9-2 T01）
 
     @ViewBuilder
@@ -276,17 +299,20 @@ struct BaseView: View {
 
     @ViewBuilder
     private func npcGathererCard(def: GathererNpcDef, player: PlayerStateModel?) -> some View {
+        let step       = player?.onboardingStep ?? 3
+        let unlocked   = isNpcUnlocked(actorKey: def.actorKey, step: step)
         let activeTask = viewModel.gatherTaskForActor(def.actorKey, from: tasks)
         let isBusy     = activeTask != nil
         let tier       = player?.tier(for: def.actorKey) ?? 0
         let caption: String = {
+            if !unlocked { return "完成引導後解鎖" }
             guard let task = activeTask,
                   let locDef = GatherLocationDef.find(key: task.definitionKey) else { return "閒置中" }
             return "採集中：\(locDef.name)\n\(TaskCountdown.remaining(for: task, relativeTo: appState.tick))"
         }()
-        let progress = activeTask.map { $0.progress(relativeTo: appState.tick) }
+        let progress = (unlocked && isBusy) ? activeTask.map { $0.progress(relativeTo: appState.tick) } : nil
 
-        Button { selectedGathererDef = def } label: {
+        Button { if unlocked { selectedGathererDef = def } } label: {
             HStack(spacing: 14) {
                 ZStack(alignment: .topTrailing) {
                     Image(webp: "npc_\(def.actorKey)")
@@ -305,9 +331,10 @@ struct BaseView: View {
                     Text(player?.npcDisplayName(for: def.actorKey) ?? def.name)
                         .font(.subheadline).fontWeight(.medium)
                         .lineLimit(1)
+                        .foregroundStyle(unlocked ? .primary : .secondary)
                     Text(caption)
                         .font(.caption2)
-                        .foregroundStyle(isBusy ? Color.green : .secondary)
+                        .foregroundStyle(unlocked && isBusy ? Color.green : .secondary)
                         .lineLimit(2)
                     if let progress {
                         ProgressView(value: progress)
@@ -318,7 +345,10 @@ struct BaseView: View {
 
                 Spacer()
 
-                if isBusy {
+                if !unlocked {
+                    Image(systemName: "lock.fill")
+                        .font(.caption).foregroundStyle(.tertiary)
+                } else if isBusy {
                     Text("採集中")
                         .font(.caption2)
                         .padding(.horizontal, 8).padding(.vertical, 4)
@@ -334,6 +364,7 @@ struct BaseView: View {
             .frame(maxWidth: .infinity)
             .background(Color(.secondarySystemGroupedBackground))
             .clipShape(RoundedRectangle(cornerRadius: 14))
+            .opacity(unlocked ? 1.0 : 0.5)
         }
         .buttonStyle(.plain)
     }
@@ -342,10 +373,12 @@ struct BaseView: View {
 
     @ViewBuilder
     private func npcFarmerCard() -> some View {
-        let tier  = players.first?.gatherer5Tier ?? 0
-        let plots = min(tier + 1, AppConstants.FarmerPlot.maxPlots)
+        let step     = players.first?.onboardingStep ?? 3
+        let unlocked = isNpcUnlocked(actorKey: "farmer", step: step)
+        let tier     = players.first?.gatherer5Tier ?? 0
+        let plots    = min(tier + 1, AppConstants.FarmerPlot.maxPlots)
 
-        Button { showFarmerDetailSheet = true } label: {
+        Button { if unlocked { showFarmerDetailSheet = true } } label: {
             HStack(spacing: 14) {
                 ZStack(alignment: .topTrailing) {
                     Image(webp: "npc_farmer")
@@ -363,20 +396,22 @@ struct BaseView: View {
                     Text(players.first?.npcDisplayName(for: "farmer") ?? "農夫")
                         .font(.subheadline).fontWeight(.medium)
                         .lineLimit(1)
-                    Text("農田 \(plots) 塊 · 點擊管理")
+                        .foregroundStyle(unlocked ? .primary : .secondary)
+                    Text(unlocked ? "農田 \(plots) 塊 · 點擊管理" : "完成引導後解鎖")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
 
                 Spacer()
 
-                Image(systemName: "chevron.right")
+                Image(systemName: unlocked ? "chevron.right" : "lock.fill")
                     .font(.caption).foregroundStyle(.tertiary)
             }
             .padding(12)
             .frame(maxWidth: .infinity)
             .background(Color(.secondarySystemGroupedBackground))
             .clipShape(RoundedRectangle(cornerRadius: 14))
+            .opacity(unlocked ? 1.0 : 0.5)
         }
         .buttonStyle(.plain)
     }
@@ -385,17 +420,20 @@ struct BaseView: View {
 
     @ViewBuilder
     private func npcBlacksmithCard(player: PlayerStateModel?) -> some View {
+        let step       = player?.onboardingStep ?? 3
+        let unlocked   = isNpcUnlocked(actorKey: AppConstants.Actor.blacksmith, step: step)
         let activeTask = viewModel.craftTask(from: tasks)
         let isBusy     = activeTask != nil
         let tier       = player?.tier(for: AppConstants.Actor.blacksmith) ?? 0
         let caption: String = {
+            if !unlocked { return "完成引導後解鎖" }
             guard let task = activeTask,
                   let def = CraftRecipeDef.find(key: task.definitionKey) else { return "閒置中，點擊委派" }
             return "鑄造中：\(def.name)\n\(TaskCountdown.remaining(for: task, relativeTo: appState.tick))"
         }()
-        let progress = activeTask.map { $0.progress(relativeTo: appState.tick) }
+        let progress = (unlocked && isBusy) ? activeTask.map { $0.progress(relativeTo: appState.tick) } : nil
 
-        Button { if !isBusy { showCraftSheet = true } } label: {
+        Button { if !isBusy && unlocked { showCraftSheet = true } } label: {
             HStack(spacing: 14) {
                 ZStack(alignment: .topTrailing) {
                     Image(webp: "npc_blacksmith")
@@ -411,12 +449,13 @@ struct BaseView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("鑄造師")
+                    Text(player?.npcDisplayName(for: AppConstants.Actor.blacksmith) ?? "鑄造師")
                         .font(.subheadline).fontWeight(.medium)
                         .lineLimit(1)
+                        .foregroundStyle(unlocked ? .primary : .secondary)
                     Text(caption)
                         .font(.caption2)
-                        .foregroundStyle(isBusy ? Color.orange : .secondary)
+                        .foregroundStyle(unlocked && isBusy ? Color.orange : .secondary)
                         .lineLimit(2)
                     if let progress {
                         ProgressView(value: progress)
@@ -427,7 +466,10 @@ struct BaseView: View {
 
                 Spacer()
 
-                if isBusy {
+                if !unlocked {
+                    Image(systemName: "lock.fill")
+                        .font(.caption).foregroundStyle(.tertiary)
+                } else if isBusy {
                     Text("鑄造中")
                         .font(.caption2)
                         .padding(.horizontal, 8).padding(.vertical, 4)
@@ -443,6 +485,7 @@ struct BaseView: View {
             .frame(maxWidth: .infinity)
             .background(Color(.secondarySystemGroupedBackground))
             .clipShape(RoundedRectangle(cornerRadius: 14))
+            .opacity(unlocked ? 1.0 : 0.5)
         }
         .buttonStyle(.plain)
     }
@@ -451,17 +494,20 @@ struct BaseView: View {
 
     @ViewBuilder
     private func npcChefCard(player: PlayerStateModel?) -> some View {
+        let step       = player?.onboardingStep ?? 3
+        let unlocked   = isNpcUnlocked(actorKey: AppConstants.Actor.chef, step: step)
         let activeTask = viewModel.cuisineTask(from: tasks)
         let isBusy     = activeTask != nil
         let tier       = player?.tier(for: AppConstants.Actor.chef) ?? 0
         let caption: String = {
+            if !unlocked { return "完成引導後解鎖" }
             guard let task = activeTask,
                   let def = CuisineDef.find(task.definitionKey) else { return "閒置中，點擊委派" }
             return "烹飪中：\(def.icon) \(def.name)\n\(TaskCountdown.remaining(for: task, relativeTo: appState.tick))"
         }()
-        let progress = activeTask.map { $0.progress(relativeTo: appState.tick) }
+        let progress = (unlocked && isBusy) ? activeTask.map { $0.progress(relativeTo: appState.tick) } : nil
 
-        Button { if !isBusy { showCuisineSheet = true } } label: {
+        Button { if !isBusy && unlocked { showCuisineSheet = true } } label: {
             HStack(spacing: 14) {
                 ZStack(alignment: .topTrailing) {
                     Image(webp: "npc_chef")
@@ -477,12 +523,13 @@ struct BaseView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("廚師")
+                    Text(player?.npcDisplayName(for: AppConstants.Actor.chef) ?? "廚師")
                         .font(.subheadline).fontWeight(.medium)
                         .lineLimit(1)
+                        .foregroundStyle(unlocked ? .primary : .secondary)
                     Text(caption)
                         .font(.caption2)
-                        .foregroundStyle(isBusy ? Color.purple : .secondary)
+                        .foregroundStyle(unlocked && isBusy ? Color.purple : .secondary)
                         .lineLimit(2)
                     if let progress {
                         ProgressView(value: progress)
@@ -493,7 +540,10 @@ struct BaseView: View {
 
                 Spacer()
 
-                if isBusy {
+                if !unlocked {
+                    Image(systemName: "lock.fill")
+                        .font(.caption).foregroundStyle(.tertiary)
+                } else if isBusy {
                     Text("烹飪中")
                         .font(.caption2)
                         .padding(.horizontal, 8).padding(.vertical, 4)
@@ -509,6 +559,7 @@ struct BaseView: View {
             .frame(maxWidth: .infinity)
             .background(Color(.secondarySystemGroupedBackground))
             .clipShape(RoundedRectangle(cornerRadius: 14))
+            .opacity(unlocked ? 1.0 : 0.5)
         }
         .buttonStyle(.plain)
     }
@@ -517,17 +568,20 @@ struct BaseView: View {
 
     @ViewBuilder
     private func npcPharmacistCard(player: PlayerStateModel?) -> some View {
+        let step       = player?.onboardingStep ?? 3
+        let unlocked   = isNpcUnlocked(actorKey: AppConstants.Actor.pharmacist, step: step)
         let activeTask = viewModel.pharmacistTask(from: tasks)
         let isBusy     = activeTask != nil
         let tier       = player?.tier(for: AppConstants.Actor.pharmacist) ?? 0
         let caption: String = {
+            if !unlocked { return "完成引導後解鎖" }
             guard let task = activeTask,
                   let def = PotionDef.find(task.definitionKey) else { return "閒置中，點擊選擇" }
             return "製藥中：\(def.name)\n\(TaskCountdown.remaining(for: task, relativeTo: appState.tick))"
         }()
-        let progress = activeTask.map { $0.progress(relativeTo: appState.tick) }
+        let progress = (unlocked && isBusy) ? activeTask.map { $0.progress(relativeTo: appState.tick) } : nil
 
-        Button { if !isBusy { showPharmacySheet = true } } label: {
+        Button { if !isBusy && unlocked { showPharmacySheet = true } } label: {
             HStack(spacing: 14) {
                 ZStack(alignment: .topTrailing) {
                     Image(webp: "npc_pharmacist")
@@ -543,12 +597,13 @@ struct BaseView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("製藥師")
+                    Text(player?.npcDisplayName(for: AppConstants.Actor.pharmacist) ?? "製藥師")
                         .font(.subheadline).fontWeight(.medium)
                         .lineLimit(1)
+                        .foregroundStyle(unlocked ? .primary : .secondary)
                     Text(caption)
                         .font(.caption2)
-                        .foregroundStyle(isBusy ? Color.teal : .secondary)
+                        .foregroundStyle(unlocked && isBusy ? Color.teal : .secondary)
                         .lineLimit(2)
                     if let progress {
                         ProgressView(value: progress)
@@ -559,7 +614,10 @@ struct BaseView: View {
 
                 Spacer()
 
-                if isBusy {
+                if !unlocked {
+                    Image(systemName: "lock.fill")
+                        .font(.caption).foregroundStyle(.tertiary)
+                } else if isBusy {
                     Text("製藥中")
                         .font(.caption2)
                         .padding(.horizontal, 8).padding(.vertical, 4)
@@ -575,6 +633,7 @@ struct BaseView: View {
             .frame(maxWidth: .infinity)
             .background(Color(.secondarySystemGroupedBackground))
             .clipShape(RoundedRectangle(cornerRadius: 14))
+            .opacity(unlocked ? 1.0 : 0.5)
         }
         .buttonStyle(.plain)
     }
@@ -583,7 +642,10 @@ struct BaseView: View {
 
     @ViewBuilder
     private func npcMerchantCard() -> some View {
-        Button { showMerchantSheet = true } label: {
+        let step     = players.first?.onboardingStep ?? 3
+        let unlocked = isNpcUnlocked(actorKey: "merchant", step: step)
+
+        Button { if unlocked { showMerchantSheet = true } } label: {
             HStack(spacing: 14) {
                 ZStack(alignment: .topTrailing) {
                     Image(webp: "npc_merchant")
@@ -595,23 +657,25 @@ struct BaseView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("商人")
+                    Text(players.first?.npcDisplayName(for: "merchant") ?? "商人")
                         .font(.subheadline).fontWeight(.medium)
                         .lineLimit(1)
-                    Text("點擊開啟商店")
+                        .foregroundStyle(unlocked ? .primary : .secondary)
+                    Text(unlocked ? "點擊開啟商店" : "完成引導後解鎖")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
 
                 Spacer()
 
-                Image(systemName: "chevron.right")
+                Image(systemName: unlocked ? "chevron.right" : "lock.fill")
                     .font(.caption).foregroundStyle(.tertiary)
             }
             .padding(12)
             .frame(maxWidth: .infinity)
             .background(Color(.secondarySystemGroupedBackground))
             .clipShape(RoundedRectangle(cornerRadius: 14))
+            .opacity(unlocked ? 1.0 : 0.5)
         }
         .buttonStyle(.plain)
     }
@@ -688,8 +752,11 @@ struct BaseView: View {
 
     private func devResetFirstBoosts() {
         guard let player = players.first else { return }
-        player.hasUsedFirstCraftBoost   = false
         player.hasUsedFirstDungeonBoost = false
+        player.onboardingStep = 0
+        // 清除所有裝備，模擬教程前的無武器狀態
+        let allEquip = (try? context.fetch(FetchDescriptor<EquipmentModel>())) ?? []
+        allEquip.forEach { context.delete($0) }
         try? context.save()
     }
 

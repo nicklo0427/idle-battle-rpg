@@ -169,9 +169,8 @@ struct ClassSelectionView: View {
     private func confirmSelection(_ classDef: ClassDef) {
         guard let player = players.first else { return }
         player.classKey = classDef.key
-        // 發放職業初始裝備（武器 + 副手，全部已裝備），原子寫入
-        let equipService = EquipmentService(context: context)
-        equipService.grantStarterEquipment(for: classDef)
+        // 裝備由 T06 教程鑄造結算時授予，此處只存 classKey
+        try? context.save()
     }
 }
 

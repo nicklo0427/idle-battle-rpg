@@ -176,9 +176,9 @@ final class TaskModel {
 
     // MARK: - 生產者效果技能快照（V8-2 T03）
 
-    /// .dungeon 專用：出征時廚師 ch_flavor 等級（0 = 無效果）
+    /// .dungeon 專用：出征時廚師 ch_flavor 技能等級（0 = 無技能）
     var snapshotChFlavorLevel:  Int = 0
-    /// .dungeon 專用：出征時製藥師 ph_potency 等級（0 = 無效果）
+    /// .dungeon 專用：出征時製藥師 ph_potency 技能等級（0 = 無技能）
     var snapshotPhPotencyLevel: Int = 0
 
     // MARK: - Init

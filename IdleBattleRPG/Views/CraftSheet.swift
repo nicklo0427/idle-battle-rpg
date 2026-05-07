@@ -39,11 +39,6 @@ struct CraftSheet: View {
 
     private var currentTier: Int { player?.tier(for: AppConstants.Actor.blacksmith) ?? 0 }
 
-    private var isFirstCraft: Bool {
-        guard let player else { return false }
-        return !player.hasUsedFirstCraftBoost
-    }
-
     private var upgradeCost: NpcUpgradeCostDef? {
         guard let player else { return nil }
         return appState.npcUpgradeService.nextUpgradeCost(
@@ -82,19 +77,15 @@ struct CraftSheet: View {
         NavigationStack {
             List {
 
+                // 教程模式：step 2（採集完成，引導鑄造初始武器）
+                if player?.onboardingStep == 2 {
+                    tutorialCraftSection
+                }
+
                 NpcIntroSection(actorKey: AppConstants.Actor.blacksmith)
 
                 // ── 升級 Section（可收合）────────────────────────────────
                 upgradeSection
-
-                // ── 首件鑄造特快提示 ──────────────────────────────────────
-                if isFirstCraft {
-                    Section {
-                        Label("首件鑄造特快！委派後 30 秒即可完成。", systemImage: "bolt.fill")
-                            .font(.subheadline)
-                            .foregroundStyle(.orange)
-                    }
-                }
 
                 recipeSection(
                     title: "普通裝備",
@@ -133,6 +124,47 @@ struct CraftSheet: View {
             } message: {
                 Text(errorMessage ?? "發生未知錯誤")
             }
+        }
+    }
+
+    // MARK: - Section：教程鑄造（T06，step 2）
+
+    @ViewBuilder
+    private var tutorialCraftSection: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "bubble.left.fill")
+                        .foregroundStyle(.orange)
+                    Text("素材齊了，我替你打一把趁手的武器——5 秒後完工。")
+                        .font(.subheadline)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Button {
+                    startTutorialCraft()
+                } label: {
+                    Label("打造初始武器（5 秒）", systemImage: "hammer.fill")
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.orange)
+            }
+            .padding(.vertical, 4)
+        } header: {
+            Text("🎯 引導任務")
+        }
+    }
+
+    private func startTutorialCraft() {
+        guard let player,
+              let classDef = ClassDef.find(key: player.classKey) else { return }
+        do {
+            try TaskCreationService(context: context).createTutorialCraftTask(for: classDef)
+            dismiss()
+        } catch {
+            errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            showError = true
         }
     }
 

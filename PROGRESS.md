@@ -861,3 +861,102 @@ V7-3 ✅ 完成，`xcodebuild` 通過。
 ### 目前狀態
 
 V7-4 全部 T01–T07 ✅ 完成，`xcodebuild` 通過，無警告（僅一個既有 warning）。
+
+---
+
+## V8-1 — 裝備稀有度擴充（已完成）
+
+### 設計概覽
+
+裝備系統新增 `rare`（稀有）與 `epic`（史詩）兩個稀有度，對應新鑄造配方與強化上限提升；
+鑄造師解鎖 Tier 4，每件精良+ 裝備在 UI 顯示對應顏色標識。
+
+### 完成 Tickets
+
+| Ticket | 說明 | 狀態 |
+|---|---|---|
+| T01 | `Rarity` enum 新增 `.rare` / `.epic`；新增 8 件裝備（4 稀有 + 4 史詩）；分解返還金幣調整（稀有 500、史詩 1200） | ✅ |
+| T02 | 4 條稀有鑄造配方（sunken_floor_2 首通後解鎖），混合區域素材 + V7 採集素材，75–90 分鐘製作 | ✅ |
+| T03 | 4 條史詩鑄造配方（sunken_floor_4 Boss 首通後解鎖），跨系統素材（Boss 掉落 + 採集 + 頂級農作物），110–120 分鐘 | ✅ |
+| T04 | 鑄造師 Tier 4：2000 EXP + 3 沉王印璽 + 8000 金；製作速度乘數 0.55× | ✅ |
+| T05 | 強化上限 +5 → +8；Lv6–8 費用 1200 / 1800 / 2800 金（累計 7800）；每槽加成對應延伸 3 級 | ✅ |
+| T06 | `Rarity.displayColor` extension（普通 primary / 精良藍 / 稀有紫 / 史詩金）；`CraftSheet` 稀有度標籤；`CharacterView` 裝備名前景色 | ✅ |
+
+### 關鍵決策
+
+- **稀有度設計上限**：史詩裝備需 Boss 掉落素材（沉王印璽），確保高端內容需真實推進地下城
+- **displayColor 僅 rare+**：普通 / 精良不顯示稀有度徽章，避免 UI 資訊過載
+- **強化費用指數遞增**：+6 到 +8 合計 7800 金，為晚期金幣消耗提供長期目標
+
+### 目前狀態
+
+V8-1 全部 T01–T06 ✅ 完成，`xcodebuild` 通過。
+
+---
+
+## V8-2 — 農場重構 + 生產者技能系統（已完成）
+
+### 設計概覽
+
+農夫 / 廚師 / 製藥師 / 鑄造師四個生產者 NPC 各自獲得技能樹（`ProducerSkillDef`）；
+農場 UI 重構為雙欄格式，採集者 Detail Sheet 精煉；商人 UX 全面改版為分頁卡片式。  
+本版同步修正農田產量 `baseYield=4` 寫死的 bug，改為依實際輪數結算。
+
+### 完成 Tickets
+
+| Ticket | 說明 | 狀態 |
+|---|---|---|
+| T01 | 農夫技能 fa_yield（+30%/點 每輪多產）+ fa_quality（+10%/點 品質門檻）；修正 `baseYield=4` 寫死 bug，改為依輪數計算 | ✅ |
+| T02 | 廚師 ch_portion（+10%/點 多產一份料理）+ 製藥師 ph_yield（+10%/點 多產一瓶藥水）；共用 DeterministicRNG 序列 | ✅ |
+| T03 | `TaskModel` 新增 `snapshotChFlavorLevel` / `snapshotPhPotencyLevel` 快照；ch_flavor（料理 ATK/DEF/HP ×1.10/點）接入 `BattleLogGenerator`；ph_potency（藥水回復 ×1.10/點）穿透三層函式 | ✅ |
+| T04 | bs_gold（-10%/點 鑄造金幣成本）接入 `createCraftTask`；bs_mastery（精良+ 裝備屬性 ×1.05/點）接入 `HeroStatsService.compute`，動態即時反映 | ✅ |
+| T05 | 本地推播通知（`NotificationService`）| 🔲 待實作 |
+
+### 農場 / 商人 UX（V8 commit 一併完成）
+
+- **`FarmerDetailSheet`**：雙欄 grid 農田格，可摺疊 NPC 資訊，Upgrade / Skill 分頁
+- **`FarmerPlotSheet`**：Layer 1 選種子 → Layer 2 選時長 / 輪數；移除「結束時間」分頁
+- **`GathererDetailSheet`**：移除「結束時間」分頁，新增「最大值」快捷按鈕
+- **`MerchantSheet`**：全面改版為 賣出 / 購買 主分頁 + 素材 / 採集 / 農作物子分頁；卡片式交易 + 確認 Sheet；`MerchantService` 新增 `executeSellTrade` / `executeBuyTrade` 批次操作
+
+### 關鍵決策
+
+- **Lv0 RNG 序列向後相容**：fa_yield / ch_portion / ph_yield 以 `guard chance > 0` 守門，Lv0 時完全不消耗額外亂數，舊任務結算結果不變
+- **fa_quality 上限保護**：`topThreshold < highThreshold - 0.05`，確保三段品質機率分布始終有意義
+- **bs_mastery 動態計算**：加成不存入 `EquipmentModel`，每次 `compute()` 即時算，升技能後戰力立刻更新
+- **bs_gold 僅限鑄造**：廚師 / 製藥師任務金幣成本不受折扣，技能效果範圍嚴格對應 NPC
+
+### 目前狀態
+
+V8-2 T01–T04 ✅ 完成，T05（推播）🔲 待實作。`xcodebuild` 通過。
+
+---
+
+## V8-3 — 英雄等級上限 + 戰場統計（已完成）
+
+### 設計概覽
+
+英雄等級上限從 Lv.20 提升至 Lv.30，每個職業新增兩個進階技能；
+戰鬥結算新增本局統計（傷害 / 暴擊 / 技能觸發）與個人最佳樓層記錄；  
+地下城四個區域主題全面重設計（農田 / 森林 / 曠野 / 沙海），所有 floor / 敵人名稱一併更新。
+
+### 完成 Tickets
+
+| Ticket | 說明 | 狀態 |
+|---|---|---|
+| T01 | 英雄等級上限 Lv20 → Lv30；補齊 Lv21–30 EXP 門檻（23,500 → 130,000 累計）| ✅ |
+| T02 | 每個職業新增 2 個進階技能（Lv23 / Lv28）：劍士 dragon_slayer / judgment_falls、弓手 piercing_shot / soul_destroyer、法師 frost_flame / dimensional_collapse、聖騎士 holy_burst / celestial_judgment | ✅ |
+| T03 | `DungeonRunStats`：收集本局 totalDamageDealt / Received / critCount / skillsTriggered / potionUsed；`BattleEvent` 新增 `damageAmount`；結算面板顯示「⚔️ 戰場統計」摺疊區塊 | ✅ |
+| T04 | `DungeonProgressionModel` 新增 `floorBestRecordsJSON`；`FloorBestRecord`（wins + gold）；勝場多則覆蓋，同勝場金幣多則覆蓋；`FloorDetailSheet` 顯示「🏆 最佳記錄」| ✅ |
+| T05 | 四個區域重設計：wildland→金穗之野（農田）、abandoned_mine→暮色古林（森林）、ancient_ruins→血色曠野（曠野）、sunken_city→烈焰沙海（沙海）；16 地板 / 16 敵人 / 4 Boss / 16 素材 / 16 裝備名稱全數更新；所有 key 不變，完全向後相容 | ✅ |
+
+### 關鍵決策
+
+- **等級上限不改升級獎勵**：每級仍 +3 屬性點 / +1 天賦點 / +1 技能點，EXP 曲線延伸即可
+- **戰場統計不持久化**：`DungeonRunStats` 是結算時的 value type，不寫入 SwiftData
+- **最佳記錄只比不累計**：每層記錄「最佳單次出征」而非生涯累計，玩家可不斷挑戰自我最高分
+- **主題重設計純改名**：所有 definitionKey 保持不變，現有任務 / 裝備 / 存檔完全相容
+
+### 目前狀態
+
+V8-3 全部 T01–T05 ✅ 完成，`xcodebuild` 通過，無警告。

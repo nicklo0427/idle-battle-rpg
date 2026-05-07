@@ -87,13 +87,12 @@ struct GathererDetailSheet: View {
     var body: some View {
         NavigationStack {
             List {
-                NpcIntroSection(actorKey: npcDef.actorKey)
-                Section {
-                    npcHeaderView
+                // 教程模式：gatherer_1 + step 0（採集前）
+                if npcDef.actorKey == AppConstants.Actor.gatherer1,
+                   player?.onboardingStep == 0 {
+                    tutorialDispatchSection
                 }
-                .listRowBackground(Color.clear)
-                .listRowInsets(.init())
-
+                NpcIntroSection(actorKey: npcDef.actorKey)
                 detailSection
                 dispatchSection
             }
@@ -128,32 +127,42 @@ struct GathererDetailSheet: View {
         }
     }
 
-    // MARK: - NPC Header（V9-2 T04）
+    // MARK: - Section：教程採集（T06，gatherer_1 + step 0）
 
-    private var npcHeaderView: some View {
-        VStack(spacing: 10) {
-            Image(webp: "npc_\(npcDef.actorKey)")
-                .resizable()
-                .scaledToFill()
-                .frame(width: 96, height: 96)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-                .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
-
-            VStack(spacing: 4) {
-                Text(npcDef.name)
-                    .font(.title3).fontWeight(.bold)
-
-                HStack(spacing: 6) {
-                    TierBadgeView(tier: currentTier, alwaysShow: true, color: .green)
-                    if currentTier > 0 {
-                        Text("採集加成 +\(gatherBonus)")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
+    @ViewBuilder
+    private var tutorialDispatchSection: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "bubble.left.fill")
+                        .foregroundStyle(.orange)
+                    Text("要塞需要資源。先去砍點木材吧，打把武器就差這一步了。")
+                        .font(.subheadline)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
+                Button {
+                    startTutorialGather()
+                } label: {
+                    Label("派遣採集（5 秒）", systemImage: "arrow.right.circle.fill")
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.green)
             }
+            .padding(.vertical, 4)
+        } header: {
+            Text("🎯 引導任務")
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
+    }
+
+    private func startTutorialGather() {
+        do {
+            try TaskCreationService(context: context).createTutorialGatherTask()
+            dismiss()
+        } catch {
+            alertMsg = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
     }
 
     // MARK: - Section：採集者資訊（可收合）

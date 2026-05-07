@@ -113,7 +113,7 @@ struct TaskClaimService {
                let consumable = fetchConsumableInventory() {
                 consumable.add(of: def.consumableType)
 
-                // ph_yield 多產判定（Lv0 完全不進此區塊）
+                // ph_yield 多產判定（Lv0 不進此區塊，不影響 RNG 序列）
                 if yieldChance > 0 {
                     var rng = DeterministicRNG(task: task)
                     if rng.nextDouble() < yieldChance {
@@ -132,7 +132,7 @@ struct TaskClaimService {
                 let finalType = isHighQuality ? (baseType.highQualityVariant ?? baseType) : baseType
                 consumable.add(of: finalType)
 
-                // ch_portion 多產判定（Lv0 短路不消耗額外亂數）
+                // ch_portion 多產判定（Lv0 短路，不消耗額外亂數）
                 if portionChance > 0, rng.nextDouble() < portionChance {
                     let isHighQuality2 = rng.nextDouble() < 0.25
                     let bonusType = isHighQuality2 ? (baseType.highQualityVariant ?? baseType) : baseType

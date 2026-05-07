@@ -132,7 +132,7 @@ struct BattleLogGenerator {
         var heroMaxHp = max(50, snapshotPower * 2)
         var heroAtk   = max(10, snapshotPower / 4)
         var heroDef   = max(5,  snapshotPower / 10)
-        // V7-4：套用料理加成；V8-2 T03：ch_flavor 技能提升加成倍率
+        // V7-4：套用料理加成（ch_flavor 乘數）
         if let cuisine = cuisineDef {
             let flavorMultiplier = 1.0 + Double(task.snapshotChFlavorLevel) * 0.10
             heroAtk   += Int(Double(cuisine.atkBonus) * flavorMultiplier)
