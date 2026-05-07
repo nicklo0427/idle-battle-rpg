@@ -17,6 +17,7 @@ enum AppConstants {
         static let armorer     = "armorer"       // V10-1 皮甲師 NPC
         static let weaponsmith = "weaponsmith"   // V10-1 副手師 NPC
         static let jeweler     = "jeweler"       // V10-1 飾品師 NPC
+        static let tailor      = "tailor"        // V10-1 裁縫師 NPC
     }
 
     // MARK: - 農夫農田 Keys（V7-4）

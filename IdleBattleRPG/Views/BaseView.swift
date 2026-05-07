@@ -40,6 +40,7 @@ struct BaseView: View {
     @State private var showArmorSheet        = false  // V10-1 皮甲師
     @State private var showOffhandSheet      = false  // V10-1 鍛造學徒
     @State private var showAccessorySheet    = false  // V10-1 飾品師
+    @State private var showTailorSheet       = false  // V10-1 裁縫師
     @State private var baseTab: BaseTab = .gather
 
     // NPC 升級確認 Alert
@@ -219,6 +220,14 @@ struct BaseView: View {
                     progressionService: appState.progressionService
                 )
             }
+            .sheet(isPresented: $showTailorSheet) {
+                TailorSheet(
+                    appState:           appState,
+                    player:             players.first,
+                    inventory:          inventories.first,
+                    progressionService: appState.progressionService
+                )
+            }
             .alert(item: $pendingUpgradeInfo) { info in
                 let player = players.first
                 let inventory = inventories.first
@@ -314,12 +323,15 @@ struct BaseView: View {
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
             }
-            // 鍛造學徒 & 飾品師：職業選擇後（step >= 3）解鎖
+            // 鍛造學徒、飾品師、裁縫師：職業選擇後（step >= 3）解鎖
             if (players.first?.onboardingStep ?? 0) >= 3 {
                 npcWeaponsmithCard(player: players.first)
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
                 npcJewelerCard(player: players.first)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                npcTailorCard(player: players.first)
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
             }
@@ -848,6 +860,64 @@ struct BaseView: View {
                         .padding(.horizontal, 8).padding(.vertical, 4)
                         .background(Color.purple.opacity(0.12))
                         .foregroundStyle(Color.purple)
+                        .clipShape(Capsule())
+                } else {
+                    Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
+                }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity)
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - NPC Card: 裁縫師（V10-1 T14）
+
+    @ViewBuilder
+    private func npcTailorCard(player: PlayerStateModel?) -> some View {
+        let activeTask = tasks.first { $0.actorKey == AppConstants.Actor.tailor && $0.status == .inProgress }
+        let isBusy     = activeTask != nil
+        let caption: String = {
+            guard let task = activeTask else { return "閒置中，點擊委派" }
+            let recipeName = CraftRecipeDef.find(key: task.definitionKey)?.name ?? "防具"
+            return "製作中：\(recipeName)\n\(TaskCountdown.remaining(for: task, relativeTo: appState.tick))"
+        }()
+        let progress = isBusy ? activeTask.map { $0.progress(relativeTo: appState.tick) } : nil
+
+        Button { if !isBusy { showTailorSheet = true } } label: {
+            HStack(spacing: 14) {
+                ZStack(alignment: .topTrailing) {
+                    Image(webp: "npc_tailor")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 80, height: 80)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .opacity(isBusy ? 0.85 : 1.0)
+                    npcStatusBadge(isBusy: isBusy)
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(player?.npcDisplayName(for: AppConstants.Actor.tailor) ?? "裁縫師")
+                        .font(.subheadline).fontWeight(.medium).lineLimit(1)
+                    Text(caption)
+                        .font(.caption2)
+                        .foregroundStyle(isBusy ? Color.teal : .secondary)
+                        .lineLimit(2)
+                    if let progress {
+                        ProgressView(value: progress).tint(.teal).scaleEffect(y: 0.6)
+                    }
+                }
+
+                Spacer()
+
+                if isBusy {
+                    Text("製作中")
+                        .font(.caption2)
+                        .padding(.horizontal, 8).padding(.vertical, 4)
+                        .background(Color.teal.opacity(0.12))
+                        .foregroundStyle(Color.teal)
                         .clipShape(Capsule())
                 } else {
                     Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)

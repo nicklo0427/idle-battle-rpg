@@ -285,6 +285,49 @@ struct TaskCreationService {
         NotificationService.schedule(for: task)
     }
 
+    // MARK: - 裁縫鑄造任務（V10-1 T14）
+
+    func createTailorCraftTask(recipeKey: String) throws {
+        guard let def = CraftRecipeDef.find(key: recipeKey) else {
+            throw TaskCreationError.recipeNotFound(recipeKey)
+        }
+
+        let inProgress = repository.fetchInProgress()
+        if inProgress.contains(where: { $0.actorKey == AppConstants.Actor.tailor }) {
+            throw TaskCreationError.actorBusy(AppConstants.Actor.tailor)
+        }
+
+        let playerDesc    = FetchDescriptor<PlayerStateModel>()
+        let inventoryDesc = FetchDescriptor<MaterialInventoryModel>()
+        guard let player    = (try? context.fetch(playerDesc))?.first    else { throw TaskCreationError.noPlayerState }
+        guard let inventory = (try? context.fetch(inventoryDesc))?.first else { throw TaskCreationError.noInventory }
+
+        guard player.gold >= def.goldCost else { throw TaskCreationError.insufficientGold }
+        for req in def.requiredMaterials {
+            guard inventory.amount(of: req.material) >= req.amount else {
+                throw TaskCreationError.insufficientMaterials
+            }
+        }
+
+        player.gold -= def.goldCost
+        for req in def.requiredMaterials {
+            inventory.deduct(req.amount, of: req.material)
+        }
+
+        let now = Date.now
+        let task = TaskModel(
+            kind:                  .craft,
+            actorKey:              AppConstants.Actor.tailor,
+            definitionKey:         recipeKey,
+            startedAt:             now,
+            endsAt:                now.addingTimeInterval(TimeInterval(def.durationSeconds)),
+            resultCraftedEquipKey: def.outputEquipmentKey
+        )
+        repository.insert(task)
+        NotificationService.requestPermissionIfNeeded()
+        NotificationService.schedule(for: task)
+    }
+
     // MARK: - 料理任務（V7-3）
 
     /// 建立料理任務。
