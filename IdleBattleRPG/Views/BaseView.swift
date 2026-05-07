@@ -38,7 +38,7 @@ struct BaseView: View {
     @State private var showMerchantSheet  = false
     @State private var showFarmerDetailSheet = false  // V7-4
     @State private var showArmorSheet        = false  // V10-1 皮甲師
-    @State private var showOffhandSheet      = false  // V10-1 副手師
+    @State private var showOffhandSheet      = false  // V10-1 鍛造學徒
     @State private var showAccessorySheet    = false  // V10-1 飾品師
     @State private var baseTab: BaseTab = .gather
 
@@ -314,7 +314,7 @@ struct BaseView: View {
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
             }
-            // 副手師 & 飾品師：職業選擇後（step >= 3）解鎖
+            // 鍛造學徒 & 飾品師：職業選擇後（step >= 3）解鎖
             if (players.first?.onboardingStep ?? 0) >= 3 {
                 npcWeaponsmithCard(player: players.first)
                     .listRowBackground(Color.clear)
@@ -745,7 +745,7 @@ struct BaseView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - NPC Card: 副手師（V10-1 T12）
+    // MARK: - NPC Card: 鍛造學徒（V10-1 T12）
 
     @ViewBuilder
     private func npcWeaponsmithCard(player: PlayerStateModel?) -> some View {
@@ -771,7 +771,7 @@ struct BaseView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(player?.npcDisplayName(for: AppConstants.Actor.weaponsmith) ?? "副手師")
+                    Text(player?.npcDisplayName(for: AppConstants.Actor.weaponsmith) ?? "鍛造學徒")
                         .font(.subheadline).fontWeight(.medium).lineLimit(1)
                     Text(caption)
                         .font(.caption2)

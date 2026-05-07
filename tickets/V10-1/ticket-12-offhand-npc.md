@@ -1,71 +1,50 @@
-# V10-1 T12 — 副手師 NPC（OffhandSheet）
+# V10-1 T12 — 鍛造學徒 NPC（OffhandSheet）
 
-## 狀態：🔲 待實作
+## 狀態：✅ 已完成
 
 ## 目標
 
-新增「副手師」NPC（actorKey: `weaponsmith`），專門鑄造 `.offhand` slot 裝備。
+新增「鍛造學徒」NPC（actorKey: `weaponsmith`），專門鑄造 `.offhand` slot 裝備。
 教程完成後（`onboardingStep >= 3`）即出現在生產 Tab，無教程門檻。
 
 ## 設計
 
 - actorKey: `weaponsmith`
-- 預設名: `副手師`
+- 預設名: `鍛造學徒`
 - 顯示條件：`onboardingStep >= 3`（職業選擇後立即可見）
-- 台詞：「副手武器嘛，一般人都不重視。但我告訴你，一把好的格擋刃或箭筒，關鍵時刻能救你一命。」
+- 台詞：「師父說我只能做些小件的，什麼盾牌、刀刃之類的。不過我覺得這挺有意思——副手武器關鍵時刻能救你一命，你信嗎？」
 - 無升級系統（留後續版本）
 - 專屬 Sheet：`OffhandSheet`（複用 ArmorSheet 架構，filter `.offhand` slot）
 - 任務使用獨立 actorKey（不共用 blacksmith slot）
 
-## NPC 圖片 Prompt（npc_weaponsmith.webp，512×512）
+## NPC 圖片 Prompt（npc_weaponsmith.webp，128×128）
 
 ```
-Fantasy idle RPG NPC portrait, pixel-art-inspired digital painting style.
-Consistent with existing NPC art: warm lighting, bust portrait (waist-up),
-slightly stylized proportions, expressive face, clean line art with soft shading.
+A young male blacksmith apprentice NPC bust portrait, wearing a worn leather
+apron over a simple shirt, sleeves rolled up, holding a small parry dagger he
+just finished, looking proud but slightly uncertain, warm brown and charcoal
+gray color palette, can include a small anvil or tools on the side.
+Flat design illustration, solid color shapes, no outlines, no linework, clean
+cartoon style, mobile game icon art, vibrant colors, simple geometric shapes,
+minimal shading, transparent background, square crop, WebP format, 128x128 pixels.
 
-Character: Male weaponsmith specializing in secondary weapons, late 30s, lean and wiry build.
-Wearing a leather half-apron over a rolled-sleeve shirt, arm wraps.
-Holding a small parry dagger in one hand and inspecting it critically.
-Expression: precise, focused, slightly smug — a craftsman proud of overlooked work.
-Background: Workshop corner — wall rack of small shields, daggers, quivers, off-hand items,
-warm forge glow from the left side.
-Color palette: Warm charcoal grays, burnt sienna leather, dull steel glints.
-No bright or saturated colors.
-Output: WebP format, 512×512px, portrait framing.
+Negative: outlines, linework, pencil sketch, photorealistic, 3D render, blurry,
+watermark, text, gradients
 ```
 
 ## 修改檔案
 
 | 檔案 | 變更 |
 |------|------|
-| `AppConstants.swift` | `static let weaponsmith = "weaponsmith"` |
-| `StaticData/NpcIntroDef.swift` | 新增 weaponsmith 條目（defaultName: "副手師"，introLine: 上方台詞） |
-| `Views/OffhandSheet.swift`（新增）| `.offhand` slot 配方列表；複用 ArmorSheet 架構，無教程 Section |
-| `Views/BaseView.swift` | `npcWeaponsmithCard(player:)`；加至 `npcProduceSection`（step >= 3） |
-| `Services/TaskCreationService.swift` | `createOffhandCraftTask(recipeKey:)`（actorKey=weaponsmith） |
-
-## OffhandSheet 架構
-
-複用 ArmorSheet，差異：
-- `availableRecipes` filter：`.slot == .offhand`
-- `actorKey: AppConstants.Actor.weaponsmith`
-- 無 tutorialStep Section
-- 標題：`player.npcDisplayName(for: "weaponsmith")`（自訂名 or "副手師"）
-
-## createOffhandCraftTask
-
-```swift
-func createOffhandCraftTask(recipeKey: String) throws {
-    // 驗證 weaponsmith 閒置（inProgress 無 actorKey == weaponsmith 的任務）
-    // 查找配方，檢查素材 & 金幣，扣除後建立 .craft TaskModel
-    // actorKey: AppConstants.Actor.weaponsmith
-}
-```
+| `AppConstants.swift` | `static let weaponsmith = "weaponsmith"` ✅ |
+| `StaticData/NpcIntroDef.swift` | 新增 weaponsmith 條目（defaultName: "鍛造學徒"） ✅ |
+| `Views/OffhandSheet.swift`（新增）| `.offhand` slot 配方列表；複用 ArmorSheet 架構 ✅ |
+| `Views/BaseView.swift` | `npcWeaponsmithCard(player:)`；加至 `npcProduceSection`（step >= 3） ✅ |
+| `Services/TaskCreationService.swift` | `createOffhandCraftTask(recipeKey:)`（actorKey=weaponsmith） ✅ |
 
 ## 驗收
 
-1. 職業選擇後生產 Tab 出現「副手師」卡片
+1. 職業選擇後生產 Tab 出現「鍛造學徒」卡片
 2. 點開 OffhandSheet 顯示所有 `.offhand` slot 配方
 3. 委派後卡片顯示「鑄造中」狀態
 4. 結算後副手裝備入背包，可裝備
