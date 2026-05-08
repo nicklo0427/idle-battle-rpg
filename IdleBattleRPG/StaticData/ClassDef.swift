@@ -60,6 +60,11 @@ extension ClassDef {
         }
     }
 
+    /// 職業加成對戰力的估算影響（ATK×2 + DEF×1.5 + HP×1；AGI/DEX 不計入戰力）
+    var estimatedPowerBonus: Int {
+        Int(Double(baseATKBonus) * 2.0 + Double(baseDEFBonus) * 1.5) + baseHPBonus
+    }
+
     /// 基礎加成摘要文字，e.g. "ATK +5"
     var bonusSummary: String {
         var parts: [String] = []

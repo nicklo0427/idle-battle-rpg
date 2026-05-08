@@ -264,26 +264,77 @@ struct BaseView: View {
 
     // MARK: - Tutorial（T06）
 
-    /// 教程進行中的頂部提示 Banner
+    /// 教程進行中的頂部提示 Banner（P1 進度條 + P2 情境文字）
     @ViewBuilder
     private func tutorialHintBanner(step: Int) -> some View {
-        let hint: String = switch step {
-        case 0: "前往採集者（樵夫）採集木材，準備打造初始武器"
-        case 1: "等待採集完成..."
-        case 2: "前往鑄造師打造你的初始武器"
-        case 3: "前往「角色」頁確認你的武器已裝備"
-        case 4: "前往冒險頁，挑戰荒野邊境的菁英敵人！"
-        case 5: "前往「生產」→「皮甲師」製作你的第一件防具"
-        case 6: "前往「冒險」→ 荒野邊境，一鍵 5 秒探索獲得防具素材"
-        case 7: "素材已備妥！前往皮甲師完成防具鑄造"
-        default: ""
+        let totalSteps = 8
+        let currentStep = step + 1
+
+        struct StepInfo {
+            let hint: String
+            let flavor: String
         }
-        if !hint.isEmpty {
+
+        let info: StepInfo? = switch step {
+        case 0: StepInfo(
+            hint:   "前往採集者（樵夫）採集木材，準備打造初始武器",
+            flavor: "要塞破舊，需要新的裝備來重整。"
+        )
+        case 1: StepInfo(
+            hint:   "等待採集完成…",
+            flavor: "斧頭聲迴盪在林間，木材一根根累積。"
+        )
+        case 2: StepInfo(
+            hint:   "前往鑄造師打造你的初始武器",
+            flavor: "原料到手，是時候打出第一把武器了。"
+        )
+        case 3: StepInfo(
+            hint:   "前往「角色」頁確認你的武器已裝備",
+            flavor: "鐵鎚聲落定，武器剛淬煉完工。"
+        )
+        case 4: StepInfo(
+            hint:   "前往冒險頁，挑戰荒野邊境的菁英敵人！",
+            flavor: "手握武器，準備第一場真正的戰鬥。"
+        )
+        case 5: StepInfo(
+            hint:   "前往「生產」→「皮甲師」製作你的第一件防具",
+            flavor: "有了武器，接下來要學會如何護住自己。"
+        )
+        case 6: StepInfo(
+            hint:   "前往「冒險」→ 荒野邊境，探索獲取防具素材",
+            flavor: "荒野中的獸皮正是打造護甲的材料。"
+        )
+        case 7: StepInfo(
+            hint:   "素材已備妥！前往皮甲師完成防具鑄造",
+            flavor: "皮革的氣味充滿小屋，護甲即將成形。"
+        )
+        default: nil
+        }
+
+        if let info {
             Section {
-                Label(hint, systemImage: "flag.fill")
-                    .font(.subheadline)
-                    .foregroundStyle(.orange)
-                    .listRowBackground(Color.orange.opacity(0.08))
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "flag.fill")
+                            .foregroundStyle(.orange)
+                        Text(info.hint)
+                            .font(.subheadline)
+                            .foregroundStyle(.orange)
+                        Spacer()
+                        Text("\(currentStep)/\(totalSteps)")
+                            .font(.caption2)
+                            .monospacedDigit()
+                            .foregroundStyle(.orange.opacity(0.7))
+                            .fontWeight(.semibold)
+                    }
+                    Text(info.flavor)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    ProgressView(value: Double(currentStep), total: Double(totalSteps))
+                        .tint(.orange)
+                        .scaleEffect(y: 0.7)
+                }
+                .listRowBackground(Color.orange.opacity(0.08))
             }
         }
     }

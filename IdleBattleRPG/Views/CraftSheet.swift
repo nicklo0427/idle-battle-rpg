@@ -136,14 +136,14 @@ struct CraftSheet: View {
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: "bubble.left.fill")
                         .foregroundStyle(.orange)
-                    Text("素材齊了，我替你打一把趁手的武器——5 秒後完工。")
+                    Text("素材齊了，我替你打一把趁手的武器——稍等片刻便完工。")
                         .font(.subheadline)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Button {
                     startTutorialCraft()
                 } label: {
-                    Label("打造初始武器（5 秒）", systemImage: "hammer.fill")
+                    Label("打造初始武器（2 秒）", systemImage: "hammer.fill")
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
                 }
