@@ -56,7 +56,7 @@ struct EliteBattleSheet: View {
 
         // 教程模式：削弱菁英讓玩家必勝但仍受到傷害，體驗真實戰鬥
         let effectiveElite: EliteDef = isTutorialElite
-            ? elite.copying(overrideHP: 10, overrideATK: 5, overrideDEF: 0)
+            ? elite.copying(overrideHP: 25, overrideATK: 15, overrideDEF: 7)
             : elite
 
         let result = EliteBattleEngine.simulate(

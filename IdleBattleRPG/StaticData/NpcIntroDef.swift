@@ -40,7 +40,7 @@ extension NpcIntroDef {
         NpcIntroDef(
             actorKey:    "blacksmith",
             defaultName: "老鐵",
-            introLine:   "嗯，你的劍我看過了，再打幾場就廢了。我是鑄造師，什麼料到我手上都能變成裝備。把素材給我，我替你打。"
+            introLine:   "空手上陣是找死。我是鑄造師，什麼料到我手上都能變成裝備。把素材給我，我替你打出第一把武器。"
         ),
         NpcIntroDef(
             actorKey:    "chef",
