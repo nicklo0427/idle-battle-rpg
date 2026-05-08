@@ -38,7 +38,7 @@ struct EquipmentService {
         save()
     }
 
-    /// 依職業定義發放初始裝備並全部裝備（V10-1 職業選擇確認時呼叫）
+    /// 依職業定義發放初始裝備（未裝備，需手動到裝備欄位裝上）
     func grantStarterEquipment(for classDef: ClassDef) {
         for key in classDef.starterEquipmentKeys {
             guard let def = EquipmentDef.find(key: key) else { continue }
@@ -46,7 +46,7 @@ struct EquipmentService {
                 defKey:     def.key,
                 slot:       def.slot,
                 rarity:     def.rarity,
-                isEquipped: true
+                isEquipped: false
             )
             context.insert(item)
         }
