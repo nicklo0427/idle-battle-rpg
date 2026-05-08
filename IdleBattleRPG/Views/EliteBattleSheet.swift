@@ -100,7 +100,7 @@ struct EliteBattleSheet: View {
         if isTutorialElite {
             player.tutorialArmorRecipeUnlocked = true
             player.onboardingStep = 5
-            appState.showToast("菁英已擊敗！解鎖荒徑皮甲配方！")
+            appState.showToast("菁英已擊敗！前往裁縫師製作初始防具！")
         }
 
         try? context.save()

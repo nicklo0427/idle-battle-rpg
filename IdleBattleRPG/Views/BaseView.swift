@@ -37,7 +37,6 @@ struct BaseView: View {
     @State private var showPharmacySheet  = false   // V7-4
     @State private var showMerchantSheet  = false
     @State private var showFarmerDetailSheet = false  // V7-4
-    @State private var showArmorSheet        = false  // V10-1 皮甲師
     @State private var showOffhandSheet      = false  // V10-1 鍛造學徒
     @State private var showAccessorySheet    = false  // V10-1 飾品師
     @State private var showTailorSheet       = false  // V10-1 裁縫師
@@ -195,15 +194,6 @@ struct BaseView: View {
             .sheet(isPresented: $showFarmerDetailSheet) {
                 FarmerDetailSheet(viewModel: viewModel, appState: appState)
             }
-            .sheet(isPresented: $showArmorSheet) {
-                ArmorSheet(
-                    appState:           appState,
-                    player:             players.first,
-                    inventory:          inventories.first,
-                    progressionService: appState.progressionService,
-                    selectedTab:        $selectedTab
-                )
-            }
             .sheet(isPresented: $showOffhandSheet) {
                 OffhandSheet(
                     appState:           appState,
@@ -225,7 +215,8 @@ struct BaseView: View {
                     appState:           appState,
                     player:             players.first,
                     inventory:          inventories.first,
-                    progressionService: appState.progressionService
+                    progressionService: appState.progressionService,
+                    selectedTab:        $selectedTab
                 )
             }
             .alert(item: $pendingUpgradeInfo) { info in
@@ -331,33 +322,28 @@ struct BaseView: View {
     @ViewBuilder
     private func npcProduceSection() -> some View {
         Section("生產者小屋") {
+            // 主手：鑄造師（始終顯示）
             npcBlacksmithCard(player: players.first)
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
+            // 副手 / 防具 / 飾品：職業選擇後（step >= 3）解鎖
+            if (players.first?.onboardingStep ?? 0) >= 3 {
+                npcWeaponsmithCard(player: players.first)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                npcTailorCard(player: players.first)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                npcJewelerCard(player: players.first)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            }
             npcChefCard(player: players.first)
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
             npcPharmacistCard(player: players.first)
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
-            // 皮甲師：教程菁英勝（step >= 5）後解鎖
-            if (players.first?.onboardingStep ?? 0) >= 5 {
-                npcArmorerCard(player: players.first)
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-            }
-            // 鍛造學徒、飾品師、裁縫師：職業選擇後（step >= 3）解鎖
-            if (players.first?.onboardingStep ?? 0) >= 3 {
-                npcWeaponsmithCard(player: players.first)
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                npcJewelerCard(player: players.first)
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                npcTailorCard(player: players.first)
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-            }
         }
     }
 
@@ -718,64 +704,6 @@ struct BaseView: View {
             .background(Color(.secondarySystemGroupedBackground))
             .clipShape(RoundedRectangle(cornerRadius: 14))
             .opacity(unlocked ? 1.0 : 0.5)
-        }
-        .buttonStyle(.plain)
-    }
-
-    // MARK: - NPC Card: 皮甲師（V10-1）
-
-    @ViewBuilder
-    private func npcArmorerCard(player: PlayerStateModel?) -> some View {
-        let activeTask = tasks.first { $0.actorKey == AppConstants.Actor.armorer && $0.status == .inProgress }
-        let isBusy     = activeTask != nil
-        let caption: String = {
-            guard let task = activeTask else { return "閒置中，點擊委派" }
-            let recipeName = CraftRecipeDef.find(key: task.definitionKey)?.name ?? "防具"
-            return "鑄造中：\(recipeName)\n\(TaskCountdown.remaining(for: task, relativeTo: appState.tick))"
-        }()
-        let progress = isBusy ? activeTask.map { $0.progress(relativeTo: appState.tick) } : nil
-
-        Button { if !isBusy { showArmorSheet = true } } label: {
-            HStack(spacing: 14) {
-                ZStack(alignment: .topTrailing) {
-                    Image(webp: "npc_armorer")
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 80, height: 80)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .opacity(isBusy ? 0.85 : 1.0)
-                    npcStatusBadge(isBusy: isBusy)
-                }
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(player?.npcDisplayName(for: AppConstants.Actor.armorer) ?? "皮甲師")
-                        .font(.subheadline).fontWeight(.medium).lineLimit(1)
-                    Text(caption)
-                        .font(.caption2)
-                        .foregroundStyle(isBusy ? Color.orange : .secondary)
-                        .lineLimit(2)
-                    if let progress {
-                        ProgressView(value: progress).tint(.orange).scaleEffect(y: 0.6)
-                    }
-                }
-
-                Spacer()
-
-                if isBusy {
-                    Text("鑄造中")
-                        .font(.caption2)
-                        .padding(.horizontal, 8).padding(.vertical, 4)
-                        .background(Color.orange.opacity(0.12))
-                        .foregroundStyle(Color.orange)
-                        .clipShape(Capsule())
-                } else {
-                    Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
-                }
-            }
-            .padding(12)
-            .frame(maxWidth: .infinity)
-            .background(Color(.secondarySystemGroupedBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 14))
         }
         .buttonStyle(.plain)
     }
