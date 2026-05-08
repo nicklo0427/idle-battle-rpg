@@ -76,6 +76,7 @@ struct NpcIntroSection: View {
 
     // MARK: - 改名入口（教程完成後，預設收合）
 
+    @ViewBuilder
     private func renameEntryRow(def: NpcIntroDef) -> some View {
         let currentName = player?.npcDisplayName(for: actorKey) ?? def.defaultName
         Button {

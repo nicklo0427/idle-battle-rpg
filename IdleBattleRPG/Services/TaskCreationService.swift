@@ -605,21 +605,21 @@ struct TaskCreationService {
         repository.insert(task)
     }
 
-    /// 教程防具鑄造任務：armorer 鑄造 5 秒，不扣素材/金幣，onboardingStep 由結算設為 8
+    /// 教程防具鑄造任務：tailor 鑄造 2 秒，不扣素材/金幣，onboardingStep 由結算設為 8
     func createTutorialArmorTask() throws {
         guard (try? context.fetch(FetchDescriptor<PlayerStateModel>()))?.first != nil else {
             throw TaskCreationError.noPlayerState
         }
 
         let inProgress = repository.fetchInProgress()
-        if inProgress.contains(where: { $0.kind == .craft && $0.actorKey == AppConstants.Actor.armorer }) {
-            throw TaskCreationError.actorBusy(AppConstants.Actor.armorer)
+        if inProgress.contains(where: { $0.kind == .craft && $0.actorKey == AppConstants.Actor.tailor }) {
+            throw TaskCreationError.actorBusy(AppConstants.Actor.tailor)
         }
 
         let now = Date.now
         let task = TaskModel(
             kind:          .craft,
-            actorKey:      AppConstants.Actor.armorer,
+            actorKey:      AppConstants.Actor.tailor,
             definitionKey: "tutorial_armor",
             startedAt:     now,
             endsAt:        now.addingTimeInterval(2)
