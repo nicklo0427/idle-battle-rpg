@@ -618,11 +618,12 @@ struct TaskCreationService {
 
         let now = Date.now
         let task = TaskModel(
-            kind:          .craft,
-            actorKey:      AppConstants.Actor.tailor,
-            definitionKey: "tutorial_armor",
-            startedAt:     now,
-            endsAt:        now.addingTimeInterval(2)
+            kind:                  .craft,
+            actorKey:              AppConstants.Actor.tailor,
+            definitionKey:         "tutorial_armor",
+            startedAt:             now,
+            endsAt:                now.addingTimeInterval(2),
+            resultCraftedEquipKey: "wildland_armor"
         )
         repository.insert(task)
     }
@@ -635,13 +636,13 @@ struct TaskCreationService {
 
         let now = Date.now
         let task = TaskModel(
-            kind:          .craft,
-            actorKey:      AppConstants.Actor.blacksmith,
-            definitionKey: "tutorial_craft",
-            startedAt:     now,
-            endsAt:        now.addingTimeInterval(2)
+            kind:                 .craft,
+            actorKey:             AppConstants.Actor.blacksmith,
+            definitionKey:        "tutorial_craft",
+            startedAt:            now,
+            endsAt:               now.addingTimeInterval(2),
+            resultCraftedEquipKey: classDef.starterEquipmentKeys.first
         )
-        // resultCraftedEquipKey 不設（裝備由 SettlementService 統一透過 grantStarterEquipment 授予）
         _ = player  // onboardingStep 由結算時設為 3
         repository.insert(task)
     }
