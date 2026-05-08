@@ -25,9 +25,12 @@ struct EliteBattleSheet: View {
     @Query private var players:     [PlayerStateModel]
     @Query private var inventories: [MaterialInventoryModel]
 
-    @State private var playbackModel = BattleLogPlaybackModel()
-    @State private var battleResult:  EliteBattleResult? = nil
-    @State private var rewardGranted  = false
+    @State private var playbackModel   = BattleLogPlaybackModel()
+    @State private var battleResult:   EliteBattleResult? = nil
+    @State private var rewardGranted   = false
+    /// 播放完畢後才設定，避免在動畫結束前就顯示勝敗面板
+    @State private var displayedResult: EliteBattleOutcome? = nil
+    @State private var playbackStarted = false
 
     // MARK: - Computed
 
@@ -42,10 +45,15 @@ struct EliteBattleSheet: View {
             title:          elite.name,
             enemyLabel:     elite.name,
             enemyImageName: DungeonBattleSheet.bossImageName(for: elite.floorKey),
-            eliteResult:    battleResult?.outcome,
+            eliteResult:    displayedResult,
             onRetry:        rewardGranted ? nil : { runBattle() }
         )
         .onAppear { runBattle() }
+        .onChange(of: playbackModel.isActive) { _, active in
+            if !active && playbackStarted, let result = battleResult {
+                displayedResult = result.outcome
+            }
+        }
     }
 
     // MARK: - 核心邏輯
@@ -68,7 +76,9 @@ struct EliteBattleSheet: View {
             seed:      seed
         )
 
-        battleResult = result
+        battleResult    = result
+        displayedResult = nil   // 清除舊結果，等播放完畢再顯示
+        playbackStarted = true
 
         // 啟動播放（本地 model，不干擾 AFK）
         playbackModel.start(
