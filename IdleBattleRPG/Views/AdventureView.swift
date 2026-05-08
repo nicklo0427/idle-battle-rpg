@@ -172,7 +172,7 @@ struct AdventureView: View {
                             showError = true
                         }
                     } label: {
-                        Label("荒野探索（5 秒）", systemImage: "location.fill")
+                        Label("荒野探索（2 秒）", systemImage: "location.fill")
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 8)
                     }
