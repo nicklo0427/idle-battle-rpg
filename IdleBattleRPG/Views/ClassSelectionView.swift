@@ -105,6 +105,23 @@ struct ClassSelectionView: View {
                     .background(classDef.themeColor.opacity(0.12))
                     .clipShape(Capsule())
 
+                // 戰力影響預覽
+                let powerDelta = classDef.estimatedPowerBonus
+                HStack(spacing: 4) {
+                    Image(systemName: "bolt.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                    if powerDelta > 0 {
+                        Text("戰力 +\(powerDelta)")
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                    } else {
+                        Text("敏捷 / 暴擊率提升")
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                    }
+                }
+
                 // 技能預覽（前 2 個技能名稱）
                 let previewSkills = ClassDef.all
                     .first { $0.key == classDef.key }

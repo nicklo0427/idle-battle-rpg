@@ -55,9 +55,9 @@ struct EliteBattleSheet: View {
         let seed  = EliteBattleEngine.makeSeed(eliteKey: elite.key)
         let stats = HeroStatsService.fetchAndCompute(context: context)
 
-        // 教程模式：覆蓋菁英數值讓玩家必勝
+        // 教程模式：削弱菁英讓玩家必勝但仍受到傷害，體驗真實戰鬥
         let effectiveElite: EliteDef = isTutorialElite
-            ? elite.copying(overrideHP: 1, overrideATK: 0, overrideDEF: 0)
+            ? elite.copying(overrideHP: 10, overrideATK: 5, overrideDEF: 0)
             : elite
 
         let result = EliteBattleEngine.simulate(

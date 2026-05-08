@@ -112,14 +112,14 @@ struct ArmorSheet: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: "bubble.left.fill").foregroundStyle(.orange)
-                    Text("素材都到手了。讓我打一件正式的護甲——五秒後完工。")
+                    Text("素材都到手了。讓我打一件正式的護甲——稍等片刻便完工。")
                         .font(.subheadline)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Button {
                     startTutorialArmorCraft()
                 } label: {
-                    Label("打造初始防具（5 秒）", systemImage: "shield.fill")
+                    Label("打造初始防具（2 秒）", systemImage: "shield.fill")
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
                 }

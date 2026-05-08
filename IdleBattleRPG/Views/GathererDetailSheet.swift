@@ -143,7 +143,7 @@ struct GathererDetailSheet: View {
                 Button {
                     startTutorialGather()
                 } label: {
-                    Label("派遣採集（5 秒）", systemImage: "arrow.right.circle.fill")
+                    Label("派遣採集（2 秒）", systemImage: "arrow.right.circle.fill")
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
                 }

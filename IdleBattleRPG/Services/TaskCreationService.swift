@@ -581,7 +581,7 @@ struct TaskCreationService {
             actorKey:      AppConstants.Actor.gatherer1,
             definitionKey: "tutorial_gather",
             startedAt:     now,
-            endsAt:        now.addingTimeInterval(5)
+            endsAt:        now.addingTimeInterval(2)
         )
         player.onboardingStep = 1
         repository.insert(task)
@@ -600,7 +600,7 @@ struct TaskCreationService {
             actorKey:      AppConstants.Actor.player,
             definitionKey: "tutorial_explore",
             startedAt:     now,
-            endsAt:        now.addingTimeInterval(5)
+            endsAt:        now.addingTimeInterval(2)
         )
         repository.insert(task)
     }
@@ -622,7 +622,7 @@ struct TaskCreationService {
             actorKey:      AppConstants.Actor.armorer,
             definitionKey: "tutorial_armor",
             startedAt:     now,
-            endsAt:        now.addingTimeInterval(5)
+            endsAt:        now.addingTimeInterval(2)
         )
         repository.insert(task)
     }
@@ -639,7 +639,7 @@ struct TaskCreationService {
             actorKey:      AppConstants.Actor.blacksmith,
             definitionKey: "tutorial_craft",
             startedAt:     now,
-            endsAt:        now.addingTimeInterval(5)
+            endsAt:        now.addingTimeInterval(2)
         )
         // resultCraftedEquipKey 不設（裝備由 SettlementService 統一透過 grantStarterEquipment 授予）
         _ = player  // onboardingStep 由結算時設為 3
