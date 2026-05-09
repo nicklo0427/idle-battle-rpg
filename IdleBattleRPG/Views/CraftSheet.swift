@@ -53,11 +53,9 @@ struct CraftSheet: View {
         return expOk && matOk && goldOk
     }
 
-    /// 已解鎖的所有配方（V1 全顯示；V2-1 需首通樓層）
+    /// 已解鎖的武器配方（鑄造師只負責武器；防具 → 裁縫師；飾品 → 飾品師；副手 → 鍛造學徒）
     private var availableRecipes: [CraftRecipeDef] {
         CraftRecipeDef.available(isCleared: { floorKey in
-            // floorKey 格式："{prefix}_floor_{index}"
-            // prefix → regionKey 對照表
             guard let sep = floorKey.range(of: "_floor_") else { return false }
             let prefix    = String(floorKey[floorKey.startIndex..<sep.lowerBound])
             let indexStr  = String(floorKey[sep.upperBound...])
@@ -71,6 +69,7 @@ struct CraftSheet: View {
             guard let regionKey = regionKeyMap[prefix] else { return false }
             return progressionService.isFloorCleared(regionKey: regionKey, floorIndex: index)
         }, tutorialArmorUnlocked: player?.tutorialArmorRecipeUnlocked ?? false)
+        .filter { $0.slot == .weapon }   // 鑄造師只顯示武器配方
     }
 
     var body: some View {
@@ -88,19 +87,19 @@ struct CraftSheet: View {
                 upgradeSection
 
                 recipeSection(
-                    title: "普通裝備",
+                    title: "普通武器",
                     recipes: availableRecipes.filter { $0.rarity == .common }
                 )
                 recipeSection(
-                    title: "精良裝備",
+                    title: "精良武器",
                     recipes: availableRecipes.filter { $0.rarity == .refined }
                 )
                 recipeSection(
-                    title: "稀有裝備",
+                    title: "稀有武器",
                     recipes: availableRecipes.filter { $0.rarity == .rare }
                 )
                 recipeSection(
-                    title: "史詩裝備",
+                    title: "史詩武器",
                     recipes: availableRecipes.filter { $0.rarity == .epic }
                 )
             }
@@ -345,13 +344,8 @@ struct CraftSheet: View {
                             .padding(.vertical, 2)
                             .background(recipe.rarity.displayColor.opacity(0.12), in: Capsule())
                     }
-                    // 引導 step 2：標示目標配方
-                    let isStarterWeapon: Bool = {
-                        guard let p = player, p.onboardingStep == 2,
-                              let cls = ClassDef.find(key: p.classKey) else { return false }
-                        return recipe.outputEquipmentKey == cls.starterEquipmentKeys.first
-                    }()
-                    if isStarterWeapon {
+                    // 引導 step 2：標示基礎武器食譜（點任何武器食譜都會觸發教程鑄造）
+                    if player?.onboardingStep == 2, recipe.key == "recipe_common_weapon" {
                         Text("推薦")
                             .font(.caption2).fontWeight(.semibold)
                             .foregroundStyle(.orange)
@@ -488,11 +482,8 @@ struct CraftSheet: View {
     // MARK: - Action
 
     private func startCraft(recipe: CraftRecipeDef) {
-        // 引導 step 2：starter weapon 用 2 秒 tutorial 任務
-        if let player,
-           player.onboardingStep == 2,
-           let classDef = ClassDef.find(key: player.classKey),
-           recipe.outputEquipmentKey == classDef.starterEquipmentKeys.first {
+        // 引導 step 2：點任何武器食譜都觸發 tutorial craft（2 秒免費，給予職業初始武器）
+        if let player, player.onboardingStep == 2, recipe.slot == .weapon {
             startTutorialCraft()
             return
         }
