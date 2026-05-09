@@ -114,10 +114,11 @@ struct DatabaseSeeder {
         let existing = (try? context.fetch(descriptor)) ?? []
         guard existing.isEmpty else { return }
 
-        // V10-1: 新玩家裝備由職業選擇時發放；只有舊存檔（classKey 非空但無裝備）才補種
+        // V10-1: 新玩家裝備由教程鑄造結算時授予；只有完成教程的舊存檔（step == 8）才補種
         let playerDescriptor = FetchDescriptor<PlayerStateModel>()
         guard let player = (try? context.fetch(playerDescriptor))?.first,
-              !player.classKey.isEmpty else { return }
+              !player.classKey.isEmpty,
+              player.onboardingStep >= 8 else { return }
 
         guard let def = EquipmentDef.find(key: AppConstants.Initial.startingWeaponKey) else {
             assertionFailure("Starting weapon def not found: \(AppConstants.Initial.startingWeaponKey)")
