@@ -60,9 +60,7 @@ struct SettlementService {
         }
 
         if task.definitionKey == "tutorial_craft" {
-            if let player = (try? context.fetch(FetchDescriptor<PlayerStateModel>()))?.first,
-               let classDef = ClassDef.find(key: player.classKey) {
-                EquipmentService(context: context).grantStarterEquipment(for: classDef)
+            if let player = (try? context.fetch(FetchDescriptor<PlayerStateModel>()))?.first {
                 player.onboardingStep = 3
             }
             task.status = .completed
@@ -81,7 +79,6 @@ struct SettlementService {
         }
 
         if task.definitionKey == "tutorial_armor" {
-            EquipmentService(context: context).grantTutorialArmor()
             if let player = (try? context.fetch(FetchDescriptor<PlayerStateModel>()))?.first {
                 player.onboardingStep = 8
             }
