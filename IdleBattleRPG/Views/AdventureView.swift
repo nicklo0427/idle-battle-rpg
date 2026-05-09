@@ -54,11 +54,17 @@ struct AdventureView: View {
         NavigationStack {
             List {
                 activeBannerSection
-                tutorialStep4BannerSection
-                tutorialStep6ExploreSection
+                tutorialStep6BubbleSection
                 regionListSection
             }
             .navigationTitle("冒險")
+            .onAppear {
+                // Ticket 03(A): step 5 → 6 自動推進（玩家切換到冒險頁即視為知曉目標）
+                if let player = players.first, player.onboardingStep == 5 {
+                    player.onboardingStep = 6
+                    try? context.save()
+                }
+            }
             .sheet(item: $selectedFloor) { floor in
                 FloorDetailSheet(
                     floor:             floor,
@@ -141,50 +147,19 @@ struct AdventureView: View {
         }
     }
 
+    /// Step 6：純文字提示，告知玩家探索保底獲材（無獨立按鈕，點 floor row 觸發）
     @ViewBuilder
-    private var tutorialStep4BannerSection: some View {
-        if let player = players.first, player.onboardingStep == 4 {
+    private var tutorialStep6BubbleSection: some View {
+        if let player = players.first, player.onboardingStep == 6 {
             Section {
                 HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: "bubble.left.fill").foregroundStyle(.orange)
-                    Text("前往金穗之野，挑戰穀倉前道的菁英敵人！打敗他，贏得防具鍛造材料。")
+                    Image(systemName: "bubble.left.fill").foregroundStyle(.green)
+                    Text("前往金穗之野探索！必定獲得防具所需材料。")
                         .font(.subheadline)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(.vertical, 4)
-            } header: { Text("🎯 引導任務") }
-        }
-    }
-
-    @ViewBuilder
-    private var tutorialStep6ExploreSection: some View {
-        if let player = players.first, player.onboardingStep == 6 {
-            Section {
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack(alignment: .top, spacing: 8) {
-                        Image(systemName: "bubble.left.fill").foregroundStyle(.green)
-                        Text("前往金穗之野探索！必定獲得防具所需材料。")
-                            .font(.subheadline)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    Button {
-                        do {
-                            try TaskCreationService(context: context).createTutorialExploreTask()
-                        } catch {
-                            errorMessage = error.localizedDescription
-                            showError = true
-                        }
-                    } label: {
-                        Label("金穗之野探索（2 秒）", systemImage: "location.fill")
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 8)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.green)
-                    .disabled(activeDungeonTask != nil)
-                }
-                .padding(.vertical, 4)
-            } header: { Text("🎯 引導任務") }
+            }
         }
     }
 
@@ -360,6 +335,16 @@ struct AdventureView: View {
                                 .font(.caption)
                                 .foregroundStyle(.green)
                         }
+                        // 引導 step 6：高亮目標樓層
+                        if players.first?.onboardingStep == 6,
+                           region.key == "wildland", floor.floorIndex == 1 {
+                            Text("推薦")
+                                .font(.caption2).fontWeight(.semibold)
+                                .foregroundStyle(.orange)
+                                .padding(.horizontal, 6).padding(.vertical, 2)
+                                .background(Color.orange.opacity(0.12))
+                                .clipShape(Capsule())
+                        }
                     }
 
                     if !unlocked {
@@ -427,6 +412,22 @@ struct AdventureView: View {
         cuisineKey: String = "",   // V7-4
         potionKey:  String = ""    // V7-4
     ) -> TaskModel? {
+        // Ticket 04: 引導 step 6 → 用 tutorial explore task（2 秒保底獸皮）
+        if let player = players.first, player.onboardingStep == 6,
+           floor.regionKey == "wildland", floor.floorIndex == 1 {
+            do {
+                try TaskCreationService(context: context).createTutorialExploreTask()
+            } catch {
+                errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                showError = true
+                return nil
+            }
+            let descriptor = FetchDescriptor<TaskModel>(
+                predicate: #Predicate { $0.actorKey == "player" }
+            )
+            return (try? context.fetch(descriptor))?.first(where: { $0.status == .inProgress })
+        }
+
         guard let stats = heroStats else {
             errorMessage = "找不到英雄資料"
             showError = true

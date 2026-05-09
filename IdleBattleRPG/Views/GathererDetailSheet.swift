@@ -129,30 +129,18 @@ struct GathererDetailSheet: View {
 
     // MARK: - Section：教程採集（T06，gatherer_1 + step 0）
 
+    /// Step 0：純文字提示（無按鈕，點地點 row 觸發 2 秒採集）
     @ViewBuilder
     private var tutorialDispatchSection: some View {
         Section {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: "bubble.left.fill")
-                        .foregroundStyle(.orange)
-                    Text("要塞需要資源。先去砍點木材吧，打把武器就差這一步了。")
-                        .font(.subheadline)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Button {
-                    startTutorialGather()
-                } label: {
-                    Label("派遣採集（2 秒）", systemImage: "arrow.right.circle.fill")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.green)
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "bubble.left.fill")
+                    .foregroundStyle(.orange)
+                Text("要塞需要資源。先去砍點木材吧，打把武器就差這一步了。")
+                    .font(.subheadline)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.vertical, 4)
-        } header: {
-            Text("🎯 引導任務")
         }
     }
 
@@ -417,7 +405,12 @@ struct GathererDetailSheet: View {
             Spacer()
 
             Button {
-                pendingDispatch = PendingDispatch(location: location)
+                // 引導 step 0：直接建立 2 秒採集任務，跳過時長選擇
+                if player?.onboardingStep == 0 {
+                    startTutorialGather()
+                } else {
+                    pendingDispatch = PendingDispatch(location: location)
+                }
             } label: {
                 Image(systemName: "arrow.right.circle.fill")
                     .foregroundStyle(.green)

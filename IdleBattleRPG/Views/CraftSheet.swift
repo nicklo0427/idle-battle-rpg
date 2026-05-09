@@ -129,30 +129,18 @@ struct CraftSheet: View {
 
     // MARK: - Section：教程鑄造（T06，step 2）
 
+    /// Step 2：純文字提示（無按鈕，點配方 row 觸發 2 秒鑄造）
     @ViewBuilder
     private var tutorialCraftSection: some View {
         Section {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: "bubble.left.fill")
-                        .foregroundStyle(.orange)
-                    Text("素材齊了，我替你打一把趁手的武器——稍等片刻便完工。")
-                        .font(.subheadline)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Button {
-                    startTutorialCraft()
-                } label: {
-                    Label("打造初始武器（2 秒）", systemImage: "hammer.fill")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.orange)
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "bubble.left.fill")
+                    .foregroundStyle(.orange)
+                Text("素材齊了，我替你打一把趁手的武器——稍等片刻便完工。")
+                    .font(.subheadline)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.vertical, 4)
-        } header: {
-            Text("🎯 引導任務")
         }
     }
 
@@ -357,6 +345,20 @@ struct CraftSheet: View {
                             .padding(.vertical, 2)
                             .background(recipe.rarity.displayColor.opacity(0.12), in: Capsule())
                     }
+                    // 引導 step 2：標示目標配方
+                    let isStarterWeapon: Bool = {
+                        guard let p = player, p.onboardingStep == 2,
+                              let cls = ClassDef.find(key: p.classKey) else { return false }
+                        return recipe.outputEquipmentKey == cls.starterEquipmentKeys.first
+                    }()
+                    if isStarterWeapon {
+                        Text("推薦")
+                            .font(.caption2).fontWeight(.semibold)
+                            .foregroundStyle(.orange)
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(Color.orange.opacity(0.12))
+                            .clipShape(Capsule())
+                    }
                 }
                 Spacer()
                 // 時長永遠顯示（讓玩家知道等待成本）
@@ -486,6 +488,15 @@ struct CraftSheet: View {
     // MARK: - Action
 
     private func startCraft(recipe: CraftRecipeDef) {
+        // 引導 step 2：starter weapon 用 2 秒 tutorial 任務
+        if let player,
+           player.onboardingStep == 2,
+           let classDef = ClassDef.find(key: player.classKey),
+           recipe.outputEquipmentKey == classDef.starterEquipmentKeys.first {
+            startTutorialCraft()
+            return
+        }
+        // 正常鑄造
         let result = viewModel.startCraftTask(recipeKey: recipe.key, context: context)
         switch result {
         case .success:

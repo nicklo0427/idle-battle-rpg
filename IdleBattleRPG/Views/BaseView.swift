@@ -215,8 +215,7 @@ struct BaseView: View {
                     appState:           appState,
                     player:             players.first,
                     inventory:          inventories.first,
-                    progressionService: appState.progressionService,
-                    selectedTab:        $selectedTab
+                    progressionService: appState.progressionService
                 )
             }
             .alert(item: $pendingUpgradeInfo) { info in

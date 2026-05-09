@@ -15,7 +15,6 @@ struct TailorSheet: View {
     let player:             PlayerStateModel?
     let inventory:          MaterialInventoryModel?
     let progressionService: DungeonProgressionService
-    @Binding var selectedTab: Int
 
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss)      private var dismiss
@@ -76,57 +75,32 @@ struct TailorSheet: View {
 
     // MARK: - Tutorial Sections
 
+    /// Step 5：純文字提示（無按鈕，tab 切換由 AdventureView.onAppear 自動推進）
     @ViewBuilder
     private var tutorialInsufficientMaterialsSection: some View {
         Section {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: "bubble.left.fill").foregroundStyle(.orange)
-                    Text("這件護甲需要野外的乾燥獸皮。去荒野走一趟——五分鐘保準找到。")
-                        .font(.subheadline)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Button {
-                    player?.onboardingStep = 6
-                    try? context.save()
-                    dismiss()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                        selectedTab = 1
-                    }
-                } label: {
-                    Label("前往荒野探索 →", systemImage: "location.fill")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.orange)
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "bubble.left.fill").foregroundStyle(.orange)
+                Text("這件護甲需要野外的乾燥獸皮。去荒野走一趟——五分鐘保準找到。")
+                    .font(.subheadline)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.vertical, 4)
-        } header: { Text("🎯 引導任務") }
+        }
     }
 
+    /// Step 7：純文字提示（無按鈕，點配方 row 觸發 2 秒鑄造）
     @ViewBuilder
     private var tutorialCraftArmorSection: some View {
         Section {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: "bubble.left.fill").foregroundStyle(.orange)
-                    Text("素材都到手了。讓我縫製一件正式的護甲——稍等片刻便完工。")
-                        .font(.subheadline)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Button {
-                    startTutorialArmorCraft()
-                } label: {
-                    Label("打造初始防具（2 秒）", systemImage: "shield.fill")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.orange)
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "bubble.left.fill").foregroundStyle(.orange)
+                Text("素材都到手了。讓我縫製一件正式的護甲——稍等片刻便完工。")
+                    .font(.subheadline)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.vertical, 4)
-        } header: { Text("🎯 引導任務") }
+        }
     }
 
     // MARK: - Recipe Section
@@ -165,6 +139,15 @@ struct TailorSheet: View {
                     Text(recipe.name)
                         .fontWeight(.semibold)
                         .foregroundStyle(canAfford ? recipe.rarity.displayColor : Color.secondary)
+                    // 引導 step 7：標示目標配方
+                    if player?.onboardingStep == 7, recipe.outputEquipmentKey == "wildland_armor" {
+                        Text("推薦")
+                            .font(.caption2).fontWeight(.semibold)
+                            .foregroundStyle(.orange)
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(Color.orange.opacity(0.12))
+                            .clipShape(Capsule())
+                    }
                 }
                 Spacer()
                 Text(recipe.durationDisplay)
@@ -231,17 +214,12 @@ struct TailorSheet: View {
 
     private func startCraft(recipe: CraftRecipeDef) {
         do {
-            try TaskCreationService(context: context).createTailorCraftTask(recipeKey: recipe.key)
-            dismiss()
-        } catch {
-            errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-            showError = true
-        }
-    }
-
-    private func startTutorialArmorCraft() {
-        do {
-            try TaskCreationService(context: context).createTutorialArmorTask()
+            // 引導 step 7：wildland_armor 用 2 秒 tutorial 任務
+            if player?.onboardingStep == 7, recipe.outputEquipmentKey == "wildland_armor" {
+                try TaskCreationService(context: context).createTutorialArmorTask()
+            } else {
+                try TaskCreationService(context: context).createTailorCraftTask(recipeKey: recipe.key)
+            }
             dismiss()
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
