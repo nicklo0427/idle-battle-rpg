@@ -84,7 +84,11 @@ struct TaskClaimService {
             accumulateMaterials(from: task, player: player, into: &materials)
 
             // craft 任務：建立裝備並插入背包
-            if task.kind == .craft, let key = task.resultCraftedEquipKey,
+            // tutorial_craft / tutorial_armor 由 SettlementService 已處理，此處跳過避免重複
+            if task.kind == .craft,
+               task.definitionKey != "tutorial_craft",
+               task.definitionKey != "tutorial_armor",
+               let key = task.resultCraftedEquipKey,
                let def = EquipmentDef.find(key: key) {
                 let newEquip = EquipmentModel(
                     defKey: def.key, slot: def.slot,

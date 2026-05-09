@@ -38,18 +38,18 @@ struct EquipmentService {
         save()
     }
 
-    /// 依職業定義發放初始裝備（未裝備，需手動到裝備欄位裝上）
+    /// 依職業定義發放初始主手武器（未裝備，需手動到裝備欄位裝上）
+    /// 只發放第一個 key（主手），副手武器不在初始發放範圍內
     func grantStarterEquipment(for classDef: ClassDef) {
-        for key in classDef.starterEquipmentKeys {
-            guard let def = EquipmentDef.find(key: key) else { continue }
-            let item = EquipmentModel(
-                defKey:     def.key,
-                slot:       def.slot,
-                rarity:     def.rarity,
-                isEquipped: false
-            )
-            context.insert(item)
-        }
+        guard let key = classDef.starterEquipmentKeys.first,
+              let def = EquipmentDef.find(key: key) else { return }
+        let item = EquipmentModel(
+            defKey:     def.key,
+            slot:       def.slot,
+            rarity:     def.rarity,
+            isEquipped: false
+        )
+        context.insert(item)
         save()
     }
 
