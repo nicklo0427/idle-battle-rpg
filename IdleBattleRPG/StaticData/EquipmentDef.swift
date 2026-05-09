@@ -166,7 +166,7 @@ extension EquipmentDef {
         // ── 普通裝備（可鑄造）────────────────────────────────────────
         EquipmentDef(
             key:      "common_weapon",
-            name:     "普通武器",
+            name:     "木製短棒",
             slot:     .weapon,
             rarity:   .common,
             atkBonus: 18,

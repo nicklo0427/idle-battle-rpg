@@ -55,13 +55,12 @@ extension CraftRecipeDef {
         // ── 普通裝備 ─────────────────────────────────────────────────
         CraftRecipeDef(
             key:               "recipe_common_weapon",
-            name:              "鑄造普通武器",
+            name:              "鑄造木製武器",
             slot:              .weapon,
             rarity:            .common,
             durationSeconds:   8 * 60,  // 8 分鐘
             requiredMaterials: [
-                MaterialRequirement(material: .wood, amount: 3),
-                MaterialRequirement(material: .ore,  amount: 2),
+                MaterialRequirement(material: .wood, amount: 4),
             ],
             goldCost:          10,
             outputEquipmentKey: "common_weapon"
