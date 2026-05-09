@@ -20,7 +20,6 @@ struct DatabaseSeeder {
         backfillTalentPoints(context: context)
         backfillSkillPoints(context: context)
         backfillHasSeenIntro(context: context)
-        backfillOnboardingStep(context: context)
 
         do {
             try context.save()
@@ -143,12 +142,4 @@ struct DatabaseSeeder {
         player.hasSeenIntro = true
     }
 
-    /// 舊存檔升級相容：classKey 非空但尚未完成完整教程（step < 8），直接設為 8 跳過所有教程
-    @MainActor
-    private static func backfillOnboardingStep(context: ModelContext) {
-        let descriptor = FetchDescriptor<PlayerStateModel>()
-        guard let player = (try? context.fetch(descriptor))?.first else { return }
-        guard !player.classKey.isEmpty, player.onboardingStep < 8 else { return }
-        player.onboardingStep = 8
-    }
 }
