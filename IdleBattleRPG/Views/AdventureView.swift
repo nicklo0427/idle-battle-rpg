@@ -147,7 +147,7 @@ struct AdventureView: View {
             Section {
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: "bubble.left.fill").foregroundStyle(.orange)
-                    Text("前往荒野邊境，挑戰 F1 的菁英敵人！打敗他，贏得防具鍛造材料。")
+                    Text("前往金穗之野，挑戰穀倉前道的菁英敵人！打敗他，贏得防具鍛造材料。")
                         .font(.subheadline)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -163,7 +163,7 @@ struct AdventureView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(alignment: .top, spacing: 8) {
                         Image(systemName: "bubble.left.fill").foregroundStyle(.green)
-                        Text("前往荒野邊境探索！必定獲得防具所需材料。")
+                        Text("前往金穗之野探索！必定獲得防具所需材料。")
                             .font(.subheadline)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -175,7 +175,7 @@ struct AdventureView: View {
                             showError = true
                         }
                     } label: {
-                        Label("荒野探索（2 秒）", systemImage: "location.fill")
+                        Label("金穗之野探索（2 秒）", systemImage: "location.fill")
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 8)
                     }
