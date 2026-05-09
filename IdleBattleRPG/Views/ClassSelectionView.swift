@@ -1,5 +1,5 @@
 // ClassSelectionView.swift
-// V6-1 職業選擇畫面
+// V6-1 職業選擇畫面（重構：Icon 選擇列 + 詳情面板 + 確認按鈕）
 //
 // 顯示時機：player.classKey == ""（新遊戲 或 舊存檔升級後）
 // 選定後不可更改，透過 BaseView 的 .fullScreenCover 綁定觸發
@@ -12,35 +12,47 @@ struct ClassSelectionView: View {
     @Environment(\.modelContext) private var context
     @Query private var players: [PlayerStateModel]
 
-    /// 目前選中（按下但尚未確認）的職業
-    @State private var pendingClass: ClassDef?
-    /// 顯示確認 Alert
+    /// 目前選中（可自由切換）的職業，預設第一個
+    @State private var selectedClass: ClassDef = ClassDef.all[0]
+    /// 顯示確認 Dialog
     @State private var showConfirm = false
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 24) {
-                    headerSection
-                    classGrid
+            VStack(spacing: 0) {
+
+                // 1. 副標 + 警告
+                headerSection
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+                    .padding(.bottom, 16)
+
+                // 2. Icon 選擇列
+                classIconRow
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 20)
+
+                // 3. 詳情面板
+                ScrollView {
+                    classDetailPanel(selectedClass)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 8)
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 32)
+
+                // 4. 確認按鈕（固定底部）
+                confirmButton
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
             }
             .navigationTitle("選擇職業")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
 
     // MARK: - Header
 
     private var headerSection: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "person.badge.shield.checkmark.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(.orange)
-                .padding(.top, 16)
-
+        VStack(spacing: 6) {
             Text("踏上冒險前，選擇你的英雄路線。")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
@@ -52,132 +64,141 @@ struct ClassSelectionView: View {
         }
     }
 
-    // MARK: - 2×2 職業卡片網格
+    // MARK: - Icon 選擇列
 
-    private var classGrid: some View {
-        LazyVGrid(
-            columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)],
-            spacing: 12
-        ) {
-            ForEach(ClassDef.all, id: \.key) { classDef in
-                classCard(classDef)
+    private var classIconRow: some View {
+        HStack(spacing: 12) {
+            ForEach(ClassDef.all, id: \.key) { cls in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        selectedClass = cls
+                    }
+                } label: {
+                    VStack(spacing: 6) {
+                        ZStack {
+                            Circle()
+                                .fill(selectedClass.key == cls.key
+                                      ? cls.themeColor.opacity(0.25)
+                                      : cls.themeColor.opacity(0.10))
+                                .frame(width: 56, height: 56)
+                                .overlay(
+                                    Circle().strokeBorder(
+                                        cls.themeColor,
+                                        lineWidth: selectedClass.key == cls.key ? 2.5 : 0
+                                    )
+                                )
+                            Image(systemName: cls.iconName)
+                                .font(.system(size: 24, weight: .semibold))
+                                .foregroundStyle(cls.themeColor)
+                        }
+                        Text(cls.name)
+                            .font(.caption2)
+                            .fontWeight(selectedClass.key == cls.key ? .semibold : .regular)
+                            .foregroundStyle(
+                                selectedClass.key == cls.key ? cls.themeColor : .secondary
+                            )
+                    }
+                }
+                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity)
             }
         }
     }
 
-    @ViewBuilder
-    private func classCard(_ classDef: ClassDef) -> some View {
-        Button {
-            pendingClass = classDef
-            showConfirm  = true
-        } label: {
-            VStack(spacing: 10) {
-                // 圖示
-                ZStack {
-                    Circle()
-                        .fill(classDef.themeColor.opacity(0.15))
-                        .frame(width: 56, height: 56)
-                    Image(systemName: classDef.iconName)
-                        .font(.system(size: 26, weight: .semibold))
-                        .foregroundStyle(classDef.themeColor)
-                }
+    // MARK: - 詳情面板
 
-                // 職業名稱
-                Text(classDef.name)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
+    private func classDetailPanel(_ cls: ClassDef) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
 
-                // 簡介
-                Text(classDef.description)
-                    .font(.caption)
+            // 名稱 + 描述
+            VStack(alignment: .leading, spacing: 6) {
+                Text(cls.name)
+                    .font(.title2.bold())
+                    .foregroundStyle(cls.themeColor)
+                Text(cls.description)
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
+            }
 
-                // 基礎加成
-                Text(classDef.bonusSummary)
-                    .font(.caption2)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(classDef.themeColor)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(classDef.themeColor.opacity(0.12))
+            Divider()
+
+            // 屬性加成 + 戰力
+            HStack(spacing: 8) {
+                Text(cls.bonusSummary)
+                    .font(.subheadline.bold())
+                    .foregroundStyle(cls.themeColor)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(cls.themeColor.opacity(0.12))
                     .clipShape(Capsule())
 
-                // 戰力影響預覽
-                let powerDelta = classDef.estimatedPowerBonus
+                let powerDelta = cls.estimatedPowerBonus
                 HStack(spacing: 4) {
                     Image(systemName: "bolt.fill")
-                        .font(.caption2)
+                        .font(.caption)
                         .foregroundStyle(.orange)
-                    if powerDelta > 0 {
-                        Text("戰力 +\(powerDelta)")
-                            .font(.caption2)
-                            .foregroundStyle(.orange)
-                    } else {
-                        Text("敏捷 / 暴擊率提升")
-                            .font(.caption2)
-                            .foregroundStyle(.orange)
-                    }
+                    Text(powerDelta > 0 ? "戰力 +\(powerDelta)" : "敏捷 / 暴擊率提升")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
                 }
-
-                // 技能預覽（前 2 個技能名稱）
-                let previewSkills = ClassDef.all
-                    .first { $0.key == classDef.key }
-                    .map { SkillDef.unlocked(classKey: $0.key, atLevel: 3) } ?? []
-                if let firstSkill = previewSkills.first {
-                    HStack(alignment: .top, spacing: 4) {
-                        Image(systemName: "bolt.fill")
-                            .font(.caption2)
-                            .foregroundStyle(.orange.opacity(0.7))
-                            .padding(.top, 1)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text("Lv.3：\(firstSkill.name)")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                            Text(firstSkill.effectSummary)
-                                .font(.caption2)
-                                .foregroundStyle(classDef.themeColor.opacity(0.7))
-                        }
-                    }
-                }
-
-                // 你的過去（V10-1 backstory）
-                Divider().padding(.top, 4)
-                Text(classDef.backstory)
-                    .font(.caption2)
-                    .italic()
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(16)
-            .frame(maxWidth: .infinity, minHeight: 200)
-            .background(Color(.secondarySystemGroupedBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(classDef.themeColor.opacity(0.3), lineWidth: 1.5)
-            )
+
+            // 技能預覽
+            let skills = SkillDef.unlocked(classKey: cls.key, atLevel: 3)
+            if let skill = skills.first {
+                VStack(alignment: .leading, spacing: 4) {
+                    Label("Lv.3 技能", systemImage: "bolt.fill")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("\(skill.name)　\(skill.effectSummary)")
+                        .font(.subheadline)
+                        .foregroundStyle(cls.themeColor)
+                }
+            }
+
+            Divider()
+
+            // 背景故事
+            Text(cls.backstory)
+                .font(.callout)
+                .italic()
+                .foregroundStyle(.secondary)
+                .lineSpacing(4)
         }
-        .buttonStyle(.plain)
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .strokeBorder(selectedClass.themeColor.opacity(0.35), lineWidth: 1.5)
+        )
+    }
+
+    // MARK: - 確認按鈕
+
+    private var confirmButton: some View {
+        Button {
+            showConfirm = true
+        } label: {
+            Text("選擇「\(selectedClass.name)」，開始冒險！")
+                .font(.headline)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 4)
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(selectedClass.themeColor)
         .confirmationDialog(
-            "確定選擇「\(pendingClass?.name ?? "")」嗎？",
-            isPresented: Binding(
-                get: { showConfirm && pendingClass?.key == classDef.key },
-                set: { if !$0 { showConfirm = false } }
-            ),
+            "確定選擇「\(selectedClass.name)」嗎？",
+            isPresented: $showConfirm,
             titleVisibility: .visible
         ) {
             Button("確認，開始冒險！") {
-                confirmSelection(classDef)
+                confirmSelection(selectedClass)
             }
-            Button("再想想", role: .cancel) {
-                pendingClass = nil
-            }
+            Button("再想想", role: .cancel) { }
         } message: {
-            Text("職業選定後無法更換。\n\(classDef.bonusSummary)")
+            Text("職業選定後無法更換。\n\(selectedClass.bonusSummary)")
         }
     }
 
@@ -197,7 +218,6 @@ struct ClassSelectionView: View {
              EquipmentModel.self, TaskModel.self, DungeonProgressionModel.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
-    // 建立尚未選職業的玩家
     let player = PlayerStateModel()
     container.mainContext.insert(player)
     return ClassSelectionView()
