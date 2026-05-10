@@ -144,6 +144,17 @@ final class AppState {
         shouldShowSettlement = false
     }
 
+    /// 從基地完成狀態卡片打開既有結算 Sheet。
+    /// 只檢查 TaskModel.completed，不計算或入帳任何遊戲狀態。
+    func presentCompletedTasksIfNeeded() {
+        let descriptor = FetchDescriptor<TaskModel>()
+        let all = (try? modelContext.fetch(descriptor)) ?? []
+        let completed = all.filter { $0.status == .completed }
+        guard !completed.isEmpty else { return }
+        lastSettledCount = completed.count
+        shouldShowSettlement = true
+    }
+
     /// 設定待即時戰鬥任務，觸發 DungeonBattleSheet（V6-3 T02）。
     func startDungeonBattle(task: TaskModel) {
         pendingDungeonBattleTask = task

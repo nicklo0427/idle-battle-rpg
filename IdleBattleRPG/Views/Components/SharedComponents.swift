@@ -8,6 +8,50 @@
 
 import SwiftUI
 
+// MARK: - NPCPortraitView
+//
+// 顯示 NPC WebP 圖像的固定舞台。外框可以維持卡片圓角，
+// 但圖片本身用 scaledToFit，避免 bust portrait 被裁掉。
+
+struct NPCPortraitView: View {
+
+    let imageName: String
+    var width: CGFloat? = nil
+    var height: CGFloat
+    var cornerRadius: CGFloat = 12
+    var padding: CGFloat = 6
+    var imageOpacity: Double = 1.0
+    var fillWidth: Bool = false
+    var backgroundColor: Color = Color(.tertiarySystemGroupedBackground)
+
+    var body: some View {
+        Group {
+            if fillWidth {
+                portraitContent
+                    .frame(maxWidth: .infinity)
+                    .frame(height: height)
+            } else {
+                portraitContent
+                    .frame(width: width, height: height)
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+    }
+
+    private var portraitContent: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(backgroundColor)
+
+            Image(webp: imageName)
+                .resizable()
+                .scaledToFit()
+                .padding(padding)
+                .opacity(imageOpacity)
+        }
+    }
+}
+
 // MARK: - TierBadgeView
 //
 // 顯示 NPC Tier 等級徽章。

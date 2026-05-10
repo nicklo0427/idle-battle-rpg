@@ -22,7 +22,7 @@ struct GathererDetailSheet: View {
     @Query private var tasks:       [TaskModel]
 
     @State private var alertMsg:          String?
-    @State private var detailExpanded:    Bool = true
+    @State private var detailExpanded:    Bool = false
     @State private var detailTab:         DetailTab = .upgrade
     @State private var pendingDispatch:   PendingDispatch?
     @State private var showRecallConfirm: Bool = false
@@ -41,6 +41,18 @@ struct GathererDetailSheet: View {
 
     private var activeTask: TaskModel? {
         tasks.first { $0.actorKey == npcDef.actorKey && $0.status == .inProgress }
+    }
+
+    private var completedTask: TaskModel? {
+        tasks.first { $0.actorKey == npcDef.actorKey && $0.status == .completed }
+    }
+
+    private var introDef: NpcIntroDef? {
+        NpcIntroDef.find(actorKey: npcDef.actorKey)
+    }
+
+    private var hasSeenIntro: Bool {
+        player?.seenNpcIntroKeys.contains(npcDef.actorKey) == true
     }
 
     private var currentTier: Int {
@@ -87,13 +99,7 @@ struct GathererDetailSheet: View {
     var body: some View {
         NavigationStack {
             List {
-                // 教程模式：gatherer_1 + step 0（採集前）
-                if npcDef.actorKey == AppConstants.Actor.gatherer1,
-                   player?.onboardingStep == 0 {
-                    tutorialDispatchSection
-                }
-                NpcIntroSection(actorKey: npcDef.actorKey)
-                detailSection
+                npcHeaderSection
                 dispatchSection
             }
             .navigationTitle(player?.npcDisplayName(for: npcDef.actorKey) ?? npcDef.name)
@@ -125,6 +131,169 @@ struct GathererDetailSheet: View {
                 )
             }
         }
+    }
+
+    // MARK: - NPC Header（V10-4A）
+
+    @ViewBuilder
+    private var npcHeaderSection: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .top, spacing: 14) {
+                    VStack(spacing: 8) {
+                        ZStack(alignment: .topTrailing) {
+                            NPCPortraitView(
+                                imageName: "npc_\(npcDef.actorKey)",
+                                width: 112,
+                                height: 112,
+                                cornerRadius: 14,
+                                padding: 8
+                            )
+
+                            statusCapsule
+                                .padding(6)
+                        }
+                        .overlay(alignment: .topLeading) {
+                            TierBadgeView(tier: currentTier, alwaysShow: true, color: .green)
+                                .padding(6)
+                        }
+
+                        VStack(spacing: 5) {
+                            Text(roleDisplayName)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                            Text(gatherBonus > 0 ? "採集加成 +\(gatherBonus)" : "尚無採集加成")
+                                .font(.caption2)
+                                .foregroundStyle(gatherBonus > 0 ? Color.green : .secondary)
+                                .lineLimit(1)
+                        }
+
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                detailExpanded.toggle()
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "slider.horizontal.3")
+                                Text("狀態及養成")
+                                Image(systemName: "chevron.down")
+                                    .font(.caption2)
+                                    .rotationEffect(.degrees(detailExpanded ? 0 : -90))
+                            }
+                            .font(.caption2)
+                            .fontWeight(.semibold)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 6)
+                            .background(Color.green.opacity(0.12))
+                            .foregroundStyle(.green)
+                            .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .frame(width: 120)
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(player?.npcDisplayName(for: npcDef.actorKey) ?? npcDef.name)
+                            .font(.headline)
+                            .fontWeight(.bold)
+                            .lineLimit(2)
+
+                        dialogueBubble
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                if detailExpanded {
+                    Divider()
+
+                    Picker("", selection: $detailTab) {
+                        Text("升級").tag(DetailTab.upgrade)
+                        Text("技能").tag(DetailTab.skill)
+                    }
+                    .pickerStyle(.segmented)
+
+                    if detailTab == .upgrade {
+                        upgradeContent
+                    } else {
+                        skillContent
+                    }
+                }
+            }
+            .padding(.vertical, 4)
+        }
+    }
+
+    private var statusCapsule: some View {
+        let title: String
+        let color: Color
+        if completedTask != nil {
+            title = "待收"
+            color = .orange
+        } else if activeTask != nil {
+            title = "採集中"
+            color = .green
+        } else {
+            title = "閒置"
+            color = .secondary
+        }
+
+        return Text(title)
+            .font(.caption2)
+            .fontWeight(.semibold)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(.ultraThinMaterial)
+            .foregroundStyle(color)
+            .clipShape(Capsule())
+    }
+
+    @ViewBuilder
+    private var dialogueBubble: some View {
+        let text = hasSeenIntro
+            ? (introDef?.shortLine ?? "需要採集時，交給我。")
+            : (introDef?.introLine ?? "需要採集時，交給我。")
+
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "bubble.left.fill")
+                    .font(.subheadline)
+                    .foregroundStyle(.orange)
+                Text(text)
+                    .font(.subheadline)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if !hasSeenIntro {
+                HStack {
+                    Spacer()
+                    Button("明白了") {
+                        markIntroSeen()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.orange)
+                    .controlSize(.small)
+                }
+            }
+        }
+        .padding(10)
+        .background(Color.orange.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var roleDisplayName: String {
+        switch npcDef.role {
+        case .woodcutter: return "木材採集"
+        case .miner:      return "礦石採集"
+        case .herbalist:  return "草藥採集"
+        case .fisherman:  return "魚獲採集"
+        }
+    }
+
+    private func markIntroSeen() {
+        guard let player else { return }
+        player.markNpcIntroSeen(for: npcDef.actorKey)
+        try? context.save()
     }
 
     // MARK: - Section：教程採集（T06，gatherer_1 + step 0）
@@ -331,9 +500,13 @@ struct GathererDetailSheet: View {
 
     @ViewBuilder
     private var dispatchSection: some View {
-        Section("派遣") {
+        Section("派遣地點") {
             if let task = activeTask {
                 let locName = GatherLocationDef.find(key: task.definitionKey)?.name ?? "—"
+                let locDef = GatherLocationDef.find(key: task.definitionKey)
+                let estimated = locDef.map {
+                    estimatedRewardRange(location: $0, duration: task.endsAt.timeIntervalSince(task.startedAt))
+                }
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
                         Image(systemName: "figure.walk")
@@ -352,6 +525,11 @@ struct GathererDetailSheet: View {
                     Text("預計 \(task.endsAt.formatted(date: .omitted, time: .shortened)) 回來")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
+                    if let locDef, let estimated {
+                        Text("預估 \(estimated.lowerBound)–\(estimated.upperBound) \(locDef.outputMaterial.displayName)")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 .padding(.vertical, 4)
 
@@ -383,41 +561,56 @@ struct GathererDetailSheet: View {
         }
     }
 
-    // MARK: - Location Row（精簡版，無 chip）
+    // MARK: - Location Row（V10-4A 資訊列表）
 
     @ViewBuilder
     private func locationRow(_ location: GatherLocationDef) -> some View {
-        HStack(alignment: .center, spacing: 12) {
-            Text(location.outputMaterial.icon)
-                .font(.title2)
-                .frame(width: 36, height: 36)
-                .background(Color.green.opacity(0.12))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(location.name)
-                    .fontWeight(.semibold)
-                Text("\(location.outputMaterial.displayName)  \(location.outputRange.lowerBound)–\(location.outputRange.upperBound)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+        Button {
+            // 引導 step 0：直接建立 2 秒採集任務，跳過時長選擇
+            if player?.onboardingStep == 0 {
+                startTutorialGather()
+            } else {
+                pendingDispatch = PendingDispatch(location: location)
             }
+        } label: {
+            HStack(alignment: .center, spacing: 12) {
+                Text(location.outputMaterial.icon)
+                    .font(.title2)
+                    .frame(width: 40, height: 40)
+                    .background(Color.green.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 9))
 
-            Spacer()
-
-            Button {
-                // 引導 step 0：直接建立 2 秒採集任務，跳過時長選擇
-                if player?.onboardingStep == 0 {
-                    startTutorialGather()
-                } else {
-                    pendingDispatch = PendingDispatch(location: location)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        Text(location.name)
+                            .fontWeight(.semibold)
+                        if isRecommendedLocation(location) {
+                            Text("推薦")
+                                .font(.caption2)
+                                .fontWeight(.semibold)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.orange.opacity(0.12))
+                                .foregroundStyle(.orange)
+                                .clipShape(Capsule())
+                        }
+                    }
+                    Text("單輪 \(location.outputRange.lowerBound)–\(location.outputRange.upperBound) \(location.outputMaterial.displayName)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("可派 \(durationRangeText(for: location))")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
                 }
-            } label: {
+
+                Spacer()
+
                 Image(systemName: "arrow.right.circle.fill")
                     .foregroundStyle(.green)
                     .font(.title3)
             }
-            .buttonStyle(.plain)
         }
+        .buttonStyle(.plain)
         .padding(.vertical, 4)
     }
 
@@ -433,16 +626,19 @@ struct GathererDetailSheet: View {
         HStack(spacing: 12) {
             Text(location.outputMaterial.icon)
                 .font(.title2)
-                .frame(width: 36, height: 36)
+                .frame(width: 40, height: 40)
                 .background(Color(uiColor: .systemGray5))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .clipShape(RoundedRectangle(cornerRadius: 9))
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(location.name)
                     .fontWeight(.semibold)
                     .foregroundStyle(.secondary)
-                Text("需通關：\(bossName)")
+                Text("單輪 \(location.outputRange.lowerBound)–\(location.outputRange.upperBound) \(location.outputMaterial.displayName)")
                     .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("需擊敗：\(bossName)")
+                    .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
 
@@ -455,6 +651,40 @@ struct GathererDetailSheet: View {
     }
 
     // MARK: - Helpers
+
+    private func isRecommendedLocation(_ location: GatherLocationDef) -> Bool {
+        if player?.onboardingStep == 0 {
+            return location.key == "forest"
+        }
+        return unlockedLocations.first?.key == location.key
+    }
+
+    private func durationRangeText(for location: GatherLocationDef) -> String {
+        let minDur = location.durationOptions.min() ?? location.shortestDuration
+        let maxDur = location.durationOptions.max() ?? location.shortestDuration
+        return "\(AppConstants.DungeonDuration.displayName(for: minDur))–\(AppConstants.DungeonDuration.displayName(for: maxDur))"
+    }
+
+    private var yieldSkillBonus: Int {
+        let nodes = GathererSkillNodeDef.nodes(for: npcDef.actorKey)
+        guard let yieldNode = nodes.first(where: {
+            if case .yieldBonus(_) = $0.effect { return true }
+            return false
+        }) else { return 0 }
+        let level = player?.skillLevel(nodeKey: yieldNode.key, actorKey: npcDef.actorKey) ?? 0
+        if case .yieldBonus(let perPoint) = yieldNode.effect {
+            return level * perPoint
+        }
+        return 0
+    }
+
+    private func estimatedRewardRange(location: GatherLocationDef, duration: TimeInterval) -> ClosedRange<Int> {
+        let cycles = max(1, Int(duration) / location.shortestDuration)
+        let totalBonus = gatherBonus + yieldSkillBonus
+        let lower = (location.outputRange.lowerBound + totalBonus) * cycles
+        let upper = (location.outputRange.upperBound + totalBonus) * cycles
+        return lower...upper
+    }
 
     private func upgradeRow(label: String, required: Int, have: Int) -> some View {
         HStack {
@@ -585,6 +815,15 @@ private struct DispatchConfirmSheet: View {
         return "\(mins) 分鐘"
     }
 
+    private var confirmButtonTitle: String {
+        switch durationMode {
+        case .preset:
+            return "派遣 \(durationLabel)"
+        case .runCount:
+            return "派遣 \(cycles) 輪"
+        }
+    }
+
     // MARK: - Reward Calculations
 
     private var tierBonus: Int {
@@ -646,25 +885,7 @@ private struct DispatchConfirmSheet: View {
 
                 Divider()
 
-                // 預計獎勵
-                VStack(spacing: 4) {
-                    Text("預計獲得")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        Text("\(estimatedMin)–\(estimatedMax)")
-                            .font(.system(size: 28, weight: .bold, design: .rounded))
-                            .foregroundStyle(.green)
-                        Text(location.outputMaterial.displayName)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    if totalBonus > 0 {
-                        Text("含加成 +\(totalBonus) / 次 × \(cycles) 次")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                    }
-                }
+                dispatchSummary
 
                 Spacer(minLength: 0)
 
@@ -673,7 +894,7 @@ private struct DispatchConfirmSheet: View {
                     Button {
                         onConfirm(effectiveDuration)
                     } label: {
-                        Label("確認派遣", systemImage: "arrow.right.circle.fill")
+                        Label(confirmButtonTitle, systemImage: "arrow.right.circle.fill")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
@@ -711,9 +932,6 @@ private struct DispatchConfirmSheet: View {
                     )
                 }
             }
-            Text("預計 \(estimatedEndTime.formatted(date: .omitted, time: .shortened)) 完成")
-                .font(.caption)
-                .foregroundStyle(.secondary)
         }
     }
 
@@ -747,10 +965,51 @@ private struct DispatchConfirmSheet: View {
                 maxVal: maxRunCount
             )
 
-            Text("預計 \(estimatedEndTime.formatted(date: .omitted, time: .shortened)) 完成")
-                .font(.caption)
-                .foregroundStyle(.secondary)
         }
+    }
+
+    // MARK: - 固定摘要
+
+    private var dispatchSummary: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                summaryItem(title: "總時長", value: durationLabel)
+                summaryItem(title: "輪數", value: "\(cycles) 輪")
+            }
+            HStack {
+                summaryItem(
+                    title: "完成時間",
+                    value: estimatedEndTime.formatted(date: .omitted, time: .shortened)
+                )
+                summaryItem(
+                    title: "預估獎勵",
+                    value: "\(estimatedMin)–\(estimatedMax) \(location.outputMaterial.displayName)"
+                )
+            }
+            if totalBonus > 0 {
+                Label("含加成 +\(totalBonus) / 輪", systemImage: "plus.circle.fill")
+                    .font(.caption2)
+                    .foregroundStyle(.green)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.green.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+
+    private func summaryItem(title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.caption)
+                .fontWeight(.semibold)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

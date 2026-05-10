@@ -307,14 +307,21 @@ struct BaseView: View {
     @ViewBuilder
     private func npcGatherSection() -> some View {
         Section("採集者營地") {
-            ForEach(GathererNpcDef.all) { npc in
-                npcGathererCard(def: npc, player: players.first)
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
+            LazyVGrid(
+                columns: [
+                    GridItem(.flexible(), spacing: 10),
+                    GridItem(.flexible(), spacing: 10),
+                ],
+                spacing: 10
+            ) {
+                ForEach(GathererNpcDef.all) { npc in
+                    npcGathererMiniCard(def: npc, player: players.first)
+                }
+                npcFarmerMiniCard()
             }
-            npcFarmerCard()
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
+            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 8, trailing: 16))
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
         }
     }
 
@@ -364,6 +371,242 @@ struct BaseView: View {
             .padding(6)
     }
 
+    // MARK: - 採集雙欄小卡（V10-4A）
+
+    @ViewBuilder
+    private func npcGathererMiniCard(def: GathererNpcDef, player: PlayerStateModel?) -> some View {
+        let step          = player?.onboardingStep ?? 3
+        let unlocked      = isNpcUnlocked(actorKey: def.actorKey, step: step)
+        let activeTask    = viewModel.gatherTaskForActor(def.actorKey, from: tasks)
+        let completedTask = tasks.first {
+            $0.actorKey == def.actorKey && $0.kind == .gather && $0.status == .completed
+        }
+        let tier          = player?.tier(for: def.actorKey) ?? 0
+        let color         = gathererColor(for: def.role)
+        let locName       = activeTask.flatMap { GatherLocationDef.find(key: $0.definitionKey)?.name }
+        let primaryOutput = primaryOutputText(for: def)
+        let statusText: String = {
+            if !unlocked { return gathererLockedText(step: step) }
+            if completedTask != nil { return "已完成，等待收下" }
+            if let activeTask {
+                return "\(locName ?? "採集中") · \(TaskCountdown.remaining(for: activeTask, relativeTo: appState.tick))"
+            }
+            return "閒置，點擊派遣"
+        }()
+
+        Button {
+            guard unlocked else { return }
+            if completedTask != nil {
+                appState.presentCompletedTasksIfNeeded()
+            } else {
+                selectedGathererDef = def
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                ZStack(alignment: .topTrailing) {
+                    NPCPortraitView(
+                        imageName: "npc_\(def.actorKey)",
+                        height: 96,
+                        cornerRadius: 10,
+                        padding: 5,
+                        imageOpacity: unlocked ? 1.0 : 0.45,
+                        fillWidth: true
+                    )
+
+                    miniStatusBadge(
+                        title: completedTask != nil ? "完成" : activeTask != nil ? "工作中" : unlocked ? "閒置" : "鎖定",
+                        color: completedTask != nil ? .orange : activeTask != nil ? color : unlocked ? .secondary : .gray
+                    )
+                    .padding(6)
+                }
+                .overlay(alignment: .topLeading) {
+                    if tier > 0 {
+                        TierBadgeView(tier: tier, color: color)
+                            .padding(6)
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(player?.npcDisplayName(for: def.actorKey) ?? def.name)
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(unlocked ? .primary : .secondary)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.85)
+                        .frame(minHeight: 32, alignment: .topLeading)
+
+                    Text(primaryOutput)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+
+                    Text(statusText)
+                        .font(.caption2)
+                        .fontWeight(completedTask != nil ? .semibold : .regular)
+                        .foregroundStyle(completedTask != nil ? Color.orange : activeTask != nil ? color : .secondary)
+                        .lineLimit(2)
+                        .frame(minHeight: 30, alignment: .topLeading)
+
+                    if let activeTask {
+                        ProgressView(value: activeTask.progress(relativeTo: appState.tick))
+                            .tint(color)
+                            .scaleEffect(y: 0.55)
+                    } else {
+                        ProgressView(value: completedTask != nil ? 1.0 : 0.0)
+                            .tint(completedTask != nil ? .orange : color.opacity(0.25))
+                            .scaleEffect(y: 0.55)
+                    }
+                }
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, minHeight: 212, alignment: .topLeading)
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay {
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke((completedTask != nil ? Color.orange : Color.clear).opacity(0.55), lineWidth: 1)
+            }
+            .opacity(unlocked ? 1.0 : 0.62)
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func npcFarmerMiniCard() -> some View {
+        let step           = players.first?.onboardingStep ?? 3
+        let unlocked       = isNpcUnlocked(actorKey: "farmer", step: step)
+        let tier           = players.first?.gatherer5Tier ?? 0
+        let plots          = min(tier + 1, AppConstants.FarmerPlot.maxPlots)
+        let activeTasks    = tasks.filter {
+            AppConstants.FarmerPlot.keys.contains($0.actorKey) &&
+            $0.kind == .farming &&
+            $0.status == .inProgress
+        }
+        let completedTask  = tasks.first {
+            AppConstants.FarmerPlot.keys.contains($0.actorKey) &&
+            $0.kind == .farming &&
+            $0.status == .completed
+        }
+        let activeTask     = activeTasks.first
+        let statusText: String = {
+            if !unlocked { return gathererLockedText(step: step) }
+            if completedTask != nil { return "作物成熟，等待收下" }
+            if let activeTask {
+                return "農作中 \(activeTasks.count)/\(plots) · \(TaskCountdown.remaining(for: activeTask, relativeTo: appState.tick))"
+            }
+            return "農田管理，點擊查看"
+        }()
+
+        Button {
+            guard unlocked else { return }
+            if completedTask != nil {
+                appState.presentCompletedTasksIfNeeded()
+            } else {
+                showFarmerDetailSheet = true
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                ZStack(alignment: .topTrailing) {
+                    NPCPortraitView(
+                        imageName: "npc_farmer",
+                        height: 96,
+                        cornerRadius: 10,
+                        padding: 5,
+                        imageOpacity: unlocked ? 1.0 : 0.45,
+                        fillWidth: true
+                    )
+
+                    miniStatusBadge(
+                        title: completedTask != nil ? "完成" : activeTask != nil ? "工作中" : unlocked ? "管理" : "鎖定",
+                        color: completedTask != nil ? .orange : activeTask != nil ? .yellow : unlocked ? .secondary : .gray
+                    )
+                    .padding(6)
+                }
+                .overlay(alignment: .topLeading) {
+                    if tier > 0 {
+                        TierBadgeView(tier: tier, color: .yellow)
+                            .padding(6)
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(players.first?.npcDisplayName(for: "farmer") ?? "農夫老禾")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(unlocked ? .primary : .secondary)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.85)
+                        .frame(minHeight: 32, alignment: .topLeading)
+
+                    Text("🌾 農田 \(plots) 塊")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+
+                    Text(statusText)
+                        .font(.caption2)
+                        .fontWeight(completedTask != nil ? .semibold : .regular)
+                        .foregroundStyle(completedTask != nil ? Color.orange : activeTask != nil ? Color.yellow : .secondary)
+                        .lineLimit(2)
+                        .frame(minHeight: 30, alignment: .topLeading)
+
+                    if let activeTask {
+                        ProgressView(value: activeTask.progress(relativeTo: appState.tick))
+                            .tint(.yellow)
+                            .scaleEffect(y: 0.55)
+                    } else {
+                        ProgressView(value: completedTask != nil ? 1.0 : 0.0)
+                            .tint(completedTask != nil ? .orange : .yellow.opacity(0.25))
+                            .scaleEffect(y: 0.55)
+                    }
+                }
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, minHeight: 212, alignment: .topLeading)
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay {
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke((completedTask != nil ? Color.orange : Color.clear).opacity(0.55), lineWidth: 1)
+            }
+            .opacity(unlocked ? 1.0 : 0.62)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func miniStatusBadge(title: String, color: Color) -> some View {
+        Text(title)
+            .font(.caption2)
+            .fontWeight(.semibold)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(.ultraThinMaterial)
+            .foregroundStyle(color)
+            .clipShape(Capsule())
+    }
+
+    private func gathererColor(for role: GathererRole) -> Color {
+        switch role {
+        case .woodcutter: return .green
+        case .miner:      return .gray
+        case .herbalist:  return .mint
+        case .fisherman:  return .cyan
+        }
+    }
+
+    private func primaryOutputText(for def: GathererNpcDef) -> String {
+        guard let material = def.locationKeys
+            .compactMap({ GatherLocationDef.find(key: $0)?.outputMaterial })
+            .first else {
+            return "素材採集"
+        }
+        return "\(material.icon) \(material.displayName)"
+    }
+
+    private func gathererLockedText(step: Int) -> String {
+        step < 3 ? "完成初始武器教程解鎖" : "尚未解鎖"
+    }
+
     // MARK: - NPC Card: 採集者
 
     @ViewBuilder
@@ -384,12 +627,12 @@ struct BaseView: View {
         Button { if unlocked { selectedGathererDef = def } } label: {
             HStack(spacing: 14) {
                 ZStack(alignment: .topTrailing) {
-                    Image(webp: "npc_\(def.actorKey)")
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 80, height: 80)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .opacity(isBusy ? 0.85 : 1.0)
+                    NPCPortraitView(
+                        imageName: "npc_\(def.actorKey)",
+                        width: 80,
+                        height: 80,
+                        imageOpacity: isBusy ? 0.85 : 1.0
+                    )
                     npcStatusBadge(isBusy: isBusy)
                 }
                 .overlay(alignment: .topLeading) {
@@ -450,11 +693,11 @@ struct BaseView: View {
         Button { if unlocked { showFarmerDetailSheet = true } } label: {
             HStack(spacing: 14) {
                 ZStack(alignment: .topTrailing) {
-                    Image(webp: "npc_farmer")
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 80, height: 80)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    NPCPortraitView(
+                        imageName: "npc_farmer",
+                        width: 80,
+                        height: 80
+                    )
                     npcStatusBadge(isBusy: false)
                 }
                 .overlay(alignment: .topLeading) {
@@ -505,12 +748,12 @@ struct BaseView: View {
         Button { if !isBusy && unlocked { showCraftSheet = true } } label: {
             HStack(spacing: 14) {
                 ZStack(alignment: .topTrailing) {
-                    Image(webp: "npc_blacksmith")
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 80, height: 80)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .opacity(isBusy ? 0.85 : 1.0)
+                    NPCPortraitView(
+                        imageName: "npc_blacksmith",
+                        width: 80,
+                        height: 80,
+                        imageOpacity: isBusy ? 0.85 : 1.0
+                    )
                     npcStatusBadge(isBusy: isBusy)
                 }
                 .overlay(alignment: .topLeading) {
@@ -579,12 +822,12 @@ struct BaseView: View {
         Button { if !isBusy && unlocked { showCuisineSheet = true } } label: {
             HStack(spacing: 14) {
                 ZStack(alignment: .topTrailing) {
-                    Image(webp: "npc_chef")
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 80, height: 80)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .opacity(isBusy ? 0.85 : 1.0)
+                    NPCPortraitView(
+                        imageName: "npc_chef",
+                        width: 80,
+                        height: 80,
+                        imageOpacity: isBusy ? 0.85 : 1.0
+                    )
                     npcStatusBadge(isBusy: isBusy)
                 }
                 .overlay(alignment: .topLeading) {
@@ -653,12 +896,12 @@ struct BaseView: View {
         Button { if !isBusy && unlocked { showPharmacySheet = true } } label: {
             HStack(spacing: 14) {
                 ZStack(alignment: .topTrailing) {
-                    Image(webp: "npc_pharmacist")
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 80, height: 80)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .opacity(isBusy ? 0.85 : 1.0)
+                    NPCPortraitView(
+                        imageName: "npc_pharmacist",
+                        width: 80,
+                        height: 80,
+                        imageOpacity: isBusy ? 0.85 : 1.0
+                    )
                     npcStatusBadge(isBusy: isBusy)
                 }
                 .overlay(alignment: .topLeading) {
@@ -723,12 +966,12 @@ struct BaseView: View {
         Button { if !isBusy { showOffhandSheet = true } } label: {
             HStack(spacing: 14) {
                 ZStack(alignment: .topTrailing) {
-                    Image(webp: "npc_weaponsmith")
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 80, height: 80)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .opacity(isBusy ? 0.85 : 1.0)
+                    NPCPortraitView(
+                        imageName: "npc_weaponsmith",
+                        width: 80,
+                        height: 80,
+                        imageOpacity: isBusy ? 0.85 : 1.0
+                    )
                     npcStatusBadge(isBusy: isBusy)
                 }
 
@@ -781,12 +1024,12 @@ struct BaseView: View {
         Button { if !isBusy { showAccessorySheet = true } } label: {
             HStack(spacing: 14) {
                 ZStack(alignment: .topTrailing) {
-                    Image(webp: "npc_jeweler")
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 80, height: 80)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .opacity(isBusy ? 0.85 : 1.0)
+                    NPCPortraitView(
+                        imageName: "npc_jeweler",
+                        width: 80,
+                        height: 80,
+                        imageOpacity: isBusy ? 0.85 : 1.0
+                    )
                     npcStatusBadge(isBusy: isBusy)
                 }
 
@@ -839,12 +1082,12 @@ struct BaseView: View {
         Button { if !isBusy { showTailorSheet = true } } label: {
             HStack(spacing: 14) {
                 ZStack(alignment: .topTrailing) {
-                    Image(webp: "npc_tailor")
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 80, height: 80)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .opacity(isBusy ? 0.85 : 1.0)
+                    NPCPortraitView(
+                        imageName: "npc_tailor",
+                        width: 80,
+                        height: 80,
+                        imageOpacity: isBusy ? 0.85 : 1.0
+                    )
                     npcStatusBadge(isBusy: isBusy)
                 }
 
@@ -891,11 +1134,11 @@ struct BaseView: View {
         Button { if unlocked { showMerchantSheet = true } } label: {
             HStack(spacing: 14) {
                 ZStack(alignment: .topTrailing) {
-                    Image(webp: "npc_merchant")
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 80, height: 80)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    NPCPortraitView(
+                        imageName: "npc_merchant",
+                        width: 80,
+                        height: 80
+                    )
                     npcStatusBadge(isBusy: false)
                 }
 
