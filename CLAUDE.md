@@ -248,6 +248,16 @@ rng  = SeededRNG(seed: seed)  // LCG 演算法
 
 ---
 
+## 分支工作流（重要）
+
+- `master` 是唯一長期基準分支；所有新功能、修 bug、文件整理都先從最新 `master` 拉出新分支。
+- `sit` 只作為 SIT 驗收分支；需要新一輪驗收時，先確認舊 SIT 已合回 `master`，再從 `master` 刪除重建。
+- Claude 新分支建議使用 `claude/` 前綴；Codex 新分支預設使用 `codex/` 前綴；兩者都不要從 `sit` 拉新工作。
+- 開工前固定先跑：`git fetch origin --prune`、`git switch master`、`git pull --ff-only origin master`。
+- 詳細命令與例外規則見 `BRANCHES.md`。若這裡和 `BRANCHES.md` 衝突，以 `BRANCHES.md` 為準。
+
+---
+
 ## 絕對不做的事（後端版本再說）
 
 - ❌ 後端 API / 伺服器（長期目標，先做好本地版）
