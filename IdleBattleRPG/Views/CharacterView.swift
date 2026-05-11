@@ -172,7 +172,7 @@ struct CharacterView: View {
             }
             .padding(.vertical, 4)
         } header: {
-            Text("🎯 引導任務")
+            TutorialStepHeader(step: 3)
         }
     }
 
@@ -199,7 +199,7 @@ struct CharacterView: View {
                 }
                 .padding(.vertical, 4)
             } header: {
-                Text("🎯 引導任務")
+                TutorialStepHeader(step: player.onboardingStep)
             }
         }
     }

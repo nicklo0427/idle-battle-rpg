@@ -277,11 +277,7 @@ struct BaseView: View {
                             .foregroundStyle(.orange)
                         TutorialRichText(runs: info.hint, font: .subheadline)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                        Text("\(currentStep)/\(totalSteps)")
-                            .font(.caption2)
-                            .monospacedDigit()
-                            .foregroundStyle(.orange.opacity(0.7))
-                            .fontWeight(.semibold)
+                        TutorialStepBadge(step: step)
                     }
                     Text(info.flavor)
                         .font(.caption)

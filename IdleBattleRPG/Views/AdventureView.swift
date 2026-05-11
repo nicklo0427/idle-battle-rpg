@@ -176,6 +176,8 @@ struct AdventureView: View {
                     )
                 }
                 .padding(.vertical, 4)
+            } header: {
+                TutorialStepHeader(step: 4)
             }
         }
     }
@@ -205,6 +207,8 @@ struct AdventureView: View {
                     )
                 }
                 .padding(.vertical, 4)
+            } header: {
+                TutorialStepHeader(step: 6)
             }
         }
     }
@@ -228,6 +232,8 @@ struct AdventureView: View {
                     )
                 }
                 .padding(.vertical, 4)
+            } header: {
+                TutorialStepHeader(step: 9)
             }
             .listRowBackground(Color.orange.opacity(0.08))
         }
@@ -252,6 +258,8 @@ struct AdventureView: View {
                     )
                 }
                 .padding(.vertical, 4)
+            } header: {
+                TutorialStepHeader(step: 10)
             }
             .listRowBackground(Color.orange.opacity(0.08))
         }
@@ -275,6 +283,8 @@ struct AdventureView: View {
                     )
                 }
                 .padding(.vertical, 4)
+            } header: {
+                TutorialStepHeader(step: 19)
             }
             .listRowBackground(Color.orange.opacity(0.08))
         }
@@ -813,6 +823,8 @@ private struct FloorDetailSheet: View {
                         plainColor: .secondary
                     )
                 }
+            } header: {
+                TutorialStepHeader(step: onboardingStep)
             }
             .listRowBackground(Color.orange.opacity(0.08))
         }
@@ -895,25 +907,28 @@ private struct FloorDetailSheet: View {
                         .font(.caption).foregroundStyle(.green)
                 } else if isTutorialElite || (heroStats?.power ?? 0) >= elite.minPowerRequired {
                     if isTutorialElite {
-                        HStack(alignment: .top, spacing: 8) {
-                            Image(systemName: "hand.tap.fill")
-                                .font(.caption)
-                                .foregroundStyle(.orange)
-                            TutorialRichText(
-                                runs: [
-                                    .plain("點擊"),
-                                    .action("挑戰菁英（引導戰）"),
-                                    .plain("。勝利後會解鎖"),
-                                    .equipment("防具配方"),
-                                    .plain("，接著回"),
-                                    .location("基地的生產者小屋"),
-                                    .plain("找"),
-                                    .action("裁縫師阿針"),
-                                    .plain("。"),
-                                ],
-                                font: .caption,
-                                plainColor: .secondary
-                            )
+                        VStack(alignment: .leading, spacing: 6) {
+                            TutorialStepBadge(step: 4)
+                            HStack(alignment: .top, spacing: 8) {
+                                Image(systemName: "hand.tap.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(.orange)
+                                TutorialRichText(
+                                    runs: [
+                                        .plain("點擊"),
+                                        .action("挑戰菁英（引導戰）"),
+                                        .plain("。勝利後會解鎖"),
+                                        .equipment("防具配方"),
+                                        .plain("，接著回"),
+                                        .location("基地的生產者小屋"),
+                                        .plain("找"),
+                                        .action("裁縫師阿針"),
+                                        .plain("。"),
+                                    ],
+                                    font: .caption,
+                                    plainColor: .secondary
+                                )
+                            }
                         }
                     }
 

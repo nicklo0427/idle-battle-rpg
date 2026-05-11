@@ -250,6 +250,10 @@ struct GathererDetailSheet: View {
             : (introDef?.introLine ?? "需要採集時，交給我。")
 
         VStack(alignment: .leading, spacing: 8) {
+            if tutorialRuns != nil, let step = player?.onboardingStep {
+                TutorialStepBadge(step: step)
+            }
+
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "bubble.left.fill")
                     .font(.subheadline)

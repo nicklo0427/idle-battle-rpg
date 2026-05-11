@@ -20,7 +20,6 @@ struct OnboardingBannerView: View {
     var body: some View {
         if step == 0 {
             stepSection(
-                badge:     "1 / 3",
                 icon:      "leaf.fill",
                 iconColor: .green,
                 headline:  "先派遣採集者",
@@ -40,7 +39,6 @@ struct OnboardingBannerView: View {
             )
         } else if step == 1 {
             stepSection(
-                badge:     "2 / 3",
                 icon:      "hammer.fill",
                 iconColor: .orange,
                 headline:  "委派鑄造師",
@@ -60,7 +58,6 @@ struct OnboardingBannerView: View {
             )
         } else if step == 2 {
             stepSection(
-                badge:     "3 / 3",
                 icon:      "map.fill",
                 iconColor: .purple,
                 headline:  "前往冒險頁出征",
@@ -83,7 +80,6 @@ struct OnboardingBannerView: View {
 
     @ViewBuilder
     private func stepSection(
-        badge: String,
         icon: String,
         iconColor: Color,
         headline: String,
@@ -101,12 +97,7 @@ struct OnboardingBannerView: View {
                     Text(headline)
                         .fontWeight(.semibold)
                     Spacer()
-                    Text(badge)
-                        .font(.caption2)
-                        .padding(.horizontal, 6).padding(.vertical, 2)
-                        .background(tint.opacity(0.15))
-                        .foregroundStyle(tint)
-                        .clipShape(Capsule())
+                    TutorialStepBadge(step: step, total: 3, tint: tint)
                 }
 
                 // 說明文字

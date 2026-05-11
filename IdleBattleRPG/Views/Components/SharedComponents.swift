@@ -76,6 +76,48 @@ struct TutorialRichText: View {
     }
 }
 
+// MARK: - TutorialStepBadge
+
+struct TutorialStepBadge: View {
+    let step: Int
+    var total: Int = OnboardingService.totalSteps
+    var tint: Color = .orange
+
+    private var current: Int {
+        min(max(step + 1, 1), max(total, 1))
+    }
+
+    var body: some View {
+        Text("Step \(step) · \(current)/\(total)")
+            .font(.caption2)
+            .fontWeight(.semibold)
+            .monospacedDigit()
+            .foregroundStyle(tint)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .background(tint.opacity(0.12))
+            .clipShape(Capsule())
+    }
+}
+
+struct TutorialStepHeader: View {
+    let step: Int
+    var title: String = "引導任務"
+    var tint: Color = .orange
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Label(title, systemImage: "flag.fill")
+            Spacer()
+            TutorialStepBadge(step: step, tint: tint)
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+    }
+}
+
 // MARK: - SmoothLinearProgressBar
 
 struct SmoothLinearProgressBar: View {
@@ -202,6 +244,7 @@ struct NPCDetailHeaderSection: View {
     var metricColor: Color = .secondary
     var dialogueTextOverride: String? = nil
     var dialogueRichTextOverride: [TutorialTextRun]? = nil
+    var tutorialStep: Int? = nil
     let onGrowth: () -> Void
     let onIntroSeen: () -> Void
 
@@ -317,6 +360,10 @@ struct NPCDetailHeaderSection: View {
             : (introDef?.introLine ?? "交給我吧。"))
 
         VStack(alignment: .leading, spacing: 8) {
+            if let tutorialStep {
+                TutorialStepBadge(step: tutorialStep)
+            }
+
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "bubble.left.fill")
                     .font(.subheadline)

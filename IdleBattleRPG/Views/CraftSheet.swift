@@ -98,6 +98,7 @@ struct CraftSheet: View {
                     player: player,
                     currentTier: currentTier,
                     dialogueRichTextOverride: tutorialDialogueRuns,
+                    tutorialStep: tutorialDialogueRuns == nil ? nil : 2,
                     onGrowth: { showGrowthSheet = true },
                     onIntroSeen: markIntroSeen
                 )

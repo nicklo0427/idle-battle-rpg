@@ -93,6 +93,7 @@ struct TailorSheet: View {
                     player: player,
                     currentTier: currentTier,
                     dialogueRichTextOverride: tutorialDialogueRuns,
+                    tutorialStep: tutorialDialogueRuns == nil ? nil : player?.onboardingStep,
                     onGrowth: { showGrowthSheet = true },
                     onIntroSeen: markIntroSeen
                 )
