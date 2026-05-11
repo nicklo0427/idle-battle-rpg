@@ -1,6 +1,6 @@
 # CLAUDE.md — AI 協作說明文件
 
-> 生活空檔放置 RPG，本地單機 iOS App。MVP 核心循環已完成（V1–V3），V4–V8 持續迭代中。
+> 生活空檔放置 RPG，本地單機 iOS App。MVP 核心循環已完成，專案已推進到 V10 新手敘事 / 教程 UX 收尾階段。
 
 ---
 
@@ -40,6 +40,13 @@
 | V8-1 | ✅ 完成 | 裝備稀有度擴充 |
 | V8-2 | ✅ 完成 | 生產者技能效果 + 本地通知 |
 | V8-3 | ✅ 完成 | 英雄等級上限 Lv30、進階技能、戰鬥統計、個人最佳記錄、地區主題重設計 |
+| V9-1 | ✅ 完成 | 視覺資產盤點、怪物 / NPC 圖、主要 UI polish |
+| V9-2 | ✅ 完成 | 基地 / 裝備 / 背包 / 冒險頁 layout polish |
+| V10-1 | ✅ 完成 | 新手敘事體驗 + 命名系統 |
+| V10-2 | ✅ 完成 | 教程速度、引導文案、菁英戰與 NPC 命名調整 |
+| V10-3 | ✅ 完成 | 引導 UX 審查與原生 UI 整合收尾 |
+
+> 目前 repo 的程式狀態新於部分歷史文件。遇到衝突時，以 `README.md`、`PROGRESS.md` 末尾、`tickets/README.md` 與實際 Swift 程式碼為準。
 
 ---
 
@@ -56,7 +63,9 @@
 
 ---
 
-## MVP 規格速查
+## MVP 規格速查（歷史參考）
+
+> 下列為 MVP 時期的核心規格速查，保留作為設計沿革。現在版本已有 4 裝備槽、Lv.30、職業 / 技能 / 天賦、4 區地下城、料理 / 藥水 / 農場等擴充；目前總覽請先讀 `README.md`。
 
 ### 玩家
 
@@ -127,9 +136,9 @@ winRate = clamp(0.10, 0.95, 0.50 + 0.40 × tanh(2 × (ratio - 1)))
 gold, heroLevel, availableStatPoints
 atkPoints, defPoints, hpPoints
 lastOpenedAt: Date
-hasUsedFirstCraftBoost: Bool
-hasUsedFirstDungeonBoost: Bool
-onboardingStep: Int   // 0~3，3 = 完成
+onboardingStep: Int   // MVP: 0~3；V10: 0~8，8 = 完成
+// V10 已移除 hasUsedFirstCraftBoost / hasUsedFirstDungeonBoost；
+// 新手流程改由教程任務與 onboardingStep 控制。
 ```
 
 **MaterialInventoryModel**（單例）
@@ -246,7 +255,7 @@ rng  = SeededRNG(seed: seed)  // LCG 演算法
 - ❌ 組隊 / 工會 / 聊天（需後端）
 - ❌ 季節性 / 節日活動（需後端）
 - ❌ 第二貨幣（鑽石 / 寶石）
-- ❌ 推播通知
+- ❌ 遠端推播 / 後端通知；本地通知可做，且目前已有 `NotificationService`
 - ❌ 商人每日刷新
 - ❌ 多件鑄造佇列
 - ❌ 提早從地下城召回（含懲罰機制）

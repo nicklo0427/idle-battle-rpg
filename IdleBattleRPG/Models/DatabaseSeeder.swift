@@ -15,7 +15,7 @@ struct DatabaseSeeder {
         seedPlayerState(context: context)
         seedMaterialInventory(context: context)
         seedConsumableInventory(context: context)
-        seedStartingEquipment(context: context)
+        backfillTutorialEquipment(context: context)
         seedDungeonProgression(context: context)
         backfillTalentPoints(context: context)
         backfillSkillPoints(context: context)
@@ -109,29 +109,37 @@ struct DatabaseSeeder {
     }
 
     @MainActor
-    private static func seedStartingEquipment(context: ModelContext) {
-        let descriptor = FetchDescriptor<EquipmentModel>()
-        let existing = (try? context.fetch(descriptor)) ?? []
-        guard existing.isEmpty else { return }
-
-        // V10-1: 新玩家裝備由教程鑄造結算時授予；只有完成教程的舊存檔（step == 8）才補種
+    private static func backfillTutorialEquipment(context: ModelContext) {
         let playerDescriptor = FetchDescriptor<PlayerStateModel>()
         guard let player = (try? context.fetch(playerDescriptor))?.first,
               !player.classKey.isEmpty,
-              player.onboardingStep >= 8 else { return }
+              let classDef = ClassDef.find(key: player.classKey) else { return }
 
-        guard let def = EquipmentDef.find(key: AppConstants.Initial.startingWeaponKey) else {
-            assertionFailure("Starting weapon def not found: \(AppConstants.Initial.startingWeaponKey)")
-            return
+        let descriptor = FetchDescriptor<EquipmentModel>()
+        let existing = (try? context.fetch(descriptor)) ?? []
+
+        if player.onboardingStep >= 3,
+           !existing.contains(where: { $0.slot == .weapon }),
+           let key = classDef.starterEquipmentKeys.first,
+           let def = EquipmentDef.find(key: key) {
+            context.insert(EquipmentModel(
+                defKey: def.key,
+                slot: def.slot,
+                rarity: def.rarity,
+                isEquipped: false
+            ))
         }
 
-        let sword = EquipmentModel(
-            defKey:     def.key,
-            slot:       def.slot,
-            rarity:     def.rarity,
-            isEquipped: true
-        )
-        context.insert(sword)
+        if player.onboardingStep >= 8,
+           !existing.contains(where: { $0.slot == .armor }),
+           let def = EquipmentDef.find(key: "wildland_armor") {
+            context.insert(EquipmentModel(
+                defKey: def.key,
+                slot: def.slot,
+                rarity: def.rarity,
+                isEquipped: false
+            ))
+        }
     }
 
     /// 舊存檔升級相容：classKey 非空代表已通過職業選擇，不需再看開場敘事

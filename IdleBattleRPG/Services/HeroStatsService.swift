@@ -21,12 +21,8 @@ struct HeroStatsService {
         var def = player.defPoints
         var hp  = player.hpPoints
 
-        // bs_mastery：精良及以上裝備屬性乘數（Lv0 mult = 1.0，行為與現在完全相同）
-        let masteryLv    = player.skillLevel(nodeKey: "bs_mastery", actorKey: "blacksmith")
-        let masteryBonus = 1.0 + Double(masteryLv) * 0.05
-
         for equip in equipped {
-            let mult = (masteryLv > 0 && equip.rarity != .common) ? masteryBonus : 1.0
+            let mult = qualityMultiplier(for: equip, player: player)
             atk += Int(Double(equip.atkBonus) * mult)
             def += Int(Double(equip.defBonus) * mult)
             hp  += Int(Double(equip.hpBonus)  * mult)
@@ -68,5 +64,29 @@ struct HeroStatsService {
         let descriptor = FetchDescriptor<EquipmentModel>()
         let all = (try? context.fetch(descriptor)) ?? []
         return all.filter { $0.isEquipped }
+    }
+
+    private static func qualityMultiplier(for equipment: EquipmentModel, player: PlayerStateModel) -> Double {
+        guard equipment.rarity != .common else { return 1.0 }
+
+        let actorKey: String
+        let nodeKey: String
+        switch equipment.slot {
+        case .weapon:
+            actorKey = AppConstants.Actor.blacksmith
+            nodeKey = "bs_mastery"
+        case .offhand:
+            actorKey = AppConstants.Actor.weaponsmith
+            nodeKey = "ws_mastery"
+        case .armor:
+            actorKey = AppConstants.Actor.tailor
+            nodeKey = "ta_mastery"
+        case .accessory:
+            actorKey = AppConstants.Actor.jeweler
+            nodeKey = "jw_mastery"
+        }
+
+        let level = player.skillLevel(nodeKey: nodeKey, actorKey: actorKey)
+        return 1.0 + Double(level) * 0.05
     }
 }

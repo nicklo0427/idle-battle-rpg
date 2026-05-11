@@ -8,6 +8,74 @@
 
 import SwiftUI
 
+// MARK: - TutorialRichText
+
+enum TutorialHighlightKind {
+    case action
+    case location
+    case equipment
+    case material
+
+    var color: Color {
+        switch self {
+        case .action:    return .orange
+        case .location:  return .green
+        case .equipment: return .blue
+        case .material:  return .brown
+        }
+    }
+}
+
+struct TutorialTextRun {
+    let text: String
+    let highlight: TutorialHighlightKind?
+
+    static func plain(_ text: String) -> TutorialTextRun {
+        TutorialTextRun(text: text, highlight: nil)
+    }
+
+    static func action(_ text: String) -> TutorialTextRun {
+        TutorialTextRun(text: text, highlight: .action)
+    }
+
+    static func location(_ text: String) -> TutorialTextRun {
+        TutorialTextRun(text: text, highlight: .location)
+    }
+
+    static func equipment(_ text: String) -> TutorialTextRun {
+        TutorialTextRun(text: text, highlight: .equipment)
+    }
+
+    static func material(_ text: String) -> TutorialTextRun {
+        TutorialTextRun(text: text, highlight: .material)
+    }
+}
+
+struct TutorialRichText: View {
+    let runs: [TutorialTextRun]
+    var font: Font = .subheadline
+    var plainColor: Color = .primary
+
+    var body: some View {
+        Text(attributedText)
+            .font(font)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var attributedText: AttributedString {
+        var result = AttributedString("")
+        for run in runs {
+            var segment = AttributedString(run.text)
+            segment.foregroundColor = run.highlight?.color ?? plainColor
+            if run.highlight != nil {
+                segment.inlinePresentationIntent = .stronglyEmphasized
+            }
+            result += segment
+        }
+        return result
+    }
+}
+
 // MARK: - NPCPortraitView
 //
 // 顯示 NPC WebP 圖像的固定舞台。外框可以維持卡片圓角，
@@ -49,6 +117,167 @@ struct NPCPortraitView: View {
                 .padding(padding)
                 .opacity(imageOpacity)
         }
+    }
+}
+
+// MARK: - NPCDetailHeaderSection
+
+struct NPCDetailHeaderSection: View {
+
+    let actorKey: String
+    let fallbackName: String
+    let roleName: String
+    let imageName: String
+    let color: Color
+    let player: PlayerStateModel?
+    let currentTier: Int
+    var statusTitle: String = "閒置"
+    var statusColor: Color = .secondary
+    var metricText: String? = nil
+    var metricColor: Color = .secondary
+    var dialogueTextOverride: String? = nil
+    var dialogueRichTextOverride: [TutorialTextRun]? = nil
+    let onGrowth: () -> Void
+    let onIntroSeen: () -> Void
+
+    private var displayName: String {
+        player?.npcDisplayName(for: actorKey) ?? fallbackName
+    }
+
+    private var hasSeenIntro: Bool {
+        player?.seenNpcIntroKeys.contains(actorKey) == true
+    }
+
+    private var introDef: NpcIntroDef? {
+        NpcIntroDef.find(actorKey: actorKey)
+    }
+
+    private var resolvedMetricText: String {
+        if let metricText { return metricText }
+        return currentTier > 0 ? "養成加成已啟用" : "尚無養成加成"
+    }
+
+    private var resolvedMetricColor: Color {
+        if metricText != nil { return metricColor }
+        return currentTier > 0 ? color : .secondary
+    }
+
+    var body: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .top, spacing: 14) {
+                    VStack(spacing: 8) {
+                        ZStack(alignment: .topTrailing) {
+                            NPCPortraitView(
+                                imageName: imageName,
+                                width: 112,
+                                height: 112,
+                                cornerRadius: 14,
+                                padding: 8
+                            )
+
+                            statusCapsule
+                                .padding(6)
+                        }
+                        .overlay(alignment: .topLeading) {
+                            TierBadgeView(tier: currentTier, alwaysShow: true, color: color)
+                                .padding(6)
+                        }
+
+                        VStack(spacing: 5) {
+                            Text(roleName)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.85)
+                            Text(resolvedMetricText)
+                                .font(.caption2)
+                                .foregroundStyle(resolvedMetricColor)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.85)
+                        }
+
+                        Button {
+                            onGrowth()
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "slider.horizontal.3")
+                                Text("狀態及養成")
+                                Image(systemName: "chevron.down")
+                                    .font(.caption2)
+                                    .rotationEffect(.degrees(-90))
+                            }
+                            .font(.caption2)
+                            .fontWeight(.semibold)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 6)
+                            .background(color.opacity(0.12))
+                            .foregroundStyle(color)
+                            .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .frame(width: 120)
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(displayName)
+                            .font(.headline)
+                            .fontWeight(.bold)
+                            .lineLimit(2)
+
+                        dialogueBubble
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .padding(.vertical, 4)
+        }
+    }
+
+    private var statusCapsule: some View {
+        Text(statusTitle)
+            .font(.caption2)
+            .fontWeight(.semibold)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(.ultraThinMaterial)
+            .foregroundStyle(statusColor)
+            .clipShape(Capsule())
+    }
+
+    @ViewBuilder
+    private var dialogueBubble: some View {
+        let text = dialogueTextOverride ?? (hasSeenIntro
+            ? (introDef?.shortLine ?? "交給我吧。")
+            : (introDef?.introLine ?? "交給我吧。"))
+
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "bubble.left.fill")
+                    .font(.subheadline)
+                    .foregroundStyle(.orange)
+                if let dialogueRichTextOverride {
+                    TutorialRichText(runs: dialogueRichTextOverride, font: .subheadline)
+                } else {
+                    Text(text)
+                        .font(.subheadline)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            if dialogueTextOverride == nil && dialogueRichTextOverride == nil && !hasSeenIntro {
+                HStack {
+                    Spacer()
+                    Button("明白了", action: onIntroSeen)
+                        .buttonStyle(.borderedProminent)
+                        .tint(.orange)
+                        .controlSize(.small)
+                }
+            }
+        }
+        .padding(10)
+        .background(Color.orange.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
 

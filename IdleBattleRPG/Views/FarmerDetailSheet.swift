@@ -24,6 +24,7 @@ struct FarmerDetailSheet: View {
     @State private var detailTab:      DetailTab = .upgrade
     @State private var alertMsg:       String?
     @State private var plantingPlot:   PendingPlot?
+    @State private var showGrowthSheet: Bool = false
 
     private enum DetailTab { case upgrade, skill }
 
@@ -65,8 +66,7 @@ struct FarmerDetailSheet: View {
     var body: some View {
         NavigationStack {
             List {
-                NpcIntroSection(actorKey: "farmer")
-                detailSection
+                farmerHeaderSection
                 farmPlotsSection
             }
             .navigationTitle(player?.npcDisplayName(for: "farmer") ?? "農場")
@@ -92,9 +92,43 @@ struct FarmerDetailSheet: View {
                     inventory: inventory
                 )
             }
+            .sheet(isPresented: $showGrowthSheet) {
+                NPCGrowthSheet(
+                    actorKey: "farmer",
+                    fallbackName: "農夫",
+                    roleName: "農田管理",
+                    imageName: "npc_farmer",
+                    color: .green,
+                    appState: appState,
+                    viewModel: viewModel
+                )
+            }
         }
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
+    }
+
+    private var farmerHeaderSection: some View {
+        NPCDetailHeaderSection(
+            actorKey: "farmer",
+            fallbackName: "農夫老禾",
+            roleName: "農田管理",
+            imageName: "npc_farmer",
+            color: .green,
+            player: player,
+            currentTier: currentTier,
+            statusTitle: "管理",
+            statusColor: .secondary,
+            metricText: "可用農田 \(availablePlots) / \(AppConstants.FarmerPlot.maxPlots) 塊",
+            metricColor: .green,
+            onGrowth: { showGrowthSheet = true },
+            onIntroSeen: markIntroSeen
+        )
+    }
+
+    private func markIntroSeen() {
+        player?.markNpcIntroSeen(for: "farmer")
+        try? context.save()
     }
 
     // MARK: - Section：農夫資訊（可收合）
@@ -381,19 +415,20 @@ struct FarmerDetailSheet: View {
 
     // 空閒
     private func idlePlotCard(plotIndex: Int) -> some View {
-        Button { plantingPlot = PendingPlot(plotIndex: plotIndex) } label: {
+        let isTutorialTarget = player?.onboardingStep == 16 && plotIndex == 0
+        return Button { plantingPlot = PendingPlot(plotIndex: plotIndex) } label: {
             VStack(spacing: 8) {
                 Image(systemName: "leaf")
                     .font(.title2)
-                    .foregroundStyle(.green)
+                    .foregroundStyle(isTutorialTarget ? .orange : .green)
                 Text("農田 \(plotIndex + 1)")
                     .font(.caption).fontWeight(.medium)
                 Text("空閒")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
-                Text("點擊種植")
+                Text(isTutorialTarget ? "下一步：種小麥" : "點擊種植")
                     .font(.caption2).fontWeight(.semibold)
-                    .foregroundStyle(.green)
+                    .foregroundStyle(isTutorialTarget ? .orange : .green)
             }
             .padding(12)
             .frame(maxWidth: .infinity)
@@ -404,7 +439,7 @@ struct FarmerDetailSheet: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 14)
-                    .strokeBorder(Color.green.opacity(0.2), lineWidth: 1)
+                    .strokeBorder(isTutorialTarget ? Color.orange.opacity(0.45) : Color.green.opacity(0.2), lineWidth: 1)
             )
         }
         .buttonStyle(.plain)

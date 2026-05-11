@@ -23,3 +23,9 @@ xcuserdata/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
+
+# Local agent/worktree state
+.claude/
+
+# Generated image diagnostics / temporary art outputs
+art-assets/generated/

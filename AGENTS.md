@@ -1,6 +1,6 @@
 # AGENTS.md — AI 協作說明文件
 
-> 生活空檔放置 RPG，本地單機 iOS App。MVP 核心循環已完成（V1–V3），目前進入 V4 新玩法規劃階段。
+> 生活空檔放置 RPG，本地單機 iOS App。MVP 核心循環已完成，專案已推進到 V10 新手敘事 / 教程 UX 收尾階段。
 
 ---
 
@@ -30,7 +30,14 @@
 | V3-1 | ✅ 完成 | 玩家累計統計 |
 | V3-3 | ✅ 完成 | 裝備比較 Diff |
 | V3-4 | ✅ 完成 | Dev 工具修正、採集時長縮放 |
-| V4 | 🔲 規劃中 | 見下方「V4 計劃方向」|
+| V4–V8 | ✅ 完成 | 戰鬥記錄、菁英戰、職業技能、天賦、農場、料理、藥水、稀有裝備、Lv.30 |
+| V9-1 | ✅ 完成 | 視覺資產盤點、怪物 / NPC 圖、主要 UI polish |
+| V9-2 | ✅ 完成 | 基地 / 裝備 / 背包 / 冒險頁 layout polish |
+| V10-1 | ✅ 完成 | 新手敘事體驗 + 命名系統 |
+| V10-2 | ✅ 完成 | 教程速度、引導文案、菁英戰與 NPC 命名調整 |
+| V10-3 | ✅ 完成 | 引導 UX 審查與原生 UI 整合收尾 |
+
+> 目前 repo 的程式狀態新於部分歷史文件。遇到衝突時，以 `README.md`、`PROGRESS.md` 末尾、`tickets/README.md` 與實際 Swift 程式碼為準。
 
 ---
 
@@ -47,7 +54,9 @@
 
 ---
 
-## MVP 規格速查
+## MVP 規格速查（歷史參考）
+
+> 下列為 MVP 時期的核心規格速查，保留作為設計沿革。現在版本已有 4 裝備槽、Lv.30、職業 / 技能 / 天賦、4 區地下城、料理 / 藥水 / 農場等擴充；目前總覽請先讀 `README.md`。
 
 ### 玩家
 
@@ -118,9 +127,9 @@ winRate = clamp(0.10, 0.95, 0.50 + 0.40 × tanh(2 × (ratio - 1)))
 gold, heroLevel, availableStatPoints
 atkPoints, defPoints, hpPoints
 lastOpenedAt: Date
-hasUsedFirstCraftBoost: Bool
-hasUsedFirstDungeonBoost: Bool
-onboardingStep: Int   // 0~3，3 = 完成
+onboardingStep: Int   // MVP: 0~3；V10: 0~8，8 = 完成
+// V10 已移除 hasUsedFirstCraftBoost / hasUsedFirstDungeonBoost；
+// 新手流程改由教程任務與 onboardingStep 控制。
 ```
 
 **MaterialInventoryModel**（單例）
@@ -230,50 +239,11 @@ rng  = SeededRNG(seed: seed)  // LCG 演算法
 
 ---
 
-## V4 計劃方向
+## 目前工作焦點
 
-以下是確認納入 V4 的功能，按優先順序排列。詳細 tickets 待規劃。
-
-### 優先 1 — 戰鬥文字記錄（A2a）
-結算時用相同 deterministic seed 重新生成每場戰鬥的事件描述：
-> 「進入廢棄礦坑第三層 → 遭遇礦穴巨魔 → 發動斬擊 → 造成 42 傷害 → 受到 18 傷害 → 勝利」
-
-- 只在玩家點「查看過程」時生成，不持久儲存
-- 新增 `BattleLogGenerator`（純計算，無副作用）
-- UI：任務完成後可展開「戰鬥記錄」Sheet
-
-### 優先 2 — 採集文字記錄（A3）
-採集結算時依地點、素材類型生成探索描述：
-> 「進入森林深處 → 發現古老橡樹叢 → 費力砍伐 → 獲得 6 木材」
-
-- 同樣只在查看時生成
-- 新增 `GatherLogGenerator`
-
-### 優先 3 — 解鎖門檻強化（A1）
-目前靠機率即可堆量通關。改為「首通需達到最低戰力門檻」：
-- `TaskCreationService` 新增戰力驗證
-- `FloorDetailSheet` 顯示「戰力不足，無法首通」提示
-
-### 優先 4 — 更多等級 / 地下城（A5）
-- 英雄等級上限：10 → 20
-- 增加地下城區域或樓層深度
-
-### 優先 5 — 成就系統（C）
-給玩家明確的長期目標：
-- 靜態定義成就列表（`AchievementDef`）
-- `AchievementService` 在各結算點檢查觸發
-- 角色頁新增「成就」Tab segment
-
-### 優先 6 — 視覺強化（D）
-- 各地下城區域差異化色調（荒野橙 / 礦坑藍灰 / 遺跡紫）
-- SF Symbols 動畫（進行中任務呼吸效果）
-- 精良裝備金色邊框
-
-### 後排 — 技能 / 天賦系統（A2b）
-大型系統，需獨立規劃，影響戰鬥計算全面重構。
-
-### 後排 — 社交功能（B）
-組隊 / 工會 / 聊天 / 季節活動，全部需要後端，另立版本規劃。
+- V10-3：新手引導重複 banner / 專屬捷徑按鈕整理已完成，後續以驗收與細節打磨為主。
+- 文檔整理：`README.md` 作總覽，`PROGRESS.md` 作歷史紀錄，`tickets/README.md` 作 ticket 索引，`BRANCHES.md` 作分支與工作樹說明。
+- 測試整理：主 app target build 通過；XCTest target 有舊 API 測試待更新。
 
 ---
 
@@ -284,7 +254,7 @@ rng  = SeededRNG(seed: seed)  // LCG 演算法
 - ❌ 組隊 / 工會 / 聊天（需後端）
 - ❌ 季節性 / 節日活動（需後端）
 - ❌ 第二貨幣（鑽石 / 寶石）
-- ❌ 推播通知
+- ❌ 遠端推播 / 後端通知；本地通知可做，且目前已有 `NotificationService`
 - ❌ 商人每日刷新
 - ❌ 多件鑄造佇列
 - ❌ 提早從地下城召回（含懲罰機制）

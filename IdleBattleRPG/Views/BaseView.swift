@@ -49,8 +49,8 @@ struct BaseView: View {
         NavigationStack {
             List {
 
-                // ── 教程進行中提示（T06–T11：step 0~7）──────────────
-                if let player = players.first, player.onboardingStep < 8 {
+                // ── 教程進行中提示 ───────────────────────────────
+                if let player = players.first, player.onboardingStep < OnboardingService.completedStep {
                     tutorialHintBanner(step: player.onboardingStep)
                 }
 
@@ -156,6 +156,14 @@ struct BaseView: View {
                 #endif
             }
             .navigationTitle("基地")
+            .onAppear {
+                syncBaseTabForOnboarding()
+                appState.onboardingService.prepareForCurrentStep()
+            }
+            .onChange(of: players.first?.onboardingStep) { _, _ in
+                syncBaseTabForOnboarding()
+                appState.onboardingService.prepareForCurrentStep()
+            }
             .sheet(item: $selectedGathererDef) { npc in
                 GathererDetailSheet(
                     npcDef:   npc,
@@ -189,7 +197,11 @@ struct BaseView: View {
                 )
             }
             .sheet(isPresented: $showMerchantSheet) {
-                MerchantSheet(isPresented: $showMerchantSheet)
+                MerchantSheet(
+                    isPresented: $showMerchantSheet,
+                    appState: appState,
+                    viewModel: viewModel
+                )
             }
             .sheet(isPresented: $showFarmerDetailSheet) {
                 FarmerDetailSheet(viewModel: viewModel, appState: appState)
@@ -247,35 +259,24 @@ struct BaseView: View {
 
     // MARK: - Tutorial（T06）
 
-    private func tutorialStepInfo(step: Int) -> (hint: String, flavor: String)? {
-        switch step {
-        case 0: ("前往採集者（樵夫）採集木材，準備打造初始武器", "要塞破舊，需要新的裝備來重整。")
-        case 1: ("等待採集完成…", "斧頭聲迴盪在林間，木材一根根累積。")
-        case 2: ("前往鑄造師打造你的初始武器", "原料到手，是時候打出第一把武器了。")
-        case 3: ("前往「角色」頁確認你的武器已裝備", "鐵鎚聲落定，武器剛淬煉完工。")
-        case 4: ("前往冒險頁，挑戰金穗之野的菁英敵人！", "手握武器，準備第一場真正的戰鬥。")
-        case 5: ("前往「生產」→「裁縫師」製作你的第一件防具", "有了武器，接下來要學會如何護住自己。")
-        case 6: ("前往「冒險」→ 金穗之野，探索獲取防具素材", "荒野中的獸皮正是打造護甲的材料。")
-        case 7: ("素材已備妥！前往裁縫師完成防具鑄造", "皮革的氣味充滿小屋，護甲即將成形。")
-        default: nil
-        }
+    private func tutorialStepInfo(step: Int) -> (hint: [TutorialTextRun], flavor: String)? {
+        guard let info = OnboardingService.stepInfo(step: step) else { return nil }
+        return (info.hint, info.flavor)
     }
 
     /// 教程進行中的頂部提示 Banner（P1 進度條 + P2 情境文字）
     @ViewBuilder
     private func tutorialHintBanner(step: Int) -> some View {
         if let info = tutorialStepInfo(step: step) {
-            let totalSteps  = 8
+            let totalSteps  = OnboardingService.totalSteps
             let currentStep = step + 1
             Section {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 6) {
                         Image(systemName: "flag.fill")
                             .foregroundStyle(.orange)
-                        Text(info.hint)
-                            .font(.subheadline)
-                            .foregroundStyle(.orange)
-                        Spacer()
+                        TutorialRichText(runs: info.hint, font: .subheadline)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         Text("\(currentStep)/\(totalSteps)")
                             .font(.caption2)
                             .monospacedDigit()
@@ -300,6 +301,20 @@ struct BaseView: View {
         if step <= 1 { return actorKey == AppConstants.Actor.gatherer1 }
         // step == 2
         return actorKey == AppConstants.Actor.gatherer1 || actorKey == AppConstants.Actor.blacksmith
+    }
+
+    private func syncBaseTabForOnboarding() {
+        guard let step = players.first?.onboardingStep else { return }
+        switch step {
+        case 0, 16, 20, 21:
+            baseTab = .gather
+        case 2, 5, 7, 17, 18:
+            baseTab = .produce
+        case 15:
+            baseTab = .shop
+        default:
+            break
+        }
     }
 
     // MARK: - NPC Tab Sections（V9-2 T01）
@@ -328,28 +343,98 @@ struct BaseView: View {
     @ViewBuilder
     private func npcProduceSection() -> some View {
         Section("生產者小屋") {
-            // 主手：鑄造師（始終顯示）
-            npcBlacksmithCard(player: players.first)
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-            // 副手 / 防具 / 飾品：職業選擇後（step >= 3）解鎖
-            if (players.first?.onboardingStep ?? 0) >= 3 {
-                npcWeaponsmithCard(player: players.first)
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                npcTailorCard(player: players.first)
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                npcJewelerCard(player: players.first)
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
+            let player = players.first
+            let step = player?.onboardingStep ?? 3
+
+            LazyVGrid(
+                columns: [
+                    GridItem(.flexible(), spacing: 10),
+                    GridItem(.flexible(), spacing: 10),
+                ],
+                spacing: 10
+            ) {
+                npcProducerMiniCard(
+                    actorKey: AppConstants.Actor.blacksmith,
+                    fallbackName: "鑄造師老鐵",
+                    imageName: "npc_blacksmith",
+                    roleName: "⚔️ 主手武器",
+                    color: .orange,
+                    unlocked: isNpcUnlocked(actorKey: AppConstants.Actor.blacksmith, step: step),
+                    idleStatus: "閒置，點擊製作",
+                    busyStatus: "鑄造中",
+                    completedStatus: "裝備完成，等待收下",
+                    player: player,
+                    onOpen: { showCraftSheet = true }
+                )
+                npcProducerMiniCard(
+                    actorKey: AppConstants.Actor.weaponsmith,
+                    fallbackName: "鍛造學徒小錘",
+                    imageName: "npc_weaponsmith",
+                    roleName: "🛡️ 副手製作",
+                    color: .orange,
+                    unlocked: isNpcUnlocked(actorKey: AppConstants.Actor.weaponsmith, step: step),
+                    idleStatus: "閒置，點擊製作",
+                    busyStatus: "鑄造中",
+                    completedStatus: "副手完成，等待收下",
+                    player: player,
+                    onOpen: { showOffhandSheet = true }
+                )
+                npcProducerMiniCard(
+                    actorKey: AppConstants.Actor.tailor,
+                    fallbackName: "裁縫師阿針",
+                    imageName: "npc_tailor",
+                    roleName: "🧥 防具製作",
+                    color: .teal,
+                    unlocked: isNpcUnlocked(actorKey: AppConstants.Actor.tailor, step: step),
+                    idleStatus: "閒置，點擊製作",
+                    busyStatus: "製作中",
+                    completedStatus: "防具完成，等待收下",
+                    player: player,
+                    onOpen: { showTailorSheet = true }
+                )
+                npcProducerMiniCard(
+                    actorKey: AppConstants.Actor.jeweler,
+                    fallbackName: "飾品師銀鈴",
+                    imageName: "npc_jeweler",
+                    roleName: "💍 飾品製作",
+                    color: .purple,
+                    unlocked: isNpcUnlocked(actorKey: AppConstants.Actor.jeweler, step: step),
+                    idleStatus: "閒置，點擊製作",
+                    busyStatus: "鑄造中",
+                    completedStatus: "飾品完成，等待收下",
+                    player: player,
+                    onOpen: { showAccessorySheet = true }
+                )
+                npcProducerMiniCard(
+                    actorKey: AppConstants.Actor.chef,
+                    fallbackName: "廚師阿灶",
+                    imageName: "npc_chef",
+                    roleName: "🍲 料理烹飪",
+                    color: .purple,
+                    unlocked: isNpcUnlocked(actorKey: AppConstants.Actor.chef, step: step),
+                    idleStatus: "閒置，點擊烹飪",
+                    busyStatus: "烹飪中",
+                    completedStatus: "料理完成，等待收下",
+                    player: player,
+                    onOpen: { showCuisineSheet = true }
+                )
+                npcProducerMiniCard(
+                    actorKey: AppConstants.Actor.pharmacist,
+                    fallbackName: "藥師白芷",
+                    imageName: "npc_pharmacist",
+                    roleName: "🧪 藥水煉製",
+                    color: .teal,
+                    unlocked: isNpcUnlocked(actorKey: AppConstants.Actor.pharmacist, step: step),
+                    idleStatus: "閒置，點擊煉製",
+                    busyStatus: "製藥中",
+                    completedStatus: "藥水完成，等待收下",
+                    player: player,
+                    onOpen: { showPharmacySheet = true }
+                )
             }
-            npcChefCard(player: players.first)
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-            npcPharmacistCard(player: players.first)
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
+            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 8, trailing: 16))
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
         }
     }
 
@@ -385,12 +470,14 @@ struct BaseView: View {
         let color         = gathererColor(for: def.role)
         let locName       = activeTask.flatMap { GatherLocationDef.find(key: $0.definitionKey)?.name }
         let primaryOutput = primaryOutputText(for: def)
+        let isTutorialTarget = OnboardingService.targetActor(for: step) == def.actorKey
         let statusText: String = {
             if !unlocked { return gathererLockedText(step: step) }
             if completedTask != nil { return "已完成，等待收下" }
             if let activeTask {
                 return "\(locName ?? "採集中") · \(TaskCountdown.remaining(for: activeTask, relativeTo: appState.tick))"
             }
+            if isTutorialTarget { return "下一步，點擊查看" }
             return "閒置，點擊派遣"
         }()
 
@@ -414,8 +501,8 @@ struct BaseView: View {
                     )
 
                     miniStatusBadge(
-                        title: completedTask != nil ? "完成" : activeTask != nil ? "工作中" : unlocked ? "閒置" : "鎖定",
-                        color: completedTask != nil ? .orange : activeTask != nil ? color : unlocked ? .secondary : .gray
+                        title: completedTask != nil ? "完成" : activeTask != nil ? "工作中" : isTutorialTarget ? "下一步" : unlocked ? "閒置" : "鎖定",
+                        color: completedTask != nil ? .orange : activeTask != nil ? color : isTutorialTarget ? .orange : unlocked ? .secondary : .gray
                     )
                     .padding(6)
                 }
@@ -464,7 +551,7 @@ struct BaseView: View {
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay {
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke((completedTask != nil ? Color.orange : Color.clear).opacity(0.55), lineWidth: 1)
+                    .stroke((completedTask != nil || isTutorialTarget ? Color.orange : Color.clear).opacity(0.55), lineWidth: 1)
             }
             .opacity(unlocked ? 1.0 : 0.62)
         }
@@ -488,12 +575,14 @@ struct BaseView: View {
             $0.status == .completed
         }
         let activeTask     = activeTasks.first
+        let isTutorialTarget = OnboardingService.targetActor(for: step) == "farmer"
         let statusText: String = {
             if !unlocked { return gathererLockedText(step: step) }
             if completedTask != nil { return "作物成熟，等待收下" }
             if let activeTask {
                 return "農作中 \(activeTasks.count)/\(plots) · \(TaskCountdown.remaining(for: activeTask, relativeTo: appState.tick))"
             }
+            if isTutorialTarget { return "下一步，種下小麥" }
             return "農田管理，點擊查看"
         }()
 
@@ -517,8 +606,8 @@ struct BaseView: View {
                     )
 
                     miniStatusBadge(
-                        title: completedTask != nil ? "完成" : activeTask != nil ? "工作中" : unlocked ? "管理" : "鎖定",
-                        color: completedTask != nil ? .orange : activeTask != nil ? .yellow : unlocked ? .secondary : .gray
+                        title: completedTask != nil ? "完成" : activeTask != nil ? "工作中" : isTutorialTarget ? "下一步" : unlocked ? "管理" : "鎖定",
+                        color: completedTask != nil ? .orange : activeTask != nil ? .yellow : isTutorialTarget ? .orange : unlocked ? .secondary : .gray
                     )
                     .padding(6)
                 }
@@ -567,7 +656,7 @@ struct BaseView: View {
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay {
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke((completedTask != nil ? Color.orange : Color.clear).opacity(0.55), lineWidth: 1)
+                    .stroke((completedTask != nil || isTutorialTarget ? Color.orange : Color.clear).opacity(0.55), lineWidth: 1)
             }
             .opacity(unlocked ? 1.0 : 0.62)
         }
@@ -605,6 +694,142 @@ struct BaseView: View {
 
     private func gathererLockedText(step: Int) -> String {
         step < 3 ? "完成初始武器教程解鎖" : "尚未解鎖"
+    }
+
+    // MARK: - 生產雙欄小卡（V10-4B）
+
+    @ViewBuilder
+    private func npcProducerMiniCard(
+        actorKey: String,
+        fallbackName: String,
+        imageName: String,
+        roleName: String,
+        color: Color,
+        unlocked: Bool,
+        idleStatus: String,
+        busyStatus: String,
+        completedStatus: String,
+        player: PlayerStateModel?,
+        onOpen: @escaping () -> Void
+    ) -> some View {
+        let activeTask = productionActiveTask(actorKey: actorKey)
+        let completedTask = productionCompletedTask(actorKey: actorKey)
+        let tier = player?.tier(for: actorKey) ?? 0
+        let taskName = activeTask.map { productionTaskName($0) }
+        let isTutorialTarget = OnboardingService.targetActor(for: player?.onboardingStep ?? 3) == actorKey
+        let statusText: String = {
+            if !unlocked { return gathererLockedText(step: player?.onboardingStep ?? 0) }
+            if completedTask != nil { return completedStatus }
+            if let activeTask {
+                return "\(taskName ?? "製作中") · \(TaskCountdown.remaining(for: activeTask, relativeTo: appState.tick))"
+            }
+            if isTutorialTarget { return "下一步，點擊開始" }
+            return idleStatus
+        }()
+
+        Button {
+            guard unlocked else { return }
+            if completedTask != nil {
+                appState.presentCompletedTasksIfNeeded()
+            } else if activeTask == nil {
+                onOpen()
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                ZStack(alignment: .topTrailing) {
+                    NPCPortraitView(
+                        imageName: imageName,
+                        height: 96,
+                        cornerRadius: 10,
+                        padding: 5,
+                        imageOpacity: unlocked ? 1.0 : 0.45,
+                        fillWidth: true
+                    )
+
+                    miniStatusBadge(
+                        title: completedTask != nil ? "完成" : activeTask != nil ? "工作中" : isTutorialTarget ? "下一步" : unlocked ? "閒置" : "鎖定",
+                        color: completedTask != nil ? .orange : activeTask != nil ? color : isTutorialTarget ? .orange : unlocked ? .secondary : .gray
+                    )
+                    .padding(6)
+                }
+                .overlay(alignment: .topLeading) {
+                    if tier > 0 {
+                        TierBadgeView(tier: tier, color: color)
+                            .padding(6)
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(player?.npcDisplayName(for: actorKey) ?? fallbackName)
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(unlocked ? .primary : .secondary)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.85)
+                        .frame(minHeight: 32, alignment: .topLeading)
+
+                    Text(roleName)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+
+                    Text(statusText)
+                        .font(.caption2)
+                        .fontWeight(completedTask != nil ? .semibold : .regular)
+                        .foregroundStyle(completedTask != nil ? Color.orange : activeTask != nil ? color : .secondary)
+                        .lineLimit(2)
+                        .frame(minHeight: 30, alignment: .topLeading)
+
+                    if let activeTask {
+                        ProgressView(value: activeTask.progress(relativeTo: appState.tick))
+                            .tint(color)
+                            .scaleEffect(y: 0.55)
+                    } else {
+                        ProgressView(value: completedTask != nil ? 1.0 : 0.0)
+                            .tint(completedTask != nil ? .orange : color.opacity(0.25))
+                            .scaleEffect(y: 0.55)
+                    }
+                }
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, minHeight: 212, alignment: .topLeading)
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay {
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke((completedTask != nil || isTutorialTarget ? Color.orange : Color.clear).opacity(0.55), lineWidth: 1)
+            }
+            .opacity(unlocked ? 1.0 : 0.62)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func productionActiveTask(actorKey: String) -> TaskModel? {
+        tasks.first { $0.actorKey == actorKey && $0.status == .inProgress }
+    }
+
+    private func productionCompletedTask(actorKey: String) -> TaskModel? {
+        tasks.first { $0.actorKey == actorKey && $0.status == .completed }
+    }
+
+    private func productionTaskName(_ task: TaskModel) -> String {
+        switch task.kind {
+        case .craft:
+            return CraftRecipeDef.find(key: task.definitionKey)?.name ?? "裝備製作"
+        case .cuisine:
+            if let cuisine = CuisineDef.find(task.definitionKey) {
+                return "\(cuisine.icon) \(cuisine.name)"
+            }
+            return "料理烹飪"
+        case .alchemy:
+            return PotionDef.find(task.definitionKey)?.name ?? "藥水煉製"
+        case .farming:
+            return "農作"
+        case .gather:
+            return GatherLocationDef.find(key: task.definitionKey)?.name ?? "採集"
+        case .dungeon:
+            return "探索"
+        }
     }
 
     // MARK: - NPC Card: 採集者
@@ -1130,6 +1355,7 @@ struct BaseView: View {
     private func npcMerchantCard() -> some View {
         let step     = players.first?.onboardingStep ?? 3
         let unlocked = isNpcUnlocked(actorKey: "merchant", step: step)
+        let isTutorialTarget = OnboardingService.targetActor(for: step) == "merchant"
 
         Button { if unlocked { showMerchantSheet = true } } label: {
             HStack(spacing: 14) {
@@ -1139,7 +1365,11 @@ struct BaseView: View {
                         width: 80,
                         height: 80
                     )
-                    npcStatusBadge(isBusy: false)
+                    if isTutorialTarget {
+                        miniStatusBadge(title: "下一步", color: .orange)
+                    } else {
+                        npcStatusBadge(isBusy: false)
+                    }
                 }
 
                 VStack(alignment: .leading, spacing: 3) {
@@ -1147,9 +1377,9 @@ struct BaseView: View {
                         .font(.subheadline).fontWeight(.medium)
                         .lineLimit(1)
                         .foregroundStyle(unlocked ? .primary : .secondary)
-                    Text(unlocked ? "點擊開啟商店" : "完成引導後解鎖")
+                    Text(isTutorialTarget ? "下一步：購買小麥種子" : unlocked ? "點擊開啟商店" : "完成引導後解鎖")
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(isTutorialTarget ? Color.orange : .secondary)
                 }
 
                 Spacer()
@@ -1161,6 +1391,10 @@ struct BaseView: View {
             .frame(maxWidth: .infinity)
             .background(Color(.secondarySystemGroupedBackground))
             .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay {
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(isTutorialTarget ? Color.orange.opacity(0.55) : Color.clear, lineWidth: 1)
+            }
             .opacity(unlocked ? 1.0 : 0.5)
         }
         .buttonStyle(.plain)
@@ -1175,22 +1409,7 @@ struct BaseView: View {
 
     private func devAddMaterials(_ amount: Int) {
         guard let inv = inventories.first else { return }
-        inv.wood             += amount
-        inv.ore              += amount
-        inv.hide             += amount
-        inv.crystalShard     += amount
-        inv.ancientFragment  += amount
-        inv.ancientWood      += amount
-        inv.refinedOre       += amount
-        inv.herb             += amount
-        inv.spiritHerb       += amount
-        inv.freshFish        += amount
-        inv.abyssFish        += amount
-        // V7-4 種子
-        inv.wheatSeed        += amount
-        inv.vegetableSeed    += amount
-        inv.fruitSeed        += amount
-        inv.spiritGrainSeed  += amount
+        MaterialType.allCases.forEach { inv.add(amount, of: $0) }
         try? context.save()
     }
 
@@ -1229,10 +1448,20 @@ struct BaseView: View {
         player.chefTier       = 0
         player.gatherer5Tier  = 0   // V7-4 農夫
         player.pharmacistTier = 0   // V7-4 製藥師
+        player.weaponsmithTier = 0
+        player.tailorTier      = 0
+        player.jewelerTier     = 0
         player.gatherer1SkillPoints = 0;  player.gatherer1SkillsRaw = ""
         player.gatherer2SkillPoints = 0;  player.gatherer2SkillsRaw = ""
         player.gatherer3SkillPoints = 0;  player.gatherer3SkillsRaw = ""
         player.gatherer4SkillPoints = 0;  player.gatherer4SkillsRaw = ""
+        player.farmerSkillPoints = 0;      player.farmerSkillsRaw = ""
+        player.blacksmithSkillPoints = 0;  player.blacksmithSkillsRaw = ""
+        player.chefSkillPoints = 0;        player.chefSkillsRaw = ""
+        player.pharmacistSkillPoints = 0;  player.pharmacistSkillsRaw = ""
+        player.weaponsmithSkillPoints = 0; player.weaponsmithSkillsRaw = ""
+        player.tailorSkillPoints = 0;      player.tailorSkillsRaw = ""
+        player.jewelerSkillPoints = 0;     player.jewelerSkillsRaw = ""
         try? context.save()
     }
 
@@ -1262,6 +1491,9 @@ struct BaseView: View {
 
         // ── 生產者 Tier ─────────────────────────────────────────────
         player.blacksmithTier  = 3
+        player.weaponsmithTier = 3
+        player.tailorTier      = 3
+        player.jewelerTier     = 3
         player.chefTier        = 3
         player.pharmacistTier  = 3
         player.gatherer5Tier   = 3   // 農夫 tier
@@ -1270,6 +1502,12 @@ struct BaseView: View {
         // bs_gold Lv2 → 鑄造金幣 -20%；bs_mastery Lv2 → 精良+以上屬性 ×1.10
         player.blacksmithSkillPoints = 0
         player.blacksmithSkillsRaw   = "bs_gold,bs_gold,bs_mastery,bs_mastery"
+        player.weaponsmithSkillPoints = 0
+        player.weaponsmithSkillsRaw   = "ws_gold,ws_gold,ws_mastery,ws_mastery"
+        player.tailorSkillPoints = 0
+        player.tailorSkillsRaw   = "ta_gold,ta_gold,ta_mastery,ta_mastery"
+        player.jewelerSkillPoints = 0
+        player.jewelerSkillsRaw   = "jw_gold,jw_gold,jw_mastery,jw_mastery"
 
         // ch_portion Lv2 → 25% 多產料理；ch_flavor Lv2 → 料理 buff ×1.20
         player.chefSkillPoints = 0

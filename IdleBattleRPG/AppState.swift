@@ -49,6 +49,9 @@ final class AppState {
     /// 技能升階服務（V6-2 T09）。
     let skillUpgradeService: SkillUpgradeService
 
+    /// 新手引導協調服務（V10 後續引導）。
+    let onboardingService: OnboardingService
+
     // MARK: - 播放模型（背景持續播放，關閉 Sheet 不中斷）
 
     /// 地下城戰鬥播放（全局共用一個，同時只有一個地下城任務）
@@ -87,6 +90,7 @@ final class AppState {
         self.npcUpgradeService   = NpcUpgradeService(context: context)
         self.talentService       = TalentService(context: context)
         self.skillUpgradeService = SkillUpgradeService(context: context)
+        self.onboardingService   = OnboardingService(context: context)
     }
 
     // MARK: - Timer 生命週期（由 ContentView 管理）

@@ -43,6 +43,8 @@ struct FarmerPlotSheet: View {
                 Section("選擇種子") {
                     ForEach(seedTypes, id: \.self) { seed in
                         let count = inventory?.amount(of: seed) ?? 0
+                        let isTutorialTarget = player?.onboardingStep == 16 && plotIndex == 0 && seed == .wheatSeed
+                        let isAllowed = player?.onboardingStep == 16 ? isTutorialTarget : true
                         Button {
                             seedToPlant = SeedSelection(seed: seed, count: count)
                         } label: {
@@ -65,8 +67,8 @@ struct FarmerPlotSheet: View {
                             }
                         }
                         .buttonStyle(.plain)
-                        .disabled(count < 1)
-                        .opacity(count < 1 ? 0.45 : 1.0)
+                        .disabled(count < 1 || !isAllowed)
+                        .opacity(count < 1 || !isAllowed ? 0.45 : 1.0)
                     }
                 }
             }
@@ -83,6 +85,7 @@ struct FarmerPlotSheet: View {
                     seed:      selection.seed,
                     seedCount: selection.count,
                     plotKey:   plotKey,
+                    isTutorial: player?.onboardingStep == 16 && plotIndex == 0 && selection.seed == .wheatSeed,
                     viewModel: viewModel,
                     onSuccess: { dismiss() }
                 )
@@ -95,6 +98,11 @@ struct FarmerPlotSheet: View {
                 Text(errorMessage ?? "發生未知錯誤")
             }
         }
+        .onAppear {
+            if player?.onboardingStep == 16 {
+                OnboardingService(context: context).prepareForCurrentStep()
+            }
+        }
     }
 }
 
@@ -105,6 +113,7 @@ private struct FarmDurationSheet: View {
     let seed:      MaterialType
     let seedCount: Int
     let plotKey:   String
+    let isTutorial: Bool
     let viewModel: BaseViewModel
     let onSuccess: () -> Void
 
@@ -124,11 +133,12 @@ private struct FarmDurationSheet: View {
     @State private var errorMessage:   String?
     @State private var showError:      Bool = false
 
-    init(seed: MaterialType, seedCount: Int, plotKey: String,
+    init(seed: MaterialType, seedCount: Int, plotKey: String, isTutorial: Bool = false,
          viewModel: BaseViewModel, onSuccess: @escaping () -> Void) {
         self.seed      = seed
         self.seedCount = seedCount
         self.plotKey   = plotKey
+        self.isTutorial = isTutorial
         self.viewModel = viewModel
         self.onSuccess = onSuccess
         _selectedPreset = State(initialValue: AppConstants.GatherDuration.short)
@@ -205,7 +215,7 @@ private struct FarmDurationSheet: View {
 
                     // 種下按鈕
                     Button { plant() } label: {
-                        Label("種下（\(effectiveRounds) 輪）", systemImage: "leaf.fill")
+                        Label(isTutorial ? "種下（教學 2 秒）" : "種下（\(effectiveRounds) 輪）", systemImage: "leaf.fill")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
@@ -282,12 +292,24 @@ private struct FarmDurationSheet: View {
     // MARK: - Action
 
     private func plant() {
-        let result = viewModel.startFarmTask(
-            plotKey:         plotKey,
-            seedType:        seed,
-            durationSeconds: effectiveDuration,
-            context:         context
-        )
+        let result: Result<Void, TaskCreationError>
+        if isTutorial {
+            do {
+                try TaskCreationService(context: context).createTutorialFarmTask()
+                result = .success(())
+            } catch let error as TaskCreationError {
+                result = .failure(error)
+            } catch {
+                result = .failure(.insufficientMaterials)
+            }
+        } else {
+            result = viewModel.startFarmTask(
+                plotKey:         plotKey,
+                seedType:        seed,
+                durationSeconds: effectiveDuration,
+                context:         context
+            )
+        }
         switch result {
         case .success:
             dismiss()

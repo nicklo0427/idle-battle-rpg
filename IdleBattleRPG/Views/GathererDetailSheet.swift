@@ -26,6 +26,7 @@ struct GathererDetailSheet: View {
     @State private var detailTab:         DetailTab = .upgrade
     @State private var pendingDispatch:   PendingDispatch?
     @State private var showRecallConfirm: Bool = false
+    @State private var showGrowthSheet:   Bool = false
 
     private enum DetailTab { case upgrade, skill }
 
@@ -130,6 +131,17 @@ struct GathererDetailSheet: View {
                     onCancel: { pendingDispatch = nil }
                 )
             }
+            .sheet(isPresented: $showGrowthSheet) {
+                NPCGrowthSheet(
+                    actorKey: npcDef.actorKey,
+                    fallbackName: npcDef.name,
+                    roleName: roleDisplayName,
+                    imageName: "npc_\(npcDef.actorKey)",
+                    color: .green,
+                    appState: appState,
+                    viewModel: viewModel
+                )
+            }
         }
     }
 
@@ -170,16 +182,14 @@ struct GathererDetailSheet: View {
                         }
 
                         Button {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                detailExpanded.toggle()
-                            }
+                            showGrowthSheet = true
                         } label: {
                             HStack(spacing: 4) {
                                 Image(systemName: "slider.horizontal.3")
                                 Text("狀態及養成")
                                 Image(systemName: "chevron.down")
                                     .font(.caption2)
-                                    .rotationEffect(.degrees(detailExpanded ? 0 : -90))
+                                    .rotationEffect(.degrees(-90))
                             }
                             .font(.caption2)
                             .fontWeight(.semibold)
@@ -202,22 +212,6 @@ struct GathererDetailSheet: View {
                         dialogueBubble
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                }
-
-                if detailExpanded {
-                    Divider()
-
-                    Picker("", selection: $detailTab) {
-                        Text("升級").tag(DetailTab.upgrade)
-                        Text("技能").tag(DetailTab.skill)
-                    }
-                    .pickerStyle(.segmented)
-
-                    if detailTab == .upgrade {
-                        upgradeContent
-                    } else {
-                        skillContent
-                    }
                 }
             }
             .padding(.vertical, 4)
@@ -250,6 +244,7 @@ struct GathererDetailSheet: View {
 
     @ViewBuilder
     private var dialogueBubble: some View {
+        let tutorialRuns = tutorialDialogueRuns
         let text = hasSeenIntro
             ? (introDef?.shortLine ?? "需要採集時，交給我。")
             : (introDef?.introLine ?? "需要採集時，交給我。")
@@ -259,12 +254,16 @@ struct GathererDetailSheet: View {
                 Image(systemName: "bubble.left.fill")
                     .font(.subheadline)
                     .foregroundStyle(.orange)
-                Text(text)
-                    .font(.subheadline)
-                    .fixedSize(horizontal: false, vertical: true)
+                if let tutorialRuns {
+                    TutorialRichText(runs: tutorialRuns, font: .subheadline)
+                } else {
+                    Text(text)
+                        .font(.subheadline)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
 
-            if !hasSeenIntro {
+            if tutorialRuns == nil && !hasSeenIntro {
                 HStack {
                     Spacer()
                     Button("明白了") {
@@ -279,6 +278,21 @@ struct GathererDetailSheet: View {
         .padding(10)
         .background(Color.orange.opacity(0.08))
         .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var tutorialDialogueRuns: [TutorialTextRun]? {
+        guard npcDef.actorKey == AppConstants.Actor.gatherer1,
+              player?.onboardingStep == 0 else { return nil }
+        return [
+            .plain("要塞需要資源。先"),
+            .action("點選"),
+            .location("森林"),
+            .plain("採集"),
+            .material("木材"),
+            .plain("吧，打把"),
+            .equipment("武器"),
+            .plain("就差這一步了。"),
+        ]
     }
 
     private var roleDisplayName: String {

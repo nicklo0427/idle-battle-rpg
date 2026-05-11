@@ -51,6 +51,8 @@ private struct BuyTradeSelection: Identifiable {
 struct MerchantSheet: View {
 
     @Binding var isPresented: Bool
+    let appState: AppState
+    let viewModel: BaseViewModel
 
     @Environment(\.modelContext) private var context
 
@@ -64,9 +66,14 @@ struct MerchantSheet: View {
     @State private var selectedSellTrade: SellTradeSelection?
     @State private var selectedBuyTrade:  BuyTradeSelection?
     @State private var alertMessage:      String?
+    @State private var showGrowthSheet = false
 
     private var player:    PlayerStateModel?       { players.first }
     private var inventory: MaterialInventoryModel? { inventories.first }
+    private var merchantIntroDef: NpcIntroDef? { NpcIntroDef.find(actorKey: "merchant") }
+    private var hasSeenMerchantIntro: Bool {
+        player?.seenNpcIntroKeys.contains("merchant") == true
+    }
 
     private let gridColumns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 3)
 
@@ -76,7 +83,7 @@ struct MerchantSheet: View {
         NavigationStack {
             VStack(spacing: 0) {
                 goldHeaderView
-                NpcIntroSection(actorKey: "merchant")
+                merchantHeaderView
                 Divider()
                 mainTabPicker
                 Divider()
@@ -125,18 +132,40 @@ struct MerchantSheet: View {
                     trade:     sel,
                     player:    player,
                     onConfirm: { times in
-                        if case .failure(let err) = MerchantService(context: context)
-                            .executeBuyTrade(tradeKey: sel.key, times: times) {
+                        let result = MerchantService(context: context)
+                            .executeBuyTrade(tradeKey: sel.key, times: times)
+                        if case .failure(let err) = result {
                             alertMessage = err.message
+                        } else if player?.onboardingStep == 15, sel.key == "buy_wheat_seed" {
+                            appState.onboardingService.advance(player: player, from: 15, to: 16)
+                            isPresented = false
                         }
                     }
                 )
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
             }
+            .sheet(isPresented: $showGrowthSheet) {
+                NPCGrowthSheet(
+                    actorKey: "merchant",
+                    fallbackName: "商人老錢",
+                    roleName: "市集交易",
+                    imageName: "npc_merchant",
+                    color: .yellow,
+                    appState: appState,
+                    viewModel: viewModel
+                )
+            }
         }
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
+        .onAppear {
+            if player?.onboardingStep == 15 {
+                appState.onboardingService.prepareForCurrentStep()
+                tab = .buy
+                buySubTab = .seed
+            }
+        }
     }
 
     // MARK: - 金幣頭部
@@ -155,6 +184,53 @@ struct MerchantSheet: View {
         .padding(.horizontal)
         .padding(.vertical, 10)
         .background(Color(.systemBackground))
+    }
+
+    private var merchantHeaderView: some View {
+        HStack(alignment: .top, spacing: 12) {
+            NPCPortraitView(
+                imageName: "npc_merchant",
+                width: 82,
+                height: 82,
+                cornerRadius: 14,
+                padding: 7
+            )
+            VStack(alignment: .leading, spacing: 7) {
+                Text(player?.npcDisplayName(for: "merchant") ?? "商人老錢")
+                    .font(.headline)
+                    .fontWeight(.bold)
+                Text(hasSeenMerchantIntro ? (merchantIntroDef?.shortLine ?? "買賣都好談。") : (merchantIntroDef?.introLine ?? "買賣都好談。"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 8) {
+                    Button {
+                        showGrowthSheet = true
+                    } label: {
+                        Label("狀態及養成", systemImage: "slider.horizontal.3")
+                            .font(.caption2)
+                            .fontWeight(.semibold)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.yellow)
+
+                    if !hasSeenMerchantIntro {
+                        Button("明白了") { markMerchantIntroSeen() }
+                            .font(.caption2)
+                            .buttonStyle(.bordered)
+                    }
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 10)
+        .background(Color(.systemBackground))
+    }
+
+    private func markMerchantIntroSeen() {
+        player?.markNpcIntroSeen(for: "merchant")
+        try? context.save()
     }
 
     // MARK: - 主 Tab
@@ -221,7 +297,7 @@ struct MerchantSheet: View {
         LazyVGrid(columns: gridColumns, spacing: 10) {
             ForEach(trades, id: \.key) { trade in
                 let owned   = inventory?.amount(of: trade.giveMaterial) ?? 0
-                let canSell = owned >= trade.giveAmount
+                let canSell = owned >= trade.giveAmount && player?.onboardingStep != 15
                 SellCard(
                     trade:   trade,
                     owned:   owned,
@@ -252,10 +328,13 @@ struct MerchantSheet: View {
 
         LazyVGrid(columns: gridColumns, spacing: 10) {
             ForEach(trades, id: \.key) { trade in
-                let canAfford = (player?.gold ?? 0) >= trade.goldCost
+                let isTutorialTarget = player?.onboardingStep == 15 && trade.key == "buy_wheat_seed"
+                let isAllowed = player?.onboardingStep == 15 ? isTutorialTarget : true
+                let canAfford = (player?.gold ?? 0) >= trade.goldCost && isAllowed
                 BuyCard(
                     trade:     trade,
                     canAfford: canAfford,
+                    isHighlighted: isTutorialTarget,
                     onTap: {
                         guard canAfford else { return }
                         selectedBuyTrade = BuyTradeSelection(
@@ -317,7 +396,18 @@ private struct SellCard: View {
 private struct BuyCard: View {
     let trade:     (key: String, goldCost: Int, receiveMaterial: MaterialType, receiveAmount: Int)
     let canAfford: Bool
+    var isHighlighted: Bool = false
     let onTap:     () -> Void
+
+    private var fillColor: Color {
+        if isHighlighted { return Color.orange.opacity(0.12) }
+        return canAfford ? Color.purple.opacity(0.08) : Color.secondary.opacity(0.06)
+    }
+
+    private var borderColor: Color {
+        if isHighlighted { return Color.orange.opacity(0.45) }
+        return canAfford ? Color.purple.opacity(0.2) : Color.clear
+    }
 
     var body: some View {
         Button(action: onTap) {
@@ -334,9 +424,9 @@ private struct BuyCard: View {
             .frame(maxWidth: .infinity)
             .aspectRatio(1.0, contentMode: .fit)
             .background(RoundedRectangle(cornerRadius: 12)
-                .fill(canAfford ? Color.purple.opacity(0.08) : Color.secondary.opacity(0.06)))
+                .fill(fillColor))
             .overlay(RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(canAfford ? Color.purple.opacity(0.2) : Color.clear, lineWidth: 1))
+                .strokeBorder(borderColor, lineWidth: 1))
             .opacity(canAfford ? 1.0 : 0.6)
         }
         .buttonStyle(.plain)
@@ -552,6 +642,10 @@ private struct BuyConfirmSheet: View {
              EquipmentModel.self, TaskModel.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
-    MerchantSheet(isPresented: .constant(true))
+    MerchantSheet(
+        isPresented: .constant(true),
+        appState: AppState(context: container.mainContext),
+        viewModel: BaseViewModel()
+    )
         .modelContainer(container)
 }

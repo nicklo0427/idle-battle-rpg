@@ -32,6 +32,7 @@ struct CraftSheet: View {
     @State private var upgradeAlertMsg: String?
     @State private var errorMessage:    String?
     @State private var showError = false
+    @State private var showGrowthSheet = false
 
     private enum DetailTab { case upgrade, skill }
 
@@ -72,19 +73,31 @@ struct CraftSheet: View {
         .filter { $0.slot == .weapon }   // 鑄造師只顯示武器配方
     }
 
+    private var tutorialDialogueRuns: [TutorialTextRun]? {
+        guard player?.onboardingStep == 2 else { return nil }
+        return [
+            .material("素材"),
+            .plain("齊了，我替你打一把趁手的"),
+            .equipment("武器"),
+            .plain("——稍等片刻便完工。"),
+        ]
+    }
+
     var body: some View {
         NavigationStack {
             List {
-
-                // 教程模式：step 2（採集完成，引導鑄造初始武器）
-                if player?.onboardingStep == 2 {
-                    tutorialCraftSection
-                }
-
-                NpcIntroSection(actorKey: AppConstants.Actor.blacksmith)
-
-                // ── 升級 Section（可收合）────────────────────────────────
-                upgradeSection
+                NPCDetailHeaderSection(
+                    actorKey: AppConstants.Actor.blacksmith,
+                    fallbackName: "鑄造師",
+                    roleName: "主手武器製作",
+                    imageName: "npc_blacksmith",
+                    color: .orange,
+                    player: player,
+                    currentTier: currentTier,
+                    dialogueRichTextOverride: tutorialDialogueRuns,
+                    onGrowth: { showGrowthSheet = true },
+                    onIntroSeen: markIntroSeen
+                )
 
                 recipeSection(
                     title: "普通武器",
@@ -123,23 +136,17 @@ struct CraftSheet: View {
             } message: {
                 Text(errorMessage ?? "發生未知錯誤")
             }
-        }
-    }
-
-    // MARK: - Section：教程鑄造（T06，step 2）
-
-    /// Step 2：純文字提示（無按鈕，點配方 row 觸發 2 秒鑄造）
-    @ViewBuilder
-    private var tutorialCraftSection: some View {
-        Section {
-            HStack(alignment: .top, spacing: 8) {
-                Image(systemName: "bubble.left.fill")
-                    .foregroundStyle(.orange)
-                Text("素材齊了，我替你打一把趁手的武器——稍等片刻便完工。")
-                    .font(.subheadline)
-                    .fixedSize(horizontal: false, vertical: true)
+            .sheet(isPresented: $showGrowthSheet) {
+                NPCGrowthSheet(
+                    actorKey: AppConstants.Actor.blacksmith,
+                    fallbackName: "鑄造師",
+                    roleName: "主手武器製作",
+                    imageName: "npc_blacksmith",
+                    color: .orange,
+                    appState: appState,
+                    viewModel: viewModel
+                )
             }
-            .padding(.vertical, 4)
         }
     }
 
@@ -153,6 +160,11 @@ struct CraftSheet: View {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             showError = true
         }
+    }
+
+    private func markIntroSeen() {
+        player?.markNpcIntroSeen(for: AppConstants.Actor.blacksmith)
+        try? context.save()
     }
 
     // MARK: - Section：升級（可收合）
@@ -306,7 +318,7 @@ struct CraftSheet: View {
     private func recipeSection(title: String, recipes: [CraftRecipeDef]) -> some View {
         Section(title) {
             ForEach(recipes, id: \.key) { recipe in
-                let canAfford = viewModel.canAffordRecipe(recipe, player: player, inventory: inventory)
+                let canAfford = isTutorialWeaponRecipe(recipe) || canAffordRecipe(recipe)
                 Button {
                     startCraft(recipe: recipe)
                 } label: {
@@ -323,6 +335,7 @@ struct CraftSheet: View {
     @ViewBuilder
     private func recipeRow(_ recipe: CraftRecipeDef, canAfford: Bool) -> some View {
         let materials = recipe.requiredMaterials
+        let isTutorialRecipe = isTutorialWeaponRecipe(recipe)
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 // 名稱 + 不可用圖示 + 稀有度 badge
@@ -344,8 +357,8 @@ struct CraftSheet: View {
                             .padding(.vertical, 2)
                             .background(recipe.rarity.displayColor.opacity(0.12), in: Capsule())
                     }
-                    // 引導 step 2：標示基礎武器食譜（點任何武器食譜都會觸發教程鑄造）
-                    if player?.onboardingStep == 2, recipe.key == "recipe_common_weapon" {
+                    // 引導 step 2：標示基礎武器食譜（點此列觸發教程鑄造）
+                    if isTutorialRecipe {
                         Text("推薦")
                             .font(.caption2).fontWeight(.semibold)
                             .foregroundStyle(.orange)
@@ -356,7 +369,7 @@ struct CraftSheet: View {
                 }
                 Spacer()
                 // 時長永遠顯示（讓玩家知道等待成本）
-                Text(recipe.durationDisplay)
+                Text(isTutorialRecipe ? "2 秒" : effectiveDurationDisplay(for: recipe))
                     .font(.caption)
                     .foregroundStyle(Color.secondary)
                     .monospacedDigit()
@@ -418,16 +431,23 @@ struct CraftSheet: View {
             }
 
             // 素材需求
-            HStack(spacing: 8) {
-                ForEach(0..<materials.count, id: \.self) { i in
-                    materialTag(materials[i])
+            if isTutorialRecipe {
+                Label("教學製作不消耗素材與金幣", systemImage: "bolt.fill")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            } else {
+                HStack(spacing: 8) {
+                    let goldCost = effectiveGoldCost(for: recipe)
+                    ForEach(0..<materials.count, id: \.self) { i in
+                        materialTag(materials[i])
+                    }
+                    HStack(spacing: 3) {
+                        Image(systemName: "coins").frame(width: 11, height: 11)
+                        Text("×\(goldCost)")
+                    }
+                    .font(.caption)
+                    .foregroundStyle((player?.gold ?? 0) >= goldCost ? Color.primary : Color.red)
                 }
-                HStack(spacing: 3) {
-                    Image(systemName: "coins").frame(width: 11, height: 11)
-                    Text("×\(recipe.goldCost)")
-                }
-                .font(.caption)
-                .foregroundStyle((player?.gold ?? 0) >= recipe.goldCost ? Color.primary : Color.red)
             }
         }
         .padding(.vertical, 4)
@@ -446,6 +466,45 @@ struct CraftSheet: View {
     }
 
     // MARK: - Helpers
+
+    private func isTutorialWeaponRecipe(_ recipe: CraftRecipeDef) -> Bool {
+        player?.onboardingStep == 2 && recipe.key == "recipe_common_weapon"
+    }
+
+    private func canAffordRecipe(_ recipe: CraftRecipeDef) -> Bool {
+        guard let player, let inventory else { return false }
+        let matOk = recipe.requiredMaterials.allSatisfy { inventory.amount(of: $0.material) >= $0.amount }
+        let goldOk = player.gold >= effectiveGoldCost(for: recipe)
+        return matOk && goldOk
+    }
+
+    private func effectiveGoldCost(for recipe: CraftRecipeDef) -> Int {
+        guard let player else { return recipe.goldCost }
+        let goldNode = ProducerSkillNodeDef.nodes(for: AppConstants.Actor.blacksmith)
+            .first { $0.goldReductionPerPoint > 0 }
+        let level = goldNode.map { player.skillLevel(nodeKey: $0.key, actorKey: AppConstants.Actor.blacksmith) } ?? 0
+        let discount = Double(level) * (goldNode?.goldReductionPerPoint ?? 0)
+        return max(0, Int(Double(recipe.goldCost) * (1.0 - discount)))
+    }
+
+    private func effectiveDurationDisplay(for recipe: CraftRecipeDef) -> String {
+        guard let player else { return recipe.durationDisplay }
+        let tierMult = NpcUpgradeDef.craftDurationMultiplier(tier: player.tier(for: AppConstants.Actor.blacksmith))
+        let speedNode = ProducerSkillNodeDef.nodes(for: AppConstants.Actor.blacksmith)
+            .first { $0.speedReductionPerPoint > 0 }
+        let level = speedNode.map { player.skillLevel(nodeKey: $0.key, actorKey: AppConstants.Actor.blacksmith) } ?? 0
+        let skillMult = 1.0 - Double(level) * (speedNode?.speedReductionPerPoint ?? 0)
+        let seconds = max(30, Int(Double(recipe.durationSeconds) * tierMult * skillMult))
+        return formatDuration(seconds)
+    }
+
+    private func formatDuration(_ seconds: Int) -> String {
+        if seconds < 60 { return "\(seconds) 秒" }
+        let minutes = seconds / 60
+        let remainder = seconds % 60
+        if remainder == 0 { return "\(minutes) 分鐘" }
+        return "\(minutes) 分 \(remainder) 秒"
+    }
 
     private func upgradeRow(label: String, required: Int, have: Int) -> some View {
         HStack {
@@ -482,8 +541,8 @@ struct CraftSheet: View {
     // MARK: - Action
 
     private func startCraft(recipe: CraftRecipeDef) {
-        // 引導 step 2：點任何武器食譜都觸發 tutorial craft（2 秒免費，給予職業初始武器）
-        if let player, player.onboardingStep == 2, recipe.slot == .weapon {
+        // 引導 step 2：點推薦的基礎武器食譜觸發 tutorial craft（2 秒免費，給予職業初始武器）
+        if isTutorialWeaponRecipe(recipe) {
             startTutorialCraft()
             return
         }

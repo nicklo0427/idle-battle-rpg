@@ -200,8 +200,6 @@ final class AchievementConditionTests: XCTestCase {
             defPoints: 3,
             hpPoints: 20,
             lastOpenedAt: Date(),
-            hasUsedFirstCraftBoost: false,
-            hasUsedFirstDungeonBoost: false,
             onboardingStep: 0
         )
         p.totalBattlesWon   = battlesWon

@@ -15,6 +15,9 @@ enum NpcKind: String, CaseIterable {
     case chef         // 廚師（V7-3）
     case farmer       // 農夫（V7-4）
     case pharmacist   // 製藥師（V7-4）
+    case weaponsmith  // 鍛造學徒（副手）
+    case tailor       // 裁縫師（防具）
+    case jeweler      // 飾品師
 }
 
 // MARK: - 升級成本定義
@@ -114,6 +117,30 @@ enum NpcUpgradeDef {
         .init(fromTier: 2, expCost: 900, materialCosts: [(.spiritHerb, 20), (.wheat, 10)],       goldCost: 2000),
     ]
 
+    // MARK: 鍛造學徒升級成本（副手：礦石 / 精煉礦 / 魔晶石）
+
+    static let weaponsmithCosts: [NpcUpgradeCostDef] = [
+        .init(fromTier: 0, expCost:  80, materialCosts: [(.ore, 10)],             goldCost:  400),
+        .init(fromTier: 1, expCost: 250, materialCosts: [(.refinedOre, 5)],       goldCost: 1200),
+        .init(fromTier: 2, expCost: 700, materialCosts: [(.crystalShard, 5)],     goldCost: 2500),
+    ]
+
+    // MARK: 裁縫師升級成本（防具：獸皮 / 野豬獠牙 / 古代碎片）
+
+    static let tailorCosts: [NpcUpgradeCostDef] = [
+        .init(fromTier: 0, expCost:  80, materialCosts: [(.hide, 10)],            goldCost:  400),
+        .init(fromTier: 1, expCost: 250, materialCosts: [(.driedHideBundle, 5)],  goldCost: 1200),
+        .init(fromTier: 2, expCost: 700, materialCosts: [(.ancientFragment, 3)],  goldCost: 2500),
+    ]
+
+    // MARK: 飾品師升級成本（飾品：魔晶石 / 古代碎片 / 沉王印璽）
+
+    static let jewelerCosts: [NpcUpgradeCostDef] = [
+        .init(fromTier: 0, expCost:  80, materialCosts: [(.crystalShard, 5)],     goldCost:  500),
+        .init(fromTier: 1, expCost: 250, materialCosts: [(.ancientFragment, 3)],  goldCost: 1400),
+        .init(fromTier: 2, expCost: 700, materialCosts: [(.sunkenKingSeal, 1)],   goldCost: 3000),
+    ]
+
     // MARK: 採集者每 Tier 加成
     //
     // Tier 0：+0（基礎）
@@ -157,6 +184,9 @@ enum NpcUpgradeDef {
         case .chef:        return chefCosts.first        { $0.fromTier == fromTier }
         case .farmer:      return farmerCosts.first      { $0.fromTier == fromTier }
         case .pharmacist:  return pharmacistCosts.first  { $0.fromTier == fromTier }
+        case .weaponsmith: return weaponsmithCosts.first { $0.fromTier == fromTier }
+        case .tailor:      return tailorCosts.first      { $0.fromTier == fromTier }
+        case .jeweler:     return jewelerCosts.first     { $0.fromTier == fromTier }
         }
     }
 }

@@ -80,9 +80,12 @@ struct NpcUpgradeService {
         case "gatherer_4": player.gatherer4Tier  += 1
         case "chef":        player.chefTier        += 1
         // V7-4 農田（4 塊田共用同一 Tier）
-        case "farmer_plot_1", "farmer_plot_2", "farmer_plot_3", "farmer_plot_4":
+        case "farmer", "farmer_plot_1", "farmer_plot_2", "farmer_plot_3", "farmer_plot_4":
             player.gatherer5Tier += 1
         case "pharmacist":  player.pharmacistTier  += 1
+        case "weaponsmith": player.weaponsmithTier += 1
+        case "tailor":      player.tailorTier      += 1
+        case "jeweler":     player.jewelerTier     += 1
         default: break
         }
 
@@ -95,9 +98,12 @@ struct NpcUpgradeService {
         case "blacksmith":  player.blacksmithSkillPoints += 1
         case "chef":        player.chefSkillPoints       += 1
         case "pharmacist":  player.pharmacistSkillPoints += 1
-        case "farmer_plot_1", "farmer_plot_2",
+        case "farmer", "farmer_plot_1", "farmer_plot_2",
              "farmer_plot_3", "farmer_plot_4":
                             player.farmerSkillPoints     += 1
+        case "weaponsmith": player.weaponsmithSkillPoints += 1
+        case "tailor":      player.tailorSkillPoints      += 1
+        case "jeweler":     player.jewelerSkillPoints     += 1
         default: break
         }
 

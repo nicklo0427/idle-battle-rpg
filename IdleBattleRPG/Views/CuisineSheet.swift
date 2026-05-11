@@ -27,6 +27,7 @@ struct CuisineSheet: View {
     @State private var upgradeExpanded: Bool = true
     @State private var detailTab:       DetailTab = .upgrade
     @State private var upgradeAlertMsg: String?
+    @State private var showGrowthSheet: Bool = false
 
     private enum DetailTab { case upgrade, skill }
     @State private var errorMessage:    String?
@@ -54,19 +55,28 @@ struct CuisineSheet: View {
         NavigationStack {
             List {
 
-                NpcIntroSection(actorKey: AppConstants.Actor.chef)
-
-                // ── 升級 Section（可收合）────────────────────────────────
-                upgradeSection
+                NPCDetailHeaderSection(
+                    actorKey: AppConstants.Actor.chef,
+                    fallbackName: "廚師阿灶",
+                    roleName: "料理烹飪",
+                    imageName: "npc_chef",
+                    color: .purple,
+                    player: player,
+                    currentTier: currentTier,
+                    onGrowth: { showGrowthSheet = true },
+                    onIntroSeen: markIntroSeen
+                )
 
                 // ── 料理配方 ────────────────────────────────────────
                 Section {
                     ForEach(CuisineDef.all, id: \.key) { cuisine in
-                        let canAfford = viewModel.canAffordCuisine(cuisine, player: player, inventory: inventory)
+                        let isTutorialTarget = player?.onboardingStep == 17 && cuisine.key == "fish_stew"
+                        let isAllowed = player?.onboardingStep == 17 ? isTutorialTarget : true
+                        let canAfford = viewModel.canAffordCuisine(cuisine, player: player, inventory: inventory) && isAllowed
                         Button {
                             startCooking(cuisine: cuisine)
                         } label: {
-                            cuisineRow(cuisine, canAfford: canAfford)
+                            cuisineRow(cuisine, canAfford: canAfford, isHighlighted: isTutorialTarget)
                         }
                         .buttonStyle(.plain)
                         .disabled(!canAfford)
@@ -98,7 +108,28 @@ struct CuisineSheet: View {
             } message: {
                 Text(errorMessage ?? "發生未知錯誤")
             }
+            .sheet(isPresented: $showGrowthSheet) {
+                NPCGrowthSheet(
+                    actorKey: AppConstants.Actor.chef,
+                    fallbackName: "廚師阿灶",
+                    roleName: "料理烹飪",
+                    imageName: "npc_chef",
+                    color: .purple,
+                    appState: appState,
+                    viewModel: viewModel
+                )
+            }
         }
+        .onAppear {
+            if player?.onboardingStep == 17 {
+                appState.onboardingService.prepareForCurrentStep()
+            }
+        }
+    }
+
+    private func markIntroSeen() {
+        player?.markNpcIntroSeen(for: AppConstants.Actor.chef)
+        try? context.save()
     }
 
     // MARK: - Section：升級（可收合）
@@ -248,7 +279,7 @@ struct CuisineSheet: View {
     // MARK: - Cuisine Row
 
     @ViewBuilder
-    private func cuisineRow(_ cuisine: CuisineDef, canAfford: Bool) -> some View {
+    private func cuisineRow(_ cuisine: CuisineDef, canAfford: Bool, isHighlighted: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text(cuisine.icon)
@@ -311,6 +342,15 @@ struct CuisineSheet: View {
         }
         .padding(.vertical, 4)
         .opacity(canAfford ? 1.0 : 0.55)
+        .padding(6)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(isHighlighted ? Color.orange.opacity(0.08) : Color.clear)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(isHighlighted ? Color.orange.opacity(0.35) : Color.clear, lineWidth: 1)
+        )
     }
 
     // MARK: - Helpers
@@ -358,7 +398,19 @@ struct CuisineSheet: View {
     // MARK: - Action
 
     private func startCooking(cuisine: CuisineDef) {
-        let result = viewModel.startCuisineTask(recipeKey: cuisine.key, context: context)
+        let result: Result<Void, TaskCreationError>
+        if player?.onboardingStep == 17, cuisine.key == "fish_stew" {
+            do {
+                try TaskCreationService(context: context).createTutorialCuisineTask()
+                result = .success(())
+            } catch let error as TaskCreationError {
+                result = .failure(error)
+            } catch {
+                result = .failure(.recipeNotFound(cuisine.key))
+            }
+        } else {
+            result = viewModel.startCuisineTask(recipeKey: cuisine.key, context: context)
+        }
         switch result {
         case .success:
             dismiss()

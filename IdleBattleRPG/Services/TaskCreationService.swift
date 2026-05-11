@@ -28,6 +28,7 @@ enum TaskCreationError: Error, LocalizedError {
     case noPlayerState
     case noInventory
     case insufficientConsumable(String)
+    case onboardingBlocked
 
     var errorDescription: String? {
         switch self {
@@ -41,6 +42,7 @@ enum TaskCreationError: Error, LocalizedError {
         case .noPlayerState:         return "找不到玩家資料"
         case .noInventory:           return "找不到素材庫存"
         case .insufficientConsumable: return "消耗品庫存不足"
+        case .onboardingBlocked:     return "請先完成目前的新手引導目標"
         }
     }
 }
@@ -57,12 +59,19 @@ struct TaskCreationService {
         self.repository = TaskRepository(context: context)
     }
 
+    private func assertNormalTaskAllowedDuringOnboarding() throws {
+        let player = (try? context.fetch(FetchDescriptor<PlayerStateModel>()))?.first
+        guard let player, player.onboardingStep < OnboardingService.completedStep else { return }
+        throw TaskCreationError.onboardingBlocked
+    }
+
     // MARK: - 採集任務
 
     /// 建立採集任務。
     /// 驗證：地點存在、該採集者目前沒有進行中任務。
     /// durationSeconds：玩家選擇的時長；需屬於 def.durationOptions 之一。
     func createGatherTask(actorKey: String, locationKey: String, durationSeconds: Int) throws {
+        try assertNormalTaskAllowedDuringOnboarding()
         guard let def = GatherLocationDef.find(key: locationKey) else {
             throw TaskCreationError.locationNotFound(locationKey)
         }
@@ -100,65 +109,13 @@ struct TaskCreationService {
     /// 驗證：配方存在、鑄造師閒置、金幣足夠、素材足夠。
     /// 建立前立即扣除金幣和素材，resultCraftedEquipKey 在建立時填入。
     func createCraftTask(recipeKey: String) throws {
-        guard let def = CraftRecipeDef.find(key: recipeKey) else {
-            throw TaskCreationError.recipeNotFound(recipeKey)
-        }
-
-        // 鑄造師是否閒置
-        let inProgress = repository.fetchInProgress()
-        if inProgress.contains(where: { $0.actorKey == AppConstants.Actor.blacksmith }) {
-            throw TaskCreationError.actorBusy(AppConstants.Actor.blacksmith)
-        }
-
-        // 讀取玩家與庫存
-        let playerDesc    = FetchDescriptor<PlayerStateModel>()
-        let inventoryDesc = FetchDescriptor<MaterialInventoryModel>()
-        guard let player    = (try? context.fetch(playerDesc))?.first    else { throw TaskCreationError.noPlayerState }
-        guard let inventory = (try? context.fetch(inventoryDesc))?.first else { throw TaskCreationError.noInventory }
-
-        // bs_gold：每點降低 10% 鑄造金幣成本
-        let goldLv        = player.skillLevel(nodeKey: "bs_gold", actorKey: AppConstants.Actor.blacksmith)
-        let goldDiscount  = Double(goldLv) * 0.10
-        let effectiveGold = max(0, Int(Double(def.goldCost) * (1.0 - goldDiscount)))
-
-        // 驗證資源
-        guard player.gold >= effectiveGold else { throw TaskCreationError.insufficientGold }
-        for req in def.requiredMaterials {
-            guard inventory.amount(of: req.material) >= req.amount else {
-                throw TaskCreationError.insufficientMaterials
-            }
-        }
-
-        // 扣除資源
-        player.gold -= effectiveGold
-        for req in def.requiredMaterials {
-            inventory.deduct(req.amount, of: req.material)
-        }
-
-        let tierMult  = NpcUpgradeDef.craftDurationMultiplier(tier: player.blacksmithTier)
-        let speedNode = ProducerSkillNodeDef.nodes(for: AppConstants.Actor.blacksmith)
-            .first { $0.speedReductionPerPoint > 0 }
-        let speedLv   = speedNode.map { player.skillLevel(nodeKey: $0.key, actorKey: AppConstants.Actor.blacksmith) } ?? 0
-        let skillMult = 1.0 - Double(speedLv) * (speedNode?.speedReductionPerPoint ?? 0)
-        let duration  = max(30, Int(Double(def.durationSeconds) * tierMult * skillMult))
-        let now = Date.now
-        let task = TaskModel(
-            kind:          .craft,
-            actorKey:      AppConstants.Actor.blacksmith,
-            definitionKey: recipeKey,
-            startedAt:     now,
-            endsAt:        now.addingTimeInterval(TimeInterval(duration)),
-            resultCraftedEquipKey: def.outputEquipmentKey
-        )
-        // repository.insert 內部呼叫 context.save()，原子儲存扣除+建立
-        repository.insert(task)
-        NotificationService.requestPermissionIfNeeded()
-        NotificationService.schedule(for: task)
+        try createEquipmentCraftTask(recipeKey: recipeKey, actorKey: AppConstants.Actor.blacksmith)
     }
 
     /// 建立防具鑄造任務（皮甲師 actorKey）。
     /// 驗證：配方存在、皮甲師閒置、金幣足夠、素材足夠。
     func createArmorCraftTask(recipeKey: String) throws {
+        try assertNormalTaskAllowedDuringOnboarding()
         guard let def = CraftRecipeDef.find(key: recipeKey) else {
             throw TaskCreationError.recipeNotFound(recipeKey)
         }
@@ -202,56 +159,30 @@ struct TaskCreationService {
     // MARK: - 副手鑄造任務（V10-1 T12）
 
     func createOffhandCraftTask(recipeKey: String) throws {
-        guard let def = CraftRecipeDef.find(key: recipeKey) else {
-            throw TaskCreationError.recipeNotFound(recipeKey)
-        }
-
-        let inProgress = repository.fetchInProgress()
-        if inProgress.contains(where: { $0.actorKey == AppConstants.Actor.weaponsmith }) {
-            throw TaskCreationError.actorBusy(AppConstants.Actor.weaponsmith)
-        }
-
-        let playerDesc    = FetchDescriptor<PlayerStateModel>()
-        let inventoryDesc = FetchDescriptor<MaterialInventoryModel>()
-        guard let player    = (try? context.fetch(playerDesc))?.first    else { throw TaskCreationError.noPlayerState }
-        guard let inventory = (try? context.fetch(inventoryDesc))?.first else { throw TaskCreationError.noInventory }
-
-        guard player.gold >= def.goldCost else { throw TaskCreationError.insufficientGold }
-        for req in def.requiredMaterials {
-            guard inventory.amount(of: req.material) >= req.amount else {
-                throw TaskCreationError.insufficientMaterials
-            }
-        }
-
-        player.gold -= def.goldCost
-        for req in def.requiredMaterials {
-            inventory.deduct(req.amount, of: req.material)
-        }
-
-        let now = Date.now
-        let task = TaskModel(
-            kind:                  .craft,
-            actorKey:              AppConstants.Actor.weaponsmith,
-            definitionKey:         recipeKey,
-            startedAt:             now,
-            endsAt:                now.addingTimeInterval(TimeInterval(def.durationSeconds)),
-            resultCraftedEquipKey: def.outputEquipmentKey
-        )
-        repository.insert(task)
-        NotificationService.requestPermissionIfNeeded()
-        NotificationService.schedule(for: task)
+        try createEquipmentCraftTask(recipeKey: recipeKey, actorKey: AppConstants.Actor.weaponsmith)
     }
 
     // MARK: - 飾品鑄造任務（V10-1 T13）
 
     func createAccessoryCraftTask(recipeKey: String) throws {
+        try createEquipmentCraftTask(recipeKey: recipeKey, actorKey: AppConstants.Actor.jeweler)
+    }
+
+    // MARK: - 裁縫鑄造任務（V10-1 T14）
+
+    func createTailorCraftTask(recipeKey: String) throws {
+        try createEquipmentCraftTask(recipeKey: recipeKey, actorKey: AppConstants.Actor.tailor)
+    }
+
+    private func createEquipmentCraftTask(recipeKey: String, actorKey: String) throws {
+        try assertNormalTaskAllowedDuringOnboarding()
         guard let def = CraftRecipeDef.find(key: recipeKey) else {
             throw TaskCreationError.recipeNotFound(recipeKey)
         }
 
         let inProgress = repository.fetchInProgress()
-        if inProgress.contains(where: { $0.actorKey == AppConstants.Actor.jeweler }) {
-            throw TaskCreationError.actorBusy(AppConstants.Actor.jeweler)
+        if inProgress.contains(where: { $0.actorKey == actorKey }) {
+            throw TaskCreationError.actorBusy(actorKey)
         }
 
         let playerDesc    = FetchDescriptor<PlayerStateModel>()
@@ -259,25 +190,27 @@ struct TaskCreationService {
         guard let player    = (try? context.fetch(playerDesc))?.first    else { throw TaskCreationError.noPlayerState }
         guard let inventory = (try? context.fetch(inventoryDesc))?.first else { throw TaskCreationError.noInventory }
 
-        guard player.gold >= def.goldCost else { throw TaskCreationError.insufficientGold }
+        let effectiveGold = effectiveCraftGoldCost(baseGold: def.goldCost, actorKey: actorKey, player: player)
+        guard player.gold >= effectiveGold else { throw TaskCreationError.insufficientGold }
         for req in def.requiredMaterials {
             guard inventory.amount(of: req.material) >= req.amount else {
                 throw TaskCreationError.insufficientMaterials
             }
         }
 
-        player.gold -= def.goldCost
+        player.gold -= effectiveGold
         for req in def.requiredMaterials {
             inventory.deduct(req.amount, of: req.material)
         }
 
+        let duration = effectiveCraftDuration(baseDuration: def.durationSeconds, actorKey: actorKey, player: player)
         let now = Date.now
         let task = TaskModel(
             kind:                  .craft,
-            actorKey:              AppConstants.Actor.jeweler,
+            actorKey:              actorKey,
             definitionKey:         recipeKey,
             startedAt:             now,
-            endsAt:                now.addingTimeInterval(TimeInterval(def.durationSeconds)),
+            endsAt:                now.addingTimeInterval(TimeInterval(duration)),
             resultCraftedEquipKey: def.outputEquipmentKey
         )
         repository.insert(task)
@@ -285,47 +218,21 @@ struct TaskCreationService {
         NotificationService.schedule(for: task)
     }
 
-    // MARK: - 裁縫鑄造任務（V10-1 T14）
+    private func effectiveCraftGoldCost(baseGold: Int, actorKey: String, player: PlayerStateModel) -> Int {
+        let goldNode = ProducerSkillNodeDef.nodes(for: actorKey)
+            .first { $0.goldReductionPerPoint > 0 }
+        let level = goldNode.map { player.skillLevel(nodeKey: $0.key, actorKey: actorKey) } ?? 0
+        let discount = Double(level) * (goldNode?.goldReductionPerPoint ?? 0)
+        return max(0, Int(Double(baseGold) * (1.0 - discount)))
+    }
 
-    func createTailorCraftTask(recipeKey: String) throws {
-        guard let def = CraftRecipeDef.find(key: recipeKey) else {
-            throw TaskCreationError.recipeNotFound(recipeKey)
-        }
-
-        let inProgress = repository.fetchInProgress()
-        if inProgress.contains(where: { $0.actorKey == AppConstants.Actor.tailor }) {
-            throw TaskCreationError.actorBusy(AppConstants.Actor.tailor)
-        }
-
-        let playerDesc    = FetchDescriptor<PlayerStateModel>()
-        let inventoryDesc = FetchDescriptor<MaterialInventoryModel>()
-        guard let player    = (try? context.fetch(playerDesc))?.first    else { throw TaskCreationError.noPlayerState }
-        guard let inventory = (try? context.fetch(inventoryDesc))?.first else { throw TaskCreationError.noInventory }
-
-        guard player.gold >= def.goldCost else { throw TaskCreationError.insufficientGold }
-        for req in def.requiredMaterials {
-            guard inventory.amount(of: req.material) >= req.amount else {
-                throw TaskCreationError.insufficientMaterials
-            }
-        }
-
-        player.gold -= def.goldCost
-        for req in def.requiredMaterials {
-            inventory.deduct(req.amount, of: req.material)
-        }
-
-        let now = Date.now
-        let task = TaskModel(
-            kind:                  .craft,
-            actorKey:              AppConstants.Actor.tailor,
-            definitionKey:         recipeKey,
-            startedAt:             now,
-            endsAt:                now.addingTimeInterval(TimeInterval(def.durationSeconds)),
-            resultCraftedEquipKey: def.outputEquipmentKey
-        )
-        repository.insert(task)
-        NotificationService.requestPermissionIfNeeded()
-        NotificationService.schedule(for: task)
+    private func effectiveCraftDuration(baseDuration: Int, actorKey: String, player: PlayerStateModel) -> Int {
+        let tierMult = NpcUpgradeDef.craftDurationMultiplier(tier: player.tier(for: actorKey))
+        let speedNode = ProducerSkillNodeDef.nodes(for: actorKey)
+            .first { $0.speedReductionPerPoint > 0 }
+        let speedLevel = speedNode.map { player.skillLevel(nodeKey: $0.key, actorKey: actorKey) } ?? 0
+        let skillMult = 1.0 - Double(speedLevel) * (speedNode?.speedReductionPerPoint ?? 0)
+        return max(30, Int(Double(baseDuration) * tierMult * skillMult))
     }
 
     // MARK: - 料理任務（V7-3）
@@ -334,6 +241,7 @@ struct TaskCreationService {
     /// 驗證：配方存在、廚師閒置、金幣足夠、素材足夠。
     /// 建立前立即扣除金幣和素材，resultCuisineKey 在建立時填入。
     func createCuisineTask(recipeKey: String) throws {
+        try assertNormalTaskAllowedDuringOnboarding()
         guard let def = CuisineDef.find(recipeKey) else {
             throw TaskCreationError.recipeNotFound(recipeKey)
         }
@@ -392,6 +300,7 @@ struct TaskCreationService {
     /// 驗證：農田閒置、玩家持有該種子 ≥ rounds（1 輪 = 300 秒 = 1 顆種子）。
     /// 建立前立即扣除 rounds 顆種子（與鑄造扣素材邏輯相同）。
     func createFarmTask(plotKey: String, seedType: MaterialType, durationSeconds: Int) throws {
+        try assertNormalTaskAllowedDuringOnboarding()
         let shortestRound = 300   // 5 分鐘 / 輪
         let rounds = max(1, durationSeconds / shortestRound)
 
@@ -446,6 +355,7 @@ struct TaskCreationService {
     /// 驗證：配方存在、製藥師閒置、金幣足夠、素材足夠。
     /// 建立前立即扣除金幣和素材。
     func createAlchemyTask(recipeKey: String) throws {
+        try assertNormalTaskAllowedDuringOnboarding()
         guard let def = PotionDef.find(recipeKey) else {
             throw TaskCreationError.recipeNotFound(recipeKey)
         }
@@ -510,6 +420,7 @@ struct TaskCreationService {
         cuisineKey: String = "",           // V7-4：攜帶的料理 ConsumableType rawValue
         potionKey:  String = ""            // V7-4：攜帶的藥水 ConsumableType rawValue
     ) throws {
+        try assertNormalTaskAllowedDuringOnboarding()
         guard DungeonFloorDef.find(key: floorKey) != nil else {
             throw TaskCreationError.areaNotFound(floorKey)
         }
@@ -567,6 +478,175 @@ struct TaskCreationService {
         return (try? context.fetch(descriptor))?.first
     }
 
+    // MARK: - 後續教程任務（V10）
+
+    /// 教程地下城任務：使用真實 floorKey，但以 tutorialKey 辨識，2 秒完成。
+    func createTutorialDungeonFloorTask(
+        floorKey: String,
+        heroStats: HeroStats,
+        equippedSkillKeys: [String] = [],
+        cuisineKey: String = "",
+        potionKey: String = "",
+        tutorialKey: String = OnboardingTutorialKey.firstDungeon
+    ) throws {
+        guard DungeonFloorDef.find(key: floorKey) != nil else {
+            throw TaskCreationError.areaNotFound(floorKey)
+        }
+        let inProgress = repository.fetchInProgress()
+        if inProgress.contains(where: { $0.kind == .dungeon && $0.actorKey == AppConstants.Actor.player }) {
+            throw TaskCreationError.playerAlreadyInDungeon
+        }
+
+        let playerDesc = FetchDescriptor<PlayerStateModel>()
+        guard let player = (try? context.fetch(playerDesc))?.first else {
+            throw TaskCreationError.noPlayerState
+        }
+
+        let consumable = fetchConsumableInventory()
+        if !cuisineKey.isEmpty, let type = ConsumableType(rawValue: cuisineKey) {
+            guard consumable?.use(of: type) == true else {
+                throw TaskCreationError.insufficientConsumable(cuisineKey)
+            }
+        }
+        if !potionKey.isEmpty, let type = ConsumableType(rawValue: potionKey) {
+            guard consumable?.use(of: type) == true else {
+                throw TaskCreationError.insufficientConsumable(potionKey)
+            }
+        }
+
+        let now = Date.now
+        let task = TaskModel(
+            kind:          .dungeon,
+            actorKey:      AppConstants.Actor.player,
+            definitionKey: floorKey,
+            startedAt:     now,
+            endsAt:        now.addingTimeInterval(2),
+            tutorialKey:   tutorialKey,
+            snapshotPower: heroStats.power,
+            snapshotAgi:   heroStats.totalAGI,
+            snapshotDex:   heroStats.totalDEX
+        )
+        task.snapshotSkillKeysRaw   = equippedSkillKeys.joined(separator: ",")
+        task.snapshotSkillLevelsRaw = player.skillLevelsRaw
+        task.snapshotCuisineKey     = cuisineKey
+        task.snapshotPotionKey      = potionKey
+        task.snapshotChFlavorLevel  = player.skillLevel(nodeKey: "ch_flavor",  actorKey: AppConstants.Actor.chef)
+        task.snapshotPhPotencyLevel = player.skillLevel(nodeKey: "ph_potency", actorKey: AppConstants.Actor.pharmacist)
+
+        if tutorialKey == OnboardingTutorialKey.firstDungeon, player.onboardingStep == 9 {
+            player.onboardingStep = 10
+        } else if tutorialKey == OnboardingTutorialKey.buffedRun, player.onboardingStep == 19 {
+            player.onboardingStep = 20
+        }
+
+        repository.insert(task)
+        NotificationService.requestPermissionIfNeeded()
+        NotificationService.schedule(for: task)
+    }
+
+    /// 教程農田任務：種下小麥種子，使用真實 seed definitionKey，2 秒完成。
+    func createTutorialFarmTask() throws {
+        OnboardingService(context: context).prepareForCurrentStep()
+        let plotKey = AppConstants.FarmerPlot.key(for: 0)
+        let inProgress = repository.fetchInProgress()
+        if inProgress.contains(where: { $0.actorKey == plotKey && $0.kind == .farming }) {
+            throw TaskCreationError.actorBusy(plotKey)
+        }
+        guard let inventory = (try? context.fetch(FetchDescriptor<MaterialInventoryModel>()))?.first else {
+            throw TaskCreationError.noInventory
+        }
+        guard inventory.deduct(1, of: .wheatSeed) else {
+            throw TaskCreationError.insufficientMaterials
+        }
+        let now = Date.now
+        let task = TaskModel(
+            kind:          .farming,
+            actorKey:      plotKey,
+            definitionKey: MaterialType.wheatSeed.rawValue,
+            startedAt:     now,
+            endsAt:        now.addingTimeInterval(2),
+            tutorialKey:   OnboardingTutorialKey.farmWheat
+        )
+        repository.insert(task)
+    }
+
+    /// 教程料理任務：製作魚肉燉鍋，補齊差額後照常扣素材 / 金幣，2 秒完成。
+    func createTutorialCuisineTask() throws {
+        OnboardingService(context: context).prepareForCurrentStep()
+        try createTutorialCuisineLikeTask(
+            recipeKey: "fish_stew",
+            actorKey: AppConstants.Actor.chef,
+            tutorialKey: OnboardingTutorialKey.fishStew
+        )
+    }
+
+    /// 教程煉藥任務：製作小型藥水，補齊差額後照常扣素材 / 金幣，2 秒完成。
+    func createTutorialAlchemyTask() throws {
+        OnboardingService(context: context).prepareForCurrentStep()
+        guard let def = PotionDef.find("small_potion") else {
+            throw TaskCreationError.recipeNotFound("small_potion")
+        }
+        let inProgress = repository.fetchInProgress()
+        if inProgress.contains(where: { $0.actorKey == AppConstants.Actor.pharmacist }) {
+            throw TaskCreationError.actorBusy(AppConstants.Actor.pharmacist)
+        }
+        let playerDesc    = FetchDescriptor<PlayerStateModel>()
+        let inventoryDesc = FetchDescriptor<MaterialInventoryModel>()
+        guard let player    = (try? context.fetch(playerDesc))?.first    else { throw TaskCreationError.noPlayerState }
+        guard let inventory = (try? context.fetch(inventoryDesc))?.first else { throw TaskCreationError.noInventory }
+        guard player.gold >= def.goldCost else { throw TaskCreationError.insufficientGold }
+        for (mat, amount) in def.ingredients {
+            guard inventory.amount(of: mat) >= amount else { throw TaskCreationError.insufficientMaterials }
+        }
+        player.gold -= def.goldCost
+        for (mat, amount) in def.ingredients {
+            inventory.deduct(amount, of: mat)
+        }
+        let now = Date.now
+        let task = TaskModel(
+            kind:          .alchemy,
+            actorKey:      AppConstants.Actor.pharmacist,
+            definitionKey: def.key,
+            startedAt:     now,
+            endsAt:        now.addingTimeInterval(2),
+            tutorialKey:   OnboardingTutorialKey.smallPotion
+        )
+        repository.insert(task)
+    }
+
+    private func createTutorialCuisineLikeTask(recipeKey: String, actorKey: String, tutorialKey: String) throws {
+        guard let def = CuisineDef.find(recipeKey) else {
+            throw TaskCreationError.recipeNotFound(recipeKey)
+        }
+        let inProgress = repository.fetchInProgress()
+        if inProgress.contains(where: { $0.actorKey == actorKey }) {
+            throw TaskCreationError.actorBusy(actorKey)
+        }
+        let playerDesc    = FetchDescriptor<PlayerStateModel>()
+        let inventoryDesc = FetchDescriptor<MaterialInventoryModel>()
+        guard let player    = (try? context.fetch(playerDesc))?.first    else { throw TaskCreationError.noPlayerState }
+        guard let inventory = (try? context.fetch(inventoryDesc))?.first else { throw TaskCreationError.noInventory }
+        guard player.gold >= def.goldCost else { throw TaskCreationError.insufficientGold }
+        for (mat, amount) in def.ingredients {
+            guard inventory.amount(of: mat) >= amount else { throw TaskCreationError.insufficientMaterials }
+        }
+        player.gold -= def.goldCost
+        for (mat, amount) in def.ingredients {
+            inventory.deduct(amount, of: mat)
+        }
+        let now = Date.now
+        let task = TaskModel(
+            kind:          .cuisine,
+            actorKey:      actorKey,
+            definitionKey: def.key,
+            startedAt:     now,
+            endsAt:        now.addingTimeInterval(2),
+            tutorialKey:   tutorialKey
+        )
+        task.resultCuisineKey = def.key
+        repository.insert(task)
+    }
+
     // MARK: - 教程任務（T06）
 
     /// 教程採集任務：gatherer_1 採集 5 秒，直接給 6 木材，不扣素材，onboardingStep → 1
@@ -581,7 +661,8 @@ struct TaskCreationService {
             actorKey:      AppConstants.Actor.gatherer1,
             definitionKey: "tutorial_gather",
             startedAt:     now,
-            endsAt:        now.addingTimeInterval(2)
+            endsAt:        now.addingTimeInterval(2),
+            tutorialKey:   "tutorial_gather"
         )
         player.onboardingStep = 1
         repository.insert(task)
@@ -600,7 +681,8 @@ struct TaskCreationService {
             actorKey:      AppConstants.Actor.player,
             definitionKey: "tutorial_explore",
             startedAt:     now,
-            endsAt:        now.addingTimeInterval(2)
+            endsAt:        now.addingTimeInterval(2),
+            tutorialKey:   "tutorial_explore"
         )
         repository.insert(task)
     }
@@ -623,6 +705,7 @@ struct TaskCreationService {
             definitionKey:         "tutorial_armor",
             startedAt:             now,
             endsAt:                now.addingTimeInterval(2),
+            tutorialKey:           "tutorial_armor",
             resultCraftedEquipKey: "wildland_armor"
         )
         repository.insert(task)
@@ -641,6 +724,7 @@ struct TaskCreationService {
             definitionKey:        "tutorial_craft",
             startedAt:            now,
             endsAt:               now.addingTimeInterval(2),
+            tutorialKey:          "tutorial_craft",
             resultCraftedEquipKey: classDef.starterEquipmentKeys.first
         )
         _ = player  // onboardingStep 由結算時設為 3
@@ -656,6 +740,7 @@ struct TaskCreationService {
         heroStats: HeroStats,
         equippedSkillKeys: [String] = []  // V6-1：已裝備技能 key
     ) throws {
+        try assertNormalTaskAllowedDuringOnboarding()
         guard DungeonAreaDef.find(key: areaKey) != nil else {
             throw TaskCreationError.areaNotFound(areaKey)
         }

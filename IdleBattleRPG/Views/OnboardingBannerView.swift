@@ -24,7 +24,15 @@ struct OnboardingBannerView: View {
                 icon:      "leaf.fill",
                 iconColor: .green,
                 headline:  "先派遣採集者",
-                body:      "點擊下方「採集者」，送出採集任務取得素材。素材是打造裝備的原料！",
+                body: [
+                    .plain("點擊下方「"),
+                    .action("採集者"),
+                    .plain("」，送出採集任務取得"),
+                    .material("素材"),
+                    .plain("。素材是打造"),
+                    .equipment("裝備"),
+                    .plain("的原料！"),
+                ],
                 hint:      "派出採集者後自動進入下一步",
                 tint:      .green
             )
@@ -34,7 +42,15 @@ struct OnboardingBannerView: View {
                 icon:      "hammer.fill",
                 iconColor: .orange,
                 headline:  "委派鑄造師",
-                body:      "點擊「鑄造師」，用素材打造裝備提升戰力。✨ 首件鑄造特快，只需 30 秒！",
+                body: [
+                    .plain("點擊「"),
+                    .action("鑄造師"),
+                    .plain("」，用"),
+                    .material("素材"),
+                    .plain("打造"),
+                    .equipment("裝備"),
+                    .plain("提升戰力。✨ 首件鑄造特快，只需 30 秒！"),
+                ],
                 hint:      "開始鑄造後自動進入下一步",
                 tint:      .orange
             )
@@ -44,7 +60,13 @@ struct OnboardingBannerView: View {
                 icon:      "map.fill",
                 iconColor: .purple,
                 headline:  "前往冒險頁出征",
-                body:      "切到底部「冒險」Tab，選地下城出發！⚡ 首次出征特快，只需 30 秒！",
+                body: [
+                    .plain("切到底部「"),
+                    .action("冒險"),
+                    .plain("」Tab，選"),
+                    .location("地下城"),
+                    .plain("出發！⚡ 首次出征特快，只需 30 秒！"),
+                ],
                 hint:      "出征後引導自動完成",
                 tint:      .purple
             )
@@ -59,7 +81,7 @@ struct OnboardingBannerView: View {
         icon: String,
         iconColor: Color,
         headline: String,
-        body: String,
+        body: [TutorialTextRun],
         hint: String,
         tint: Color
     ) -> some View {
@@ -82,10 +104,7 @@ struct OnboardingBannerView: View {
                 }
 
                 // 說明文字
-                Text(body)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                TutorialRichText(runs: body, font: .subheadline, plainColor: .secondary)
 
                 // 行動提示（取代原有「下一步」按鈕）
                 HStack(spacing: 4) {

@@ -21,8 +21,11 @@ struct TailorSheet: View {
 
     @State private var errorMessage: String?
     @State private var showError     = false
+    @State private var showGrowthSheet = false
 
     // MARK: - Computed
+
+    private var currentTier: Int { player?.tier(for: AppConstants.Actor.tailor) ?? 0 }
 
     private var availableRecipes: [CraftRecipeDef] {
         CraftRecipeDef.available(isCleared: { floorKey in
@@ -38,8 +41,37 @@ struct TailorSheet: View {
             ]
             guard let regionKey = regionKeyMap[prefix] else { return false }
             return progressionService.isFloorCleared(regionKey: regionKey, floorIndex: index)
-        }, tutorialArmorUnlocked: player?.tutorialArmorRecipeUnlocked ?? false)
+        }, tutorialArmorUnlocked: shouldShowTutorialArmorRecipe)
         .filter { $0.slot == .armor }
+    }
+
+    private var shouldShowTutorialArmorRecipe: Bool {
+        guard let player else { return false }
+        return player.tutorialArmorRecipeUnlocked || player.onboardingStep == 5 || player.onboardingStep == 7
+    }
+
+    private var tutorialDialogueRuns: [TutorialTextRun]? {
+        switch player?.onboardingStep {
+        case 5:
+            return [
+                .plain("這件"),
+                .equipment("護甲"),
+                .plain("需要野外的"),
+                .material("乾燥獸皮"),
+                .plain("。去"),
+                .location("荒野"),
+                .plain("走一趟——五分鐘保準找到。"),
+            ]
+        case 7:
+            return [
+                .material("素材"),
+                .plain("都到手了。讓我縫製一件正式的"),
+                .equipment("護甲"),
+                .plain("——稍等片刻便完工。"),
+            ]
+        default:
+            return nil
+        }
     }
 
     // MARK: - Body
@@ -47,15 +79,18 @@ struct TailorSheet: View {
     var body: some View {
         NavigationStack {
             List {
-                if let step = player?.onboardingStep {
-                    if step == 5 {
-                        tutorialInsufficientMaterialsSection
-                    } else if step == 7 {
-                        tutorialCraftArmorSection
-                    }
-                }
-
-                NpcIntroSection(actorKey: AppConstants.Actor.tailor)
+                NPCDetailHeaderSection(
+                    actorKey: AppConstants.Actor.tailor,
+                    fallbackName: "裁縫師阿針",
+                    roleName: "防具製作",
+                    imageName: "npc_tailor",
+                    color: .teal,
+                    player: player,
+                    currentTier: currentTier,
+                    dialogueRichTextOverride: tutorialDialogueRuns,
+                    onGrowth: { showGrowthSheet = true },
+                    onIntroSeen: markIntroSeen
+                )
                 recipeSection(title: "防具", recipes: availableRecipes)
             }
             .navigationTitle(player?.npcDisplayName(for: AppConstants.Actor.tailor) ?? "裁縫師")
@@ -70,37 +105,23 @@ struct TailorSheet: View {
             } message: {
                 Text(errorMessage ?? "發生未知錯誤")
             }
+            .sheet(isPresented: $showGrowthSheet) {
+                NPCGrowthSheet(
+                    actorKey: AppConstants.Actor.tailor,
+                    fallbackName: "裁縫師阿針",
+                    roleName: "防具製作",
+                    imageName: "npc_tailor",
+                    color: .teal,
+                    appState: appState,
+                    viewModel: BaseViewModel()
+                )
+            }
         }
     }
 
-    // MARK: - Tutorial Sections
-
-    /// Step 5：純文字提示（無按鈕，tab 切換由 AdventureView.onAppear 自動推進）
-    @ViewBuilder
-    private var tutorialInsufficientMaterialsSection: some View {
-        Section {
-            HStack(alignment: .top, spacing: 8) {
-                Image(systemName: "bubble.left.fill").foregroundStyle(.orange)
-                Text("這件護甲需要野外的乾燥獸皮。去荒野走一趟——五分鐘保準找到。")
-                    .font(.subheadline)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(.vertical, 4)
-        }
-    }
-
-    /// Step 7：純文字提示（無按鈕，點配方 row 觸發 2 秒鑄造）
-    @ViewBuilder
-    private var tutorialCraftArmorSection: some View {
-        Section {
-            HStack(alignment: .top, spacing: 8) {
-                Image(systemName: "bubble.left.fill").foregroundStyle(.orange)
-                Text("素材都到手了。讓我縫製一件正式的護甲——稍等片刻便完工。")
-                    .font(.subheadline)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(.vertical, 4)
-        }
+    private func markIntroSeen() {
+        player?.markNpcIntroSeen(for: AppConstants.Actor.tailor)
+        try? context.save()
     }
 
     // MARK: - Recipe Section
@@ -113,7 +134,7 @@ struct TailorSheet: View {
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(recipes, id: \.key) { recipe in
-                    let canAfford = canAffordRecipe(recipe)
+                    let canAfford = isTutorialArmorRecipe(recipe) || canAffordRecipe(recipe)
                     Button {
                         startCraft(recipe: recipe)
                     } label: {
@@ -129,6 +150,7 @@ struct TailorSheet: View {
     @ViewBuilder
     private func recipeRow(_ recipe: CraftRecipeDef, canAfford: Bool) -> some View {
         let materials = recipe.requiredMaterials
+        let isTutorialRecipe = isTutorialArmorRecipe(recipe)
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 HStack(spacing: 6) {
@@ -150,7 +172,7 @@ struct TailorSheet: View {
                     }
                 }
                 Spacer()
-                Text(recipe.durationDisplay)
+                Text(isTutorialRecipe ? "2 秒" : effectiveDurationDisplay(for: recipe))
                     .font(.caption).foregroundStyle(.secondary).monospacedDigit()
             }
 
@@ -182,20 +204,27 @@ struct TailorSheet: View {
                 }
             }
 
-            HStack(spacing: 10) {
-                ForEach(materials, id: \.material) { (req: MaterialRequirement) in
-                    let have = inventory?.amount(of: req.material) ?? 0
-                    Text("\(req.material.icon) ×\(req.amount)")
-                        .font(.caption2)
-                        .foregroundColor(have >= req.amount ? .secondary : .red)
-                }
-                if recipe.goldCost > 0 {
-                    HStack(spacing: 2) {
-                        Image(systemName: "coins").frame(width: 10, height: 10)
-                        Text("×\(recipe.goldCost)")
-                    }
+            if isTutorialRecipe {
+                Label("教學製作不消耗素材與金幣", systemImage: "bolt.fill")
                     .font(.caption2)
-                    .foregroundColor((player?.gold ?? 0) >= recipe.goldCost ? .secondary : .red)
+                    .foregroundStyle(.orange)
+            } else {
+                HStack(spacing: 10) {
+                    let goldCost = effectiveGoldCost(for: recipe)
+                    ForEach(materials, id: \.material) { (req: MaterialRequirement) in
+                        let have = inventory?.amount(of: req.material) ?? 0
+                        Text("\(req.material.icon) ×\(req.amount)")
+                            .font(.caption2)
+                            .foregroundColor(have >= req.amount ? .secondary : .red)
+                    }
+                    if recipe.goldCost > 0 {
+                        HStack(spacing: 2) {
+                            Image(systemName: "coins").frame(width: 10, height: 10)
+                            Text("×\(goldCost)")
+                        }
+                        .font(.caption2)
+                        .foregroundColor((player?.gold ?? 0) >= goldCost ? .secondary : .red)
+                    }
                 }
             }
         }
@@ -205,11 +234,45 @@ struct TailorSheet: View {
 
     // MARK: - Helpers
 
+    private func isTutorialArmorRecipe(_ recipe: CraftRecipeDef) -> Bool {
+        player?.onboardingStep == 7 && recipe.outputEquipmentKey == "wildland_armor"
+    }
+
     private func canAffordRecipe(_ recipe: CraftRecipeDef) -> Bool {
         guard let player, let inventory else { return false }
         let matOk  = recipe.requiredMaterials.allSatisfy { inventory.amount(of: $0.material) >= $0.amount }
-        let goldOk = player.gold >= recipe.goldCost
+        let goldOk = player.gold >= effectiveGoldCost(for: recipe)
         return matOk && goldOk
+    }
+
+    private func effectiveGoldCost(for recipe: CraftRecipeDef) -> Int {
+        guard let player else { return recipe.goldCost }
+        let actorKey = AppConstants.Actor.tailor
+        let goldNode = ProducerSkillNodeDef.nodes(for: actorKey)
+            .first { $0.goldReductionPerPoint > 0 }
+        let level = goldNode.map { player.skillLevel(nodeKey: $0.key, actorKey: actorKey) } ?? 0
+        let discount = Double(level) * (goldNode?.goldReductionPerPoint ?? 0)
+        return max(0, Int(Double(recipe.goldCost) * (1.0 - discount)))
+    }
+
+    private func effectiveDurationDisplay(for recipe: CraftRecipeDef) -> String {
+        guard let player else { return recipe.durationDisplay }
+        let actorKey = AppConstants.Actor.tailor
+        let tierMult = NpcUpgradeDef.craftDurationMultiplier(tier: player.tier(for: actorKey))
+        let speedNode = ProducerSkillNodeDef.nodes(for: actorKey)
+            .first { $0.speedReductionPerPoint > 0 }
+        let level = speedNode.map { player.skillLevel(nodeKey: $0.key, actorKey: actorKey) } ?? 0
+        let skillMult = 1.0 - Double(level) * (speedNode?.speedReductionPerPoint ?? 0)
+        let seconds = max(30, Int(Double(recipe.durationSeconds) * tierMult * skillMult))
+        return formatDuration(seconds)
+    }
+
+    private func formatDuration(_ seconds: Int) -> String {
+        if seconds < 60 { return "\(seconds) 秒" }
+        let minutes = seconds / 60
+        let remainder = seconds % 60
+        if remainder == 0 { return "\(minutes) 分鐘" }
+        return "\(minutes) 分 \(remainder) 秒"
     }
 
     private func startCraft(recipe: CraftRecipeDef) {

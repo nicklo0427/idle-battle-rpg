@@ -20,6 +20,7 @@ struct PharmacySheet: View {
     @State private var upgradeExpanded: Bool = true
     @State private var detailTab:       DetailTab = .upgrade
     @State private var upgradeAlertMsg: String?
+    @State private var showGrowthSheet: Bool = false
 
     private enum DetailTab { case upgrade, skill }
     @State private var errorMessage:    String?
@@ -47,19 +48,28 @@ struct PharmacySheet: View {
         NavigationStack {
             List {
 
-                NpcIntroSection(actorKey: AppConstants.Actor.pharmacist)
-
-                // ── 升級 Section（可收合）────────────────────────────────
-                upgradeSection
+                NPCDetailHeaderSection(
+                    actorKey: AppConstants.Actor.pharmacist,
+                    fallbackName: "藥師白芷",
+                    roleName: "藥水煉製",
+                    imageName: "npc_pharmacist",
+                    color: .teal,
+                    player: player,
+                    currentTier: currentTier,
+                    onGrowth: { showGrowthSheet = true },
+                    onIntroSeen: markIntroSeen
+                )
 
                 // ── 藥水配方 ─────────────────────────────────────────────
                 Section {
                     ForEach(PotionDef.all, id: \.key) { potion in
-                        let canAfford = viewModel.canAffordPotion(potion, player: player, inventory: inventory)
+                        let isTutorialTarget = player?.onboardingStep == 18 && potion.key == "small_potion"
+                        let isAllowed = player?.onboardingStep == 18 ? isTutorialTarget : true
+                        let canAfford = viewModel.canAffordPotion(potion, player: player, inventory: inventory) && isAllowed
                         Button {
                             startBrewing(potion: potion)
                         } label: {
-                            potionRow(potion, canAfford: canAfford)
+                            potionRow(potion, canAfford: canAfford, isHighlighted: isTutorialTarget)
                         }
                         .buttonStyle(.plain)
                         .disabled(!canAfford)
@@ -91,7 +101,28 @@ struct PharmacySheet: View {
             } message: {
                 Text(errorMessage ?? "發生未知錯誤")
             }
+            .sheet(isPresented: $showGrowthSheet) {
+                NPCGrowthSheet(
+                    actorKey: AppConstants.Actor.pharmacist,
+                    fallbackName: "藥師白芷",
+                    roleName: "藥水煉製",
+                    imageName: "npc_pharmacist",
+                    color: .teal,
+                    appState: appState,
+                    viewModel: viewModel
+                )
+            }
         }
+        .onAppear {
+            if player?.onboardingStep == 18 {
+                appState.onboardingService.prepareForCurrentStep()
+            }
+        }
+    }
+
+    private func markIntroSeen() {
+        player?.markNpcIntroSeen(for: AppConstants.Actor.pharmacist)
+        try? context.save()
     }
 
     // MARK: - Section：升級（可收合）
@@ -273,7 +304,7 @@ struct PharmacySheet: View {
     // MARK: - Potion Row
 
     @ViewBuilder
-    private func potionRow(_ potion: PotionDef, canAfford: Bool) -> some View {
+    private func potionRow(_ potion: PotionDef, canAfford: Bool, isHighlighted: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text(potion.icon)
@@ -336,12 +367,33 @@ struct PharmacySheet: View {
         }
         .padding(.vertical, 4)
         .opacity(canAfford ? 1.0 : 0.55)
+        .padding(6)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(isHighlighted ? Color.orange.opacity(0.08) : Color.clear)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(isHighlighted ? Color.orange.opacity(0.35) : Color.clear, lineWidth: 1)
+        )
     }
 
     // MARK: - Action
 
     private func startBrewing(potion: PotionDef) {
-        let result = viewModel.startAlchemyTask(recipeKey: potion.key, context: context)
+        let result: Result<Void, TaskCreationError>
+        if player?.onboardingStep == 18, potion.key == "small_potion" {
+            do {
+                try TaskCreationService(context: context).createTutorialAlchemyTask()
+                result = .success(())
+            } catch let error as TaskCreationError {
+                result = .failure(error)
+            } catch {
+                result = .failure(.recipeNotFound(potion.key))
+            }
+        } else {
+            result = viewModel.startAlchemyTask(recipeKey: potion.key, context: context)
+        }
         switch result {
         case .success:
             dismiss()

@@ -64,6 +64,7 @@ struct TaskClaimService {
         guard !completed.isEmpty else {
             return ClaimResult(goldGained: 0, materialsGained: [:], equipmentsAdded: 0, tasksDeleted: 0)
         }
+        let claimedTutorialKeys = Set(completed.map(\.tutorialKey).filter { !$0.isEmpty })
 
         let playerDesc = FetchDescriptor<PlayerStateModel>()
         let player = (try? context.fetch(playerDesc))?.first
@@ -83,11 +84,9 @@ struct TaskClaimService {
             totalGold += task.resultGold
             accumulateMaterials(from: task, player: player, into: &materials)
 
-            // craft 任務：建立裝備並插入背包
-            // tutorial_craft / tutorial_armor 由 SettlementService 已處理，此處跳過避免重複
+            // craft 任務：建立裝備並插入背包。
+            // 教程裝備也保留未裝備，讓玩家到角色頁自行裝上。
             if task.kind == .craft,
-               task.definitionKey != "tutorial_craft",
-               task.definitionKey != "tutorial_armor",
                let key = task.resultCraftedEquipKey,
                let def = EquipmentDef.find(key: key) {
                 let newEquip = EquipmentModel(
@@ -172,6 +171,10 @@ struct TaskClaimService {
         // 成就檢查（所有獎勵 + 統計入帳後執行）
         AchievementService(context: context).checkAll()
 
+        if let player {
+            advanceOnboardingAfterClaim(keys: claimedTutorialKeys, player: player)
+        }
+
         repository.save()
 
         print("[TaskClaimService] 收下 \(completed.count) 筆，金幣 +\(totalGold)，素材 \(materials)")
@@ -237,6 +240,23 @@ struct TaskClaimService {
     private func fetchConsumableInventory() -> ConsumableInventoryModel? {
         let descriptor = FetchDescriptor<ConsumableInventoryModel>()
         return (try? context.fetch(descriptor))?.first
+    }
+
+    private func advanceOnboardingAfterClaim(keys: Set<String>, player: PlayerStateModel) {
+        let onboarding = OnboardingService(context: context)
+        if keys.contains(OnboardingTutorialKey.firstDungeon) {
+            onboarding.ensureHeroLevelAtLeast3(player: player)
+            onboarding.advance(player: player, from: 10, to: 11)
+        }
+        if keys.contains(OnboardingTutorialKey.farmWheat) {
+            onboarding.advance(player: player, from: 16, to: 17)
+        }
+        if keys.contains(OnboardingTutorialKey.fishStew) {
+            onboarding.advance(player: player, from: 17, to: 18)
+        }
+        if keys.contains(OnboardingTutorialKey.smallPotion) {
+            onboarding.advance(player: player, from: 18, to: 19)
+        }
     }
 
     private func creditMaterials(_ materials: [MaterialType: Int]) {

@@ -19,8 +19,11 @@ struct OffhandSheet: View {
 
     @State private var errorMessage: String?
     @State private var showError     = false
+    @State private var showGrowthSheet = false
 
     // MARK: - Computed
+
+    private var currentTier: Int { player?.tier(for: AppConstants.Actor.weaponsmith) ?? 0 }
 
     private var availableRecipes: [CraftRecipeDef] {
         CraftRecipeDef.available(isCleared: { floorKey in
@@ -45,7 +48,17 @@ struct OffhandSheet: View {
     var body: some View {
         NavigationStack {
             List {
-                NpcIntroSection(actorKey: AppConstants.Actor.weaponsmith)
+                NPCDetailHeaderSection(
+                    actorKey: AppConstants.Actor.weaponsmith,
+                    fallbackName: "鍛造學徒小錘",
+                    roleName: "副手製作",
+                    imageName: "npc_weaponsmith",
+                    color: .orange,
+                    player: player,
+                    currentTier: currentTier,
+                    onGrowth: { showGrowthSheet = true },
+                    onIntroSeen: markIntroSeen
+                )
                 recipeSection(title: "副手", recipes: availableRecipes)
             }
             .navigationTitle(player?.npcDisplayName(for: AppConstants.Actor.weaponsmith) ?? "鍛造學徒")
@@ -60,7 +73,23 @@ struct OffhandSheet: View {
             } message: {
                 Text(errorMessage ?? "發生未知錯誤")
             }
+            .sheet(isPresented: $showGrowthSheet) {
+                NPCGrowthSheet(
+                    actorKey: AppConstants.Actor.weaponsmith,
+                    fallbackName: "鍛造學徒小錘",
+                    roleName: "副手製作",
+                    imageName: "npc_weaponsmith",
+                    color: .orange,
+                    appState: appState,
+                    viewModel: BaseViewModel()
+                )
+            }
         }
+    }
+
+    private func markIntroSeen() {
+        player?.markNpcIntroSeen(for: AppConstants.Actor.weaponsmith)
+        try? context.save()
     }
 
     // MARK: - Recipe Section
@@ -101,7 +130,7 @@ struct OffhandSheet: View {
                         .foregroundStyle(canAfford ? recipe.rarity.displayColor : Color.secondary)
                 }
                 Spacer()
-                Text(recipe.durationDisplay)
+                Text(effectiveDurationDisplay(for: recipe))
                     .font(.caption).foregroundStyle(.secondary).monospacedDigit()
             }
 
@@ -140,6 +169,7 @@ struct OffhandSheet: View {
             }
 
             HStack(spacing: 10) {
+                let goldCost = effectiveGoldCost(for: recipe)
                 ForEach(materials, id: \.material) { (req: MaterialRequirement) in
                     let have = inventory?.amount(of: req.material) ?? 0
                     Text("\(req.material.icon) ×\(req.amount)")
@@ -149,10 +179,10 @@ struct OffhandSheet: View {
                 if recipe.goldCost > 0 {
                     HStack(spacing: 2) {
                         Image(systemName: "coins").frame(width: 10, height: 10)
-                        Text("×\(recipe.goldCost)")
+                        Text("×\(goldCost)")
                     }
                     .font(.caption2)
-                    .foregroundColor((player?.gold ?? 0) >= recipe.goldCost ? .secondary : .red)
+                    .foregroundColor((player?.gold ?? 0) >= goldCost ? .secondary : .red)
                 }
             }
         }
@@ -165,8 +195,38 @@ struct OffhandSheet: View {
     private func canAffordRecipe(_ recipe: CraftRecipeDef) -> Bool {
         guard let player, let inventory else { return false }
         let matOk  = recipe.requiredMaterials.allSatisfy { inventory.amount(of: $0.material) >= $0.amount }
-        let goldOk = player.gold >= recipe.goldCost
+        let goldOk = player.gold >= effectiveGoldCost(for: recipe)
         return matOk && goldOk
+    }
+
+    private func effectiveGoldCost(for recipe: CraftRecipeDef) -> Int {
+        guard let player else { return recipe.goldCost }
+        let actorKey = AppConstants.Actor.weaponsmith
+        let goldNode = ProducerSkillNodeDef.nodes(for: actorKey)
+            .first { $0.goldReductionPerPoint > 0 }
+        let level = goldNode.map { player.skillLevel(nodeKey: $0.key, actorKey: actorKey) } ?? 0
+        let discount = Double(level) * (goldNode?.goldReductionPerPoint ?? 0)
+        return max(0, Int(Double(recipe.goldCost) * (1.0 - discount)))
+    }
+
+    private func effectiveDurationDisplay(for recipe: CraftRecipeDef) -> String {
+        guard let player else { return recipe.durationDisplay }
+        let actorKey = AppConstants.Actor.weaponsmith
+        let tierMult = NpcUpgradeDef.craftDurationMultiplier(tier: player.tier(for: actorKey))
+        let speedNode = ProducerSkillNodeDef.nodes(for: actorKey)
+            .first { $0.speedReductionPerPoint > 0 }
+        let level = speedNode.map { player.skillLevel(nodeKey: $0.key, actorKey: actorKey) } ?? 0
+        let skillMult = 1.0 - Double(level) * (speedNode?.speedReductionPerPoint ?? 0)
+        let seconds = max(30, Int(Double(recipe.durationSeconds) * tierMult * skillMult))
+        return formatDuration(seconds)
+    }
+
+    private func formatDuration(_ seconds: Int) -> String {
+        if seconds < 60 { return "\(seconds) 秒" }
+        let minutes = seconds / 60
+        let remainder = seconds % 60
+        if remainder == 0 { return "\(minutes) 分鐘" }
+        return "\(minutes) 分 \(remainder) 秒"
     }
 
     private func startCraft(recipe: CraftRecipeDef) {

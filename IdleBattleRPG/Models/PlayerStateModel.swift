@@ -82,6 +82,11 @@ final class PlayerStateModel {
     // MARK: - 製藥師升級 Tier（V7-4）
     var pharmacistTier: Int = 0
 
+    // MARK: - 裝備槽位生產者升級 Tier（V10-4B）
+    var weaponsmithTier: Int = 0
+    var tailorTier: Int = 0
+    var jewelerTier: Int = 0
+
     // MARK: - 採集者技能（V7-1 T02）
 
     var gatherer1SkillPoints: Int = 0
@@ -105,6 +110,8 @@ final class PlayerStateModel {
     var npcNamesRaw: String = ""
     /// T08：教程菁英戰勝後解鎖「荒徑皮甲」配方（不透過 floor clear 機制）
     var tutorialArmorRecipeUnlocked: Bool = false
+    /// 已領過一次性教學補給的 key，逗號分隔（差額補齊只執行一次）
+    var onboardingSupplyKeysRaw: String = ""
 
     // MARK: - 生產者技能
 
@@ -116,6 +123,12 @@ final class PlayerStateModel {
     var pharmacistSkillsRaw:   String = ""
     var farmerSkillPoints:     Int = 0
     var farmerSkillsRaw:       String = ""
+    var weaponsmithSkillPoints: Int = 0
+    var weaponsmithSkillsRaw:   String = ""
+    var tailorSkillPoints:      Int = 0
+    var tailorSkillsRaw:        String = ""
+    var jewelerSkillPoints:     Int = 0
+    var jewelerSkillsRaw:       String = ""
 
     // MARK: - Init
 
@@ -143,6 +156,7 @@ final class PlayerStateModel {
         self.heroName            = ""
         self.seenNpcIntroKeysRaw = ""
         self.npcNamesRaw         = ""
+        self.onboardingSupplyKeysRaw = ""
     }
 
     // MARK: - 便利查詢
@@ -157,9 +171,12 @@ final class PlayerStateModel {
         case "gatherer_4": return gatherer4Tier
         case "chef":        return chefTier
         // V7-4 農田共用同一個 Tier（多塊田由同一個農夫管理）
-        case "farmer_plot_1", "farmer_plot_2", "farmer_plot_3", "farmer_plot_4":
+        case "farmer", "farmer_plot_1", "farmer_plot_2", "farmer_plot_3", "farmer_plot_4":
             return gatherer5Tier
         case "pharmacist":  return pharmacistTier
+        case "weaponsmith": return weaponsmithTier
+        case "tailor":      return tailorTier
+        case "jeweler":     return jewelerTier
         default:            return 0
         }
     }
@@ -174,11 +191,34 @@ final class PlayerStateModel {
         case "gatherer_4": return .fisherman
         case "chef":        return .chef
         // V7-4 農田（升級 farmer 時消耗相同成本）
-        case "farmer_plot_1", "farmer_plot_2", "farmer_plot_3", "farmer_plot_4":
+        case "farmer", "farmer_plot_1", "farmer_plot_2", "farmer_plot_3", "farmer_plot_4":
             return .farmer
         case "pharmacist":  return .pharmacist
+        case "weaponsmith": return .weaponsmith
+        case "tailor":      return .tailor
+        case "jeweler":     return .jeweler
         default:            return nil
         }
+    }
+}
+
+// MARK: - Onboarding 便利存取
+
+extension PlayerStateModel {
+
+    var onboardingSupplyKeys: [String] {
+        onboardingSupplyKeysRaw
+            .split(separator: ",")
+            .compactMap { $0.isEmpty ? nil : String($0) }
+    }
+
+    func hasReceivedOnboardingSupply(_ key: String) -> Bool {
+        onboardingSupplyKeys.contains(key)
+    }
+
+    func markOnboardingSupplyReceived(_ key: String) {
+        guard !hasReceivedOnboardingSupply(key) else { return }
+        onboardingSupplyKeysRaw = (onboardingSupplyKeys + [key]).joined(separator: ",")
     }
 }
 
@@ -258,6 +298,9 @@ extension PlayerStateModel {
         case "chef":        return chefSkillPoints
         case "pharmacist":  return pharmacistSkillPoints
         case "farmer":      return farmerSkillPoints
+        case "weaponsmith": return weaponsmithSkillPoints
+        case "tailor":      return tailorSkillPoints
+        case "jeweler":     return jewelerSkillPoints
         default: return 0
         }
     }
@@ -277,6 +320,9 @@ extension PlayerStateModel {
         case "chef":        chefSkillPoints       = max(0, chefSkillPoints       - 1)
         case "pharmacist":  pharmacistSkillPoints = max(0, pharmacistSkillPoints - 1)
         case "farmer":      farmerSkillPoints     = max(0, farmerSkillPoints     - 1)
+        case "weaponsmith": weaponsmithSkillPoints = max(0, weaponsmithSkillPoints - 1)
+        case "tailor":      tailorSkillPoints      = max(0, tailorSkillPoints      - 1)
+        case "jeweler":     jewelerSkillPoints     = max(0, jewelerSkillPoints     - 1)
         default: break
         }
     }
@@ -292,6 +338,9 @@ extension PlayerStateModel {
         case "chef":        chefSkillsRaw       = updated
         case "pharmacist":  pharmacistSkillsRaw = updated
         case "farmer":      farmerSkillsRaw     = updated
+        case "weaponsmith": weaponsmithSkillsRaw = updated
+        case "tailor":      tailorSkillsRaw      = updated
+        case "jeweler":     jewelerSkillsRaw     = updated
         default: break
         }
     }
@@ -306,6 +355,9 @@ extension PlayerStateModel {
         case "chef":        return chefSkillsRaw
         case "pharmacist":  return pharmacistSkillsRaw
         case "farmer":      return farmerSkillsRaw
+        case "weaponsmith": return weaponsmithSkillsRaw
+        case "tailor":      return tailorSkillsRaw
+        case "jeweler":     return jewelerSkillsRaw
         default: return ""
         }
     }

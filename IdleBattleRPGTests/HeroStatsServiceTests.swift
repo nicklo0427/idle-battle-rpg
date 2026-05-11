@@ -113,8 +113,6 @@ final class HeroStatsServiceTests: XCTestCase {
             defPoints: def,
             hpPoints: hp,
             lastOpenedAt: Date(),
-            hasUsedFirstCraftBoost: false,
-            hasUsedFirstDungeonBoost: false,
             onboardingStep: 3
         )
         p.agiPoints = agi

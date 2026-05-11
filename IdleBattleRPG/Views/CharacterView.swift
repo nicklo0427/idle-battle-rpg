@@ -79,35 +79,205 @@ struct CharacterView: View {
         tasks.contains { $0.kind == .dungeon && $0.status == .inProgress }
     }
 
+    private var hasEquippedWeapon: Bool {
+        equippedItems.contains { $0.slot == .weapon }
+    }
+
+    private var hasUnequippedWeapon: Bool {
+        equipments.contains { !$0.isEquipped && $0.slot == .weapon }
+    }
+
+    private var hasEquippedArmor: Bool {
+        equippedItems.contains { $0.slot == .armor }
+    }
+
+    private var hasUnequippedArmor: Bool {
+        equipments.contains { !$0.isEquipped && $0.slot == .armor }
+    }
+
+    private var equippedWeapon: EquipmentModel? {
+        equippedItems.first { $0.slot == .weapon }
+    }
+
     // MARK: - T07 教程：解鎖冒險 Tab
 
     @ViewBuilder
     private var tutorialUnlockAdventureSection: some View {
+        let weaponReady = hasEquippedWeapon
+        let messageRuns: [TutorialTextRun] = weaponReady ? [
+            .plain("趁手的"),
+            .equipment("武器"),
+            .plain("在手了。接下來，去挑戰"),
+            .location("荒野"),
+            .plain("的"),
+            .action("菁英敵人"),
+            .plain("，贏得"),
+            .material("防具鍛造材料"),
+            .plain("。"),
+        ] : [
+            .plain("新"),
+            .equipment("武器"),
+            .plain("已經放進"),
+            .equipment("背包"),
+            .plain("。先到"),
+            .equipment("裝備欄"),
+            .plain("選擇"),
+            .equipment("武器"),
+            .plain("，親手把它裝上。"),
+        ]
         Section {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: "bubble.left.fill")
                         .foregroundStyle(.orange)
-                    Text("趁手的武器在手了。接下來，去挑戰荒野的菁英敵人，贏得防具鍛造材料。")
-                        .font(.subheadline)
-                        .fixedSize(horizontal: false, vertical: true)
+                    TutorialRichText(runs: messageRuns, font: .subheadline)
                 }
                 Button {
                     guard let player else { return }
-                    player.onboardingStep = 4
-                    try? context.save()
-                    selectedTab = 1   // 切換至冒險 Tab（tag 1）
+                    if weaponReady {
+                        player.onboardingStep = 4
+                        try? context.save()
+                        selectedTab = 1   // 切換至冒險 Tab（tag 1）
+                    } else {
+                        segment = .gear
+                        equipSheetSlot = .weapon
+                    }
                 } label: {
-                    Label("前往冒險（解鎖冒險頁）", systemImage: "map.fill")
+                    Label(
+                        weaponReady ? "前往冒險（解鎖冒險頁）" : "選擇要裝備的武器",
+                        systemImage: weaponReady ? "map.fill" : "hand.tap.fill"
+                    )
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.orange)
+                .disabled(!weaponReady && !hasUnequippedWeapon)
+
+                if !weaponReady && !hasUnequippedWeapon {
+                    TutorialRichText(
+                        runs: [
+                            .plain("尚未收到可裝備的"),
+                            .equipment("武器"),
+                            .plain("，請先"),
+                            .action("收下"),
+                            .plain("完成的製作任務。"),
+                        ],
+                        font: .caption,
+                        plainColor: .secondary
+                    )
+                }
             }
             .padding(.vertical, 4)
         } header: {
             Text("🎯 引導任務")
+        }
+    }
+
+    @ViewBuilder
+    private var tutorialContinuationSection: some View {
+        if let player, let info = characterTutorialInfo(step: player.onboardingStep) {
+            Section {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "flag.fill")
+                            .foregroundStyle(.orange)
+                        TutorialRichText(runs: info.runs, font: .subheadline)
+                    }
+                    Button {
+                        handleCharacterTutorialAction(step: player.onboardingStep)
+                    } label: {
+                        Label(info.buttonTitle, systemImage: info.systemImage)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.orange)
+                    .disabled(info.isDisabled)
+                }
+                .padding(.vertical, 4)
+            } header: {
+                Text("🎯 引導任務")
+            }
+        }
+    }
+
+    private func characterTutorialInfo(step: Int) -> (runs: [TutorialTextRun], buttonTitle: String, systemImage: String, isDisabled: Bool)? {
+        switch step {
+        case 8:
+            if hasEquippedArmor {
+                return ([
+                    .equipment("防具"), .plain("已裝備。接著前往"), .action("冒險"),
+                    .plain("開始第一次正式"), .action("出征"), .plain("。"),
+                ], "前往冒險", "map.fill", false)
+            }
+            return ([
+                .equipment("防具"), .plain("已放進"), .equipment("背包"),
+                .plain("。打開"), .equipment("裝備欄"), .plain("選擇"), .equipment("防具"), .plain("穿上。"),
+            ], "選擇要裝備的防具", "shield.fill", !hasUnequippedArmor)
+        case 11:
+            return ([
+                .plain("英雄升級了。點任一屬性的"), .action("+"),
+                .plain("，再按"), .action("確認加點"), .plain("。"),
+            ], "查看屬性點", "plus.circle.fill", false)
+        case 12:
+            return ([
+                .plain("切到"), .action("主動技能"), .plain("，"),
+                .action("升階"), .plain("或"), .action("配備"), .plain("第一個技能。"),
+            ], "查看主動技能", "bolt.fill", false)
+        case 13:
+            return ([
+                .plain("切到"), .action("天賦樹"), .plain("，投入第一個"),
+                .action("天賦點"), .plain("。"),
+            ], "查看天賦樹", "point.3.connected.trianglepath.dotted", false)
+        case 14:
+            let alreadyEnhanced = (equippedWeapon?.enhancementLevel ?? 0) >= 1
+            return ([
+                .plain("回到"), .equipment("裝備欄"), .plain("，用錘子把"),
+                .equipment("武器"), .plain("強化到"), .equipment("+1"), .plain("。"),
+            ], alreadyEnhanced ? "前往基地" : "查看裝備欄", alreadyEnhanced ? "house.fill" : "hammer.fill", false)
+        case 22:
+            return ([
+                .plain("最後到"), .action("成就"), .plain("分頁，看看已解鎖的"),
+                .action("成就"), .plain("。"),
+            ], "查看成就", "trophy.fill", false)
+        default:
+            return nil
+        }
+    }
+
+    private func handleCharacterTutorialAction(step: Int) {
+        guard let player else { return }
+        switch step {
+        case 8:
+            if hasEquippedArmor {
+                appState.onboardingService.advance(player: player, from: 8, to: 9)
+                selectedTab = 1
+            } else {
+                segment = .gear
+                equipSheetSlot = .armor
+            }
+        case 11:
+            segment = .status
+        case 12:
+            segment = .skills
+            skillSubTab = .active
+        case 13:
+            segment = .skills
+            skillSubTab = .talent
+        case 14:
+            if (equippedWeapon?.enhancementLevel ?? 0) >= 1 {
+                appState.onboardingService.advance(player: player, from: 14, to: 15)
+                selectedTab = 0
+            } else {
+                appState.onboardingService.prepareForCurrentStep()
+                segment = .gear
+            }
+        case 22:
+            segment = .achievement
+            appState.onboardingService.finish(player: player)
+        default:
+            break
         }
     }
 
@@ -119,6 +289,8 @@ struct CharacterView: View {
                 // ── 教程引導（T07：step == 3）────────────────────────
                 if player?.onboardingStep == 3 {
                     tutorialUnlockAdventureSection
+                } else {
+                    tutorialContinuationSection
                 }
 
                 // ── Segment Tab Bar（可滾動）──────────────────────────
@@ -127,6 +299,9 @@ struct CharacterView: View {
                         ForEach(CharacterSegment.allCases, id: \.self) { seg in
                             Button {
                                 withAnimation(.easeInOut(duration: 0.15)) { segment = seg }
+                                if seg == .achievement, player?.onboardingStep == 22 {
+                                    appState.onboardingService.finish(player: player)
+                                }
                             } label: {
                                 Text(seg.rawValue)
                                     .font(.subheadline.weight(.medium))
@@ -153,6 +328,16 @@ struct CharacterView: View {
                 }
             }
             .navigationTitle("角色")
+            .onAppear {
+                appState.onboardingService.prepareForCurrentStep()
+                completeAchievementTutorialIfNeeded()
+            }
+            .onChange(of: player?.onboardingStep) { _, _ in
+                appState.onboardingService.prepareForCurrentStep()
+            }
+            .onChange(of: segment) { _, _ in
+                completeAchievementTutorialIfNeeded()
+            }
             .alert("提示", isPresented: Binding(
                 get: { alertMsg != nil },
                 set: { if !$0 { alertMsg = nil } }
@@ -174,6 +359,9 @@ struct CharacterView: View {
                     if let p = player {
                         if let msg = viewModel.enhance(equipment: item, player: p, context: context) {
                             alertMsg = msg
+                        } else if p.onboardingStep == 14, item.slot == .weapon {
+                            appState.onboardingService.advance(player: p, from: 14, to: 15)
+                            selectedTab = 0
                         }
                     }
                     pendingEnhanceItem = nil
@@ -235,10 +423,24 @@ struct CharacterView: View {
                 ) { chosen in
                     if let item = chosen {
                         viewModel.equip(item, context: context)
+                        handleEquipmentEquippedForTutorial(item)
                     }
                     equipSheetSlot = nil
                 }
             }
+        }
+    }
+
+    private func completeAchievementTutorialIfNeeded() {
+        guard segment == .achievement, player?.onboardingStep == 22 else { return }
+        appState.onboardingService.finish(player: player)
+    }
+
+    private func handleEquipmentEquippedForTutorial(_ item: EquipmentModel) {
+        guard let player else { return }
+        if player.onboardingStep == 8, item.slot == .armor {
+            appState.onboardingService.advance(player: player, from: 8, to: 9)
+            selectedTab = 1
         }
     }
 
@@ -310,7 +512,13 @@ struct CharacterView: View {
                     if viewModel.hasPendingAllocations {
                         HStack(spacing: 12) {
                             Button("確認加點") {
+                                let hadPending = viewModel.hasPendingAllocations
                                 viewModel.commitAllocations(player: player, context: context)
+                                if hadPending, player.onboardingStep == 11 {
+                                    appState.onboardingService.advance(player: player, from: 11, to: 12)
+                                    segment = .skills
+                                    skillSubTab = .active
+                                }
                             }
                             .buttonStyle(.borderedProminent)
                             .tint(.orange)
@@ -764,6 +972,10 @@ struct CharacterView: View {
             } else if canUpgrade {
                 Button("升階（-1 技能點）Lv.\(currentLevel) → \(currentLevel + 1)") {
                     try? appState.skillUpgradeService.upgradeSkill(skillKey: skill.key, for: player)
+                    if player.onboardingStep == 12 {
+                        appState.onboardingService.advance(player: player, from: 12, to: 13)
+                        skillSubTab = .talent
+                    }
                 }
                 .font(.caption).buttonStyle(.bordered).tint(.orange)
             }
@@ -807,6 +1019,10 @@ struct CharacterView: View {
                         keys.append(skill.key)
                         player.equippedSkillKeys = keys
                         try? context.save()
+                        if player.onboardingStep == 12 {
+                            appState.onboardingService.advance(player: player, from: 12, to: 13)
+                            skillSubTab = .talent
+                        }
                     }
                     .font(.caption).buttonStyle(.bordered).tint(.orange)
                     .disabled(isOnExpedition || equipped.count >= 4)
@@ -935,6 +1151,11 @@ struct CharacterView: View {
             } else if canInvest {
                 Button("投入（-1 天賦點）") {
                     try? appState.talentService.investPoint(nodeKey: node.key, for: player)
+                    if player.onboardingStep == 13 {
+                        appState.onboardingService.advance(player: player, from: 13, to: 14)
+                        appState.onboardingService.prepareForCurrentStep()
+                        segment = .gear
+                    }
                 }
                 .font(.caption).buttonStyle(.bordered).tint(.blue)
             }
@@ -1228,7 +1449,10 @@ struct CharacterView: View {
                         if item.enhancementLevel < EnhancementDef.maxLevel {
                             Button { pendingEnhanceItem = item } label: {
                                 Image(systemName: "hammer").font(.caption2)
-                            }.buttonStyle(.bordered).tint(.orange)
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(.orange)
+                            .disabled(player?.onboardingStep == 14 && item.slot != .weapon)
                         }
                         Spacer()
                         Button { viewModel.unequip(item, context: context) } label: {
@@ -1317,12 +1541,14 @@ struct CharacterView: View {
         .contentShape(RoundedRectangle(cornerRadius: 12))
         .onTapGesture {
             viewModel.equip(item, context: context)
+            handleEquipmentEquippedForTutorial(item)
         }
         .contextMenu {
             if item.enhancementLevel < EnhancementDef.maxLevel {
                 Button { pendingEnhanceItem = item } label: {
                     Label("強化", systemImage: "hammer.fill")
                 }
+                .disabled(player?.onboardingStep == 14 && item.slot != .weapon)
             }
             if EnhancementDef.disassembleRefund(defKey: item.defKey) != nil {
                 Button(role: .destructive) { pendingDisassembleItem = item } label: {

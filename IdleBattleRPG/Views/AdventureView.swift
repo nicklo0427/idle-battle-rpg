@@ -54,7 +54,11 @@ struct AdventureView: View {
         NavigationStack {
             List {
                 activeBannerSection
+                tutorialStep4BubbleSection
                 tutorialStep6BubbleSection
+                tutorialStep9BubbleSection
+                tutorialStep10BubbleSection
+                tutorialStep19BubbleSection
                 regionListSection
             }
             .navigationTitle("冒險")
@@ -147,6 +151,37 @@ struct AdventureView: View {
         }
     }
 
+    /// Step 4：裝備武器後，指引玩家前往第一場菁英引導戰。
+    @ViewBuilder
+    private var tutorialStep4BubbleSection: some View {
+        if let player = players.first, player.onboardingStep == 4 {
+            Section {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "bubble.left.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(.orange)
+                    TutorialRichText(
+                        runs: [
+                            .equipment("武器"),
+                            .plain("已裝備。前往"),
+                            .location("金穗之野"),
+                            .location("第 1 層"),
+                            .plain("，"),
+                            .action("點開樓層"),
+                            .plain("並"),
+                            .action("挑戰菁英敵人"),
+                            .plain("，取得"),
+                            .equipment("防具配方"),
+                            .plain("。"),
+                        ],
+                        font: .subheadline
+                    )
+                }
+                .padding(.vertical, 4)
+            }
+        }
+    }
+
     /// Step 6：純文字提示，告知玩家探索保底獲材（無獨立按鈕，點 floor row 觸發）
     @ViewBuilder
     private var tutorialStep6BubbleSection: some View {
@@ -160,6 +195,74 @@ struct AdventureView: View {
                 }
                 .padding(.vertical, 4)
             }
+        }
+    }
+
+    /// Step 9：防具裝好後，開始第一次正式樓層出征。
+    @ViewBuilder
+    private var tutorialStep9BubbleSection: some View {
+        if let player = players.first, player.onboardingStep == 9 {
+            Section {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "map.fill")
+                        .foregroundStyle(.orange)
+                    TutorialRichText(
+                        runs: [
+                            .equipment("防具"), .plain("已穿好。點開"),
+                            .location("金穗之野第 1 層"), .plain("，按"),
+                            .action("出發"), .plain("完成第一次正式出征。"),
+                        ],
+                        font: .subheadline
+                    )
+                }
+                .padding(.vertical, 4)
+            }
+            .listRowBackground(Color.orange.opacity(0.08))
+        }
+    }
+
+    /// Step 10：等待 2 秒教學出征完成，接著觀看戰鬥並收下。
+    @ViewBuilder
+    private var tutorialStep10BubbleSection: some View {
+        if let player = players.first, player.onboardingStep == 10 {
+            Section {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "checkmark.seal.fill")
+                        .foregroundStyle(.orange)
+                    TutorialRichText(
+                        runs: [
+                            .plain("等"), .action("出征"), .plain("完成後，觀看"),
+                            .action("戰鬥"), .plain("並"), .action("收下獎勵"),
+                            .plain("，英雄會解鎖第一批成長點。"),
+                        ],
+                        font: .subheadline
+                    )
+                }
+                .padding(.vertical, 4)
+            }
+            .listRowBackground(Color.orange.opacity(0.08))
+        }
+    }
+
+    /// Step 19：攜帶料理與藥水再跑一次。
+    @ViewBuilder
+    private var tutorialStep19BubbleSection: some View {
+        if let player = players.first, player.onboardingStep == 19 {
+            Section {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "takeoutbag.and.cup.and.straw.fill")
+                        .foregroundStyle(.orange)
+                    TutorialRichText(
+                        runs: [
+                            .plain("點開"), .location("金穗之野第 1 層"), .plain("，在出征前攜帶"),
+                            .equipment("料理"), .plain("與"), .equipment("藥水"), .plain("。"),
+                        ],
+                        font: .subheadline
+                    )
+                }
+                .padding(.vertical, 4)
+            }
+            .listRowBackground(Color.orange.opacity(0.08))
         }
     }
 
@@ -335,9 +438,8 @@ struct AdventureView: View {
                                 .font(.caption)
                                 .foregroundStyle(.green)
                         }
-                        // 引導 step 6：高亮目標樓層
-                        if players.first?.onboardingStep == 6,
-                           region.key == "wildland", floor.floorIndex == 1 {
+                        // 引導 step 4 / 6：高亮目標樓層
+                        if isTutorialRecommendedFloor(region: region, floor: floor) {
                             Text("推薦")
                                 .font(.caption2).fontWeight(.semibold)
                                 .foregroundStyle(.orange)
@@ -404,6 +506,12 @@ struct AdventureView: View {
 
     // MARK: - Helpers
 
+    private func isTutorialRecommendedFloor(region: DungeonRegionDef, floor: DungeonFloorDef) -> Bool {
+        guard let step = players.first?.onboardingStep,
+              step == 4 || step == 6 || step == 9 || step == 19 else { return false }
+        return region.key == "wildland" && floor.floorIndex == 1
+    }
+
     /// 建立地下城任務。成功時回傳已建立的 TaskModel；失敗時設定錯誤訊息並回傳 nil。
     @discardableResult
     private func launchFloor(
@@ -432,6 +540,51 @@ struct AdventureView: View {
             errorMessage = "找不到英雄資料"
             showError = true
             return nil
+        }
+        if let player = players.first, player.onboardingStep == 9,
+           floor.regionKey == "wildland", floor.floorIndex == 1 {
+            do {
+                try TaskCreationService(context: context).createTutorialDungeonFloorTask(
+                    floorKey: floor.key,
+                    heroStats: stats,
+                    equippedSkillKeys: players.first?.equippedSkillKeys ?? [],
+                    tutorialKey: OnboardingTutorialKey.firstDungeon
+                )
+            } catch {
+                errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                showError = true
+                return nil
+            }
+            let descriptor = FetchDescriptor<TaskModel>(
+                predicate: #Predicate { $0.actorKey == "player" }
+            )
+            return (try? context.fetch(descriptor))?.first(where: { $0.status == .inProgress })
+        }
+        if let player = players.first, player.onboardingStep == 19,
+           floor.regionKey == "wildland", floor.floorIndex == 1 {
+            guard !cuisineKey.isEmpty, !potionKey.isEmpty else {
+                errorMessage = "請先攜帶料理與藥水"
+                showError = true
+                return nil
+            }
+            do {
+                try TaskCreationService(context: context).createTutorialDungeonFloorTask(
+                    floorKey: floor.key,
+                    heroStats: stats,
+                    equippedSkillKeys: players.first?.equippedSkillKeys ?? [],
+                    cuisineKey: cuisineKey,
+                    potionKey: potionKey,
+                    tutorialKey: OnboardingTutorialKey.buffedRun
+                )
+            } catch {
+                errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                showError = true
+                return nil
+            }
+            let descriptor = FetchDescriptor<TaskModel>(
+                predicate: #Predicate { $0.actorKey == "player" }
+            )
+            return (try? context.fetch(descriptor))?.first(where: { $0.status == .inProgress })
         }
         let result = viewModel.startDungeonFloor(
             floorKey: floor.key,
@@ -533,6 +686,25 @@ private struct FloorDetailSheet: View {
 
     private var isBusy: Bool { activeDungeonTask != nil }
 
+    private var onboardingStep: Int { players.first?.onboardingStep ?? OnboardingService.completedStep }
+
+    private var isTutorialStartFloor: Bool {
+        (onboardingStep == 9 || onboardingStep == 19)
+        && floor.regionKey == "wildland"
+        && floor.floorIndex == 1
+    }
+
+    private var needsTutorialConsumables: Bool {
+        onboardingStep == 19
+        && floor.regionKey == "wildland"
+        && floor.floorIndex == 1
+    }
+
+    private var tutorialBlocksLaunch: Bool {
+        (onboardingStep == 6 || onboardingStep == 9 || onboardingStep == 19)
+        && !(floor.regionKey == "wildland" && floor.floorIndex == 1)
+    }
+
     /// 教程菁英戰（step == 4，荒野 F1）：繞過戰力門檻，保證勝利
     private var isTutorialElite: Bool {
         (players.first?.onboardingStep == 4)
@@ -544,6 +716,7 @@ private struct FloorDetailSheet: View {
         NavigationStack {
             List {
                 floorInfoSection
+                tutorialLaunchTipSection
                 consumableSection
                 launchSection
                 unlockAndEliteSection
@@ -578,6 +751,16 @@ private struct FloorDetailSheet: View {
             }
             .navigationTitle(floor.name)
             .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                eliteCleared = appState.progressionService.isEliteCleared(
+                    regionKey:  floor.regionKey,
+                    floorIndex: floor.floorIndex
+                )
+                preselectTutorialConsumablesIfNeeded()
+            }
+            .onChange(of: onboardingStep) { _, _ in
+                preselectTutorialConsumablesIfNeeded()
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("關閉") { dismiss() }
@@ -593,12 +776,31 @@ private struct FloorDetailSheet: View {
                     )
                 }
             }
-            .onAppear {
-                eliteCleared = appState.progressionService.isEliteCleared(
-                    regionKey:  floor.regionKey,
-                    floorIndex: floor.floorIndex
-                )
+        }
+    }
+
+    @ViewBuilder
+    private var tutorialLaunchTipSection: some View {
+        if isTutorialStartFloor {
+            Section {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "hand.tap.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                    TutorialRichText(
+                        runs: needsTutorialConsumables ? [
+                            .plain("確認已選擇"), .equipment("料理"), .plain("與"),
+                            .equipment("藥水"), .plain("，再點"), .action("出發"), .plain("。"),
+                        ] : [
+                            .plain("維持"), .action("15 分鐘"), .plain("即可。這次會以"),
+                            .action("2 秒教學出征"), .plain("完成。"),
+                        ],
+                        font: .caption,
+                        plainColor: .secondary
+                    )
+                }
             }
+            .listRowBackground(Color.orange.opacity(0.08))
         }
     }
 
@@ -678,6 +880,27 @@ private struct FloorDetailSheet: View {
                     Label("菁英已擊敗，獎勵已領取", systemImage: "checkmark.circle.fill")
                         .font(.caption).foregroundStyle(.green)
                 } else if isTutorialElite || (heroStats?.power ?? 0) >= elite.minPowerRequired {
+                    if isTutorialElite {
+                        HStack(alignment: .top, spacing: 8) {
+                            Image(systemName: "hand.tap.fill")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                            TutorialRichText(
+                                runs: [
+                                    .plain("點擊"),
+                                    .action("挑戰菁英（引導戰）"),
+                                    .plain("。勝利後會解鎖"),
+                                    .equipment("防具配方"),
+                                    .plain("，接著回基地找"),
+                                    .action("裁縫師"),
+                                    .plain("。"),
+                                ],
+                                font: .caption,
+                                plainColor: .secondary
+                            )
+                        }
+                    }
+
                     Button {
                         showEliteBattle = true
                     } label: {
@@ -778,6 +1001,7 @@ private struct FloorDetailSheet: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(Color.dungeonRegion(floor.regionKey))  // T01 出發按鈕用區域色
+                .disabled(tutorialBlocksLaunch || (needsTutorialConsumables && (selectedCuisineKey.isEmpty || selectedPotionKey.isEmpty)))
 
                 // 配備技能預覽
                 if !equippedSkills.isEmpty {
@@ -794,6 +1018,20 @@ private struct FloorDetailSheet: View {
                     .frame(maxWidth: .infinity, alignment: .center)
                 }
             }
+        }
+    }
+
+    private func preselectTutorialConsumablesIfNeeded() {
+        guard needsTutorialConsumables, let inv = consumables.first else { return }
+        if selectedCuisineKey.isEmpty {
+            selectedCuisineKey = ConsumableType.allCases.first {
+                $0.isCuisine && inv.amount(of: $0) > 0
+            }?.rawValue ?? ""
+        }
+        if selectedPotionKey.isEmpty {
+            selectedPotionKey = ConsumableType.allCases.first {
+                $0.isPotion && inv.amount(of: $0) > 0
+            }?.rawValue ?? ""
         }
     }
 

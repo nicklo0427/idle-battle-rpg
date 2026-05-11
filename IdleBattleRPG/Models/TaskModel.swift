@@ -44,6 +44,9 @@ final class TaskModel {
     var endsAt: Date
     /// 新手特快覆蓋秒數，nil = 正常時長
     var durationOverride: Int?
+    /// 新手引導任務識別。空字串 = 一般任務。
+    /// 讓教學任務仍可使用真實 definitionKey，但在結算 / 收下時辨識教學流程。
+    var tutorialKey: String = ""
 
     // MARK: - 特殊控制
 
@@ -191,6 +194,7 @@ final class TaskModel {
         startedAt: Date,
         endsAt: Date,
         durationOverride: Int?  = nil,
+        tutorialKey:      String = "",
         forcedBattles:    Int?  = nil,
         snapshotPower:    Int?  = nil,
         snapshotAgi:      Int?  = nil,
@@ -237,6 +241,7 @@ final class TaskModel {
         self.startedAt        = startedAt
         self.endsAt           = endsAt
         self.durationOverride = durationOverride
+        self.tutorialKey      = tutorialKey
         self.forcedBattles    = forcedBattles
         self.snapshotPower    = snapshotPower
         self.snapshotAgi      = snapshotAgi
