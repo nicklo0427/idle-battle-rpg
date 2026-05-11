@@ -76,6 +76,71 @@ struct TutorialRichText: View {
     }
 }
 
+// MARK: - SmoothLinearProgressBar
+
+struct SmoothLinearProgressBar: View {
+
+    private let fixedProgress: Double?
+    private let task: TaskModel?
+    var tint: Color = .accentColor
+    var trackColor: Color? = nil
+    var height: CGFloat = 5
+
+    init(value: Double, total: Double = 1.0, tint: Color = .accentColor, trackColor: Color? = nil, height: CGFloat = 5) {
+        self.fixedProgress = total > 0 ? value / total : 1.0
+        self.task = nil
+        self.tint = tint
+        self.trackColor = trackColor
+        self.height = height
+    }
+
+    init(task: TaskModel, tint: Color = .accentColor, trackColor: Color? = nil, height: CGFloat = 5) {
+        self.fixedProgress = nil
+        self.task = task
+        self.tint = tint
+        self.trackColor = trackColor
+        self.height = height
+    }
+
+    var body: some View {
+        Group {
+            if let task {
+                TimelineView(.animation) { context in
+                    accessibleBar(progress: task.progress(relativeTo: context.date))
+                }
+            } else {
+                accessibleBar(progress: fixedProgress ?? 0)
+            }
+        }
+        .frame(height: height)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("進度")
+    }
+
+    private func accessibleBar(progress: Double) -> some View {
+        bar(progress: progress)
+            .accessibilityValue("\(Int(clamped(progress) * 100))%")
+    }
+
+    private func bar(progress: Double) -> some View {
+        GeometryReader { proxy in
+            let normalized = clamped(progress)
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill((trackColor ?? tint).opacity(0.18))
+                Capsule()
+                    .fill(tint)
+                    .frame(width: max(CGFloat.zero, proxy.size.width * CGFloat(normalized)))
+            }
+            .animation(.linear(duration: 0.08), value: normalized)
+        }
+    }
+
+    private func clamped(_ value: Double) -> Double {
+        min(1.0, max(0.0, value))
+    }
+}
+
 // MARK: - NPCPortraitView
 //
 // 顯示 NPC WebP 圖像的固定舞台。外框可以維持卡片圓角，

@@ -284,12 +284,13 @@ struct GathererDetailSheet: View {
         guard npcDef.actorKey == AppConstants.Actor.gatherer1,
               player?.onboardingStep == 0 else { return nil }
         return [
-            .plain("要塞需要資源。先"),
-            .action("點選"),
+            .plain("你已經找到"),
+            .action("伐木工阿森"),
+            .plain("。接著點選"),
             .location("森林"),
             .plain("採集"),
             .material("木材"),
-            .plain("吧，打把"),
+            .plain("，打把"),
             .equipment("武器"),
             .plain("就差這一步了。"),
         ]
@@ -534,8 +535,7 @@ struct GathererDetailSheet: View {
                             .foregroundStyle(.green)
                             .monospacedDigit()
                     }
-                    ProgressView(value: task.progress(relativeTo: appState.tick))
-                        .tint(.green)
+                    SmoothLinearProgressBar(task: task, tint: .green, height: 5)
                     Text("預計 \(task.endsAt.formatted(date: .omitted, time: .shortened)) 回來")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)

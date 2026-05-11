@@ -76,10 +76,13 @@ struct CraftSheet: View {
     private var tutorialDialogueRuns: [TutorialTextRun]? {
         guard player?.onboardingStep == 2 else { return nil }
         return [
-            .material("素材"),
-            .plain("齊了，我替你打一把趁手的"),
-            .equipment("武器"),
-            .plain("——稍等片刻便完工。"),
+            .plain("你已經找到"),
+            .action("鑄造師老鐵"),
+            .plain("。把"),
+            .material("木材"),
+            .plain("交給我，我替你打造"),
+            .equipment("初始武器"),
+            .plain("。"),
         ]
     }
 

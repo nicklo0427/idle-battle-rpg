@@ -286,9 +286,12 @@ struct BaseView: View {
                     Text(info.flavor)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    ProgressView(value: Double(currentStep), total: Double(totalSteps))
-                        .tint(.orange)
-                        .scaleEffect(y: 0.7)
+                    SmoothLinearProgressBar(
+                        value: Double(currentStep),
+                        total: Double(totalSteps),
+                        tint: .orange,
+                        height: 4
+                    )
                 }
                 .listRowBackground(Color.orange.opacity(0.08))
             }
@@ -535,13 +538,13 @@ struct BaseView: View {
                         .frame(minHeight: 30, alignment: .topLeading)
 
                     if let activeTask {
-                        ProgressView(value: activeTask.progress(relativeTo: appState.tick))
-                            .tint(color)
-                            .scaleEffect(y: 0.55)
+                        SmoothLinearProgressBar(task: activeTask, tint: color, height: 4)
                     } else {
-                        ProgressView(value: completedTask != nil ? 1.0 : 0.0)
-                            .tint(completedTask != nil ? .orange : color.opacity(0.25))
-                            .scaleEffect(y: 0.55)
+                        SmoothLinearProgressBar(
+                            value: completedTask != nil ? 1.0 : 0.0,
+                            tint: completedTask != nil ? .orange : color.opacity(0.25),
+                            height: 4
+                        )
                     }
                 }
             }
@@ -640,13 +643,13 @@ struct BaseView: View {
                         .frame(minHeight: 30, alignment: .topLeading)
 
                     if let activeTask {
-                        ProgressView(value: activeTask.progress(relativeTo: appState.tick))
-                            .tint(.yellow)
-                            .scaleEffect(y: 0.55)
+                        SmoothLinearProgressBar(task: activeTask, tint: .yellow, height: 4)
                     } else {
-                        ProgressView(value: completedTask != nil ? 1.0 : 0.0)
-                            .tint(completedTask != nil ? .orange : .yellow.opacity(0.25))
-                            .scaleEffect(y: 0.55)
+                        SmoothLinearProgressBar(
+                            value: completedTask != nil ? 1.0 : 0.0,
+                            tint: completedTask != nil ? .orange : .yellow.opacity(0.25),
+                            height: 4
+                        )
                     }
                 }
             }
@@ -781,13 +784,13 @@ struct BaseView: View {
                         .frame(minHeight: 30, alignment: .topLeading)
 
                     if let activeTask {
-                        ProgressView(value: activeTask.progress(relativeTo: appState.tick))
-                            .tint(color)
-                            .scaleEffect(y: 0.55)
+                        SmoothLinearProgressBar(task: activeTask, tint: color, height: 4)
                     } else {
-                        ProgressView(value: completedTask != nil ? 1.0 : 0.0)
-                            .tint(completedTask != nil ? .orange : color.opacity(0.25))
-                            .scaleEffect(y: 0.55)
+                        SmoothLinearProgressBar(
+                            value: completedTask != nil ? 1.0 : 0.0,
+                            tint: completedTask != nil ? .orange : color.opacity(0.25),
+                            height: 4
+                        )
                     }
                 }
             }
@@ -847,7 +850,6 @@ struct BaseView: View {
                   let locDef = GatherLocationDef.find(key: task.definitionKey) else { return "閒置中" }
             return "採集中：\(locDef.name)\n\(TaskCountdown.remaining(for: task, relativeTo: appState.tick))"
         }()
-        let progress = (unlocked && isBusy) ? activeTask.map { $0.progress(relativeTo: appState.tick) } : nil
 
         Button { if unlocked { selectedGathererDef = def } } label: {
             HStack(spacing: 14) {
@@ -873,10 +875,8 @@ struct BaseView: View {
                         .font(.caption2)
                         .foregroundStyle(unlocked && isBusy ? Color.green : .secondary)
                         .lineLimit(2)
-                    if let progress {
-                        ProgressView(value: progress)
-                            .tint(.green)
-                            .scaleEffect(y: 0.6)
+                    if let activeTask, unlocked && isBusy {
+                        SmoothLinearProgressBar(task: activeTask, tint: .green, height: 4)
                     }
                 }
 
@@ -968,7 +968,6 @@ struct BaseView: View {
                   let def = CraftRecipeDef.find(key: task.definitionKey) else { return "閒置中，點擊委派" }
             return "鑄造中：\(def.name)\n\(TaskCountdown.remaining(for: task, relativeTo: appState.tick))"
         }()
-        let progress = (unlocked && isBusy) ? activeTask.map { $0.progress(relativeTo: appState.tick) } : nil
 
         Button { if !isBusy && unlocked { showCraftSheet = true } } label: {
             HStack(spacing: 14) {
@@ -994,10 +993,8 @@ struct BaseView: View {
                         .font(.caption2)
                         .foregroundStyle(unlocked && isBusy ? Color.orange : .secondary)
                         .lineLimit(2)
-                    if let progress {
-                        ProgressView(value: progress)
-                            .tint(.orange)
-                            .scaleEffect(y: 0.6)
+                    if let activeTask, unlocked && isBusy {
+                        SmoothLinearProgressBar(task: activeTask, tint: .orange, height: 4)
                     }
                 }
 
@@ -1042,7 +1039,6 @@ struct BaseView: View {
                   let def = CuisineDef.find(task.definitionKey) else { return "閒置中，點擊委派" }
             return "烹飪中：\(def.icon) \(def.name)\n\(TaskCountdown.remaining(for: task, relativeTo: appState.tick))"
         }()
-        let progress = (unlocked && isBusy) ? activeTask.map { $0.progress(relativeTo: appState.tick) } : nil
 
         Button { if !isBusy && unlocked { showCuisineSheet = true } } label: {
             HStack(spacing: 14) {
@@ -1068,10 +1064,8 @@ struct BaseView: View {
                         .font(.caption2)
                         .foregroundStyle(unlocked && isBusy ? Color.purple : .secondary)
                         .lineLimit(2)
-                    if let progress {
-                        ProgressView(value: progress)
-                            .tint(.purple)
-                            .scaleEffect(y: 0.6)
+                    if let activeTask, unlocked && isBusy {
+                        SmoothLinearProgressBar(task: activeTask, tint: .purple, height: 4)
                     }
                 }
 
@@ -1116,7 +1110,6 @@ struct BaseView: View {
                   let def = PotionDef.find(task.definitionKey) else { return "閒置中，點擊選擇" }
             return "製藥中：\(def.name)\n\(TaskCountdown.remaining(for: task, relativeTo: appState.tick))"
         }()
-        let progress = (unlocked && isBusy) ? activeTask.map { $0.progress(relativeTo: appState.tick) } : nil
 
         Button { if !isBusy && unlocked { showPharmacySheet = true } } label: {
             HStack(spacing: 14) {
@@ -1142,10 +1135,8 @@ struct BaseView: View {
                         .font(.caption2)
                         .foregroundStyle(unlocked && isBusy ? Color.teal : .secondary)
                         .lineLimit(2)
-                    if let progress {
-                        ProgressView(value: progress)
-                            .tint(.teal)
-                            .scaleEffect(y: 0.6)
+                    if let activeTask, unlocked && isBusy {
+                        SmoothLinearProgressBar(task: activeTask, tint: .teal, height: 4)
                     }
                 }
 
@@ -1186,7 +1177,6 @@ struct BaseView: View {
             let recipeName = CraftRecipeDef.find(key: task.definitionKey)?.name ?? "副手"
             return "鑄造中：\(recipeName)\n\(TaskCountdown.remaining(for: task, relativeTo: appState.tick))"
         }()
-        let progress = isBusy ? activeTask.map { $0.progress(relativeTo: appState.tick) } : nil
 
         Button { if !isBusy { showOffhandSheet = true } } label: {
             HStack(spacing: 14) {
@@ -1207,8 +1197,8 @@ struct BaseView: View {
                         .font(.caption2)
                         .foregroundStyle(isBusy ? Color.orange : .secondary)
                         .lineLimit(2)
-                    if let progress {
-                        ProgressView(value: progress).tint(.orange).scaleEffect(y: 0.6)
+                    if let activeTask {
+                        SmoothLinearProgressBar(task: activeTask, tint: .orange, height: 4)
                     }
                 }
 
@@ -1244,7 +1234,6 @@ struct BaseView: View {
             let recipeName = CraftRecipeDef.find(key: task.definitionKey)?.name ?? "飾品"
             return "鑄造中：\(recipeName)\n\(TaskCountdown.remaining(for: task, relativeTo: appState.tick))"
         }()
-        let progress = isBusy ? activeTask.map { $0.progress(relativeTo: appState.tick) } : nil
 
         Button { if !isBusy { showAccessorySheet = true } } label: {
             HStack(spacing: 14) {
@@ -1265,8 +1254,8 @@ struct BaseView: View {
                         .font(.caption2)
                         .foregroundStyle(isBusy ? Color.purple : .secondary)
                         .lineLimit(2)
-                    if let progress {
-                        ProgressView(value: progress).tint(.purple).scaleEffect(y: 0.6)
+                    if let activeTask {
+                        SmoothLinearProgressBar(task: activeTask, tint: .purple, height: 4)
                     }
                 }
 
@@ -1302,7 +1291,6 @@ struct BaseView: View {
             let recipeName = CraftRecipeDef.find(key: task.definitionKey)?.name ?? "防具"
             return "製作中：\(recipeName)\n\(TaskCountdown.remaining(for: task, relativeTo: appState.tick))"
         }()
-        let progress = isBusy ? activeTask.map { $0.progress(relativeTo: appState.tick) } : nil
 
         Button { if !isBusy { showTailorSheet = true } } label: {
             HStack(spacing: 14) {
@@ -1323,8 +1311,8 @@ struct BaseView: View {
                         .font(.caption2)
                         .foregroundStyle(isBusy ? Color.teal : .secondary)
                         .lineLimit(2)
-                    if let progress {
-                        ProgressView(value: progress).tint(.teal).scaleEffect(y: 0.6)
+                    if let activeTask {
+                        SmoothLinearProgressBar(task: activeTask, tint: .teal, height: 4)
                     }
                 }
 

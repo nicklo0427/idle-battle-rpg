@@ -107,23 +107,25 @@ struct CharacterView: View {
         let messageRuns: [TutorialTextRun] = weaponReady ? [
             .plain("趁手的"),
             .equipment("武器"),
-            .plain("在手了。接下來，去挑戰"),
-            .location("荒野"),
+            .plain("在手了。接下來到"),
+            .action("冒險"),
+            .plain("頁挑戰"),
+            .location("金穗之野"),
             .plain("的"),
             .action("菁英敵人"),
             .plain("，贏得"),
-            .material("防具鍛造材料"),
+            .equipment("防具配方"),
             .plain("。"),
         ] : [
-            .plain("新"),
-            .equipment("武器"),
-            .plain("已經放進"),
-            .equipment("背包"),
-            .plain("。先到"),
+            .plain("到"),
+            .action("角色"),
+            .plain("頁打開"),
             .equipment("裝備欄"),
-            .plain("選擇"),
-            .equipment("武器"),
-            .plain("，親手把它裝上。"),
+            .plain("，從"),
+            .equipment("背包"),
+            .plain("選擇並裝備"),
+            .equipment("初始武器"),
+            .plain("。"),
         ]
         Section {
             VStack(alignment: .leading, spacing: 10) {
@@ -207,38 +209,39 @@ struct CharacterView: View {
         case 8:
             if hasEquippedArmor {
                 return ([
-                    .equipment("防具"), .plain("已裝備。接著前往"), .action("冒險"),
-                    .plain("開始第一次正式"), .action("出征"), .plain("。"),
+                    .equipment("防具"), .plain("已裝備。接著到"), .action("冒險"),
+                    .plain("頁開始第一次正式"), .action("出征"), .plain("。"),
                 ], "前往冒險", "map.fill", false)
             }
             return ([
-                .equipment("防具"), .plain("已放進"), .equipment("背包"),
-                .plain("。打開"), .equipment("裝備欄"), .plain("選擇"), .equipment("防具"), .plain("穿上。"),
+                .plain("到"), .action("角色"), .plain("頁打開"),
+                .equipment("裝備欄"), .plain("，從"), .equipment("背包"),
+                .plain("選擇並穿上"), .equipment("防具"), .plain("。"),
             ], "選擇要裝備的防具", "shield.fill", !hasUnequippedArmor)
         case 11:
             return ([
-                .plain("英雄升級了。點任一屬性的"), .action("+"),
+                .plain("在"), .action("角色"), .plain("頁點任一屬性的"), .action("+"),
                 .plain("，再按"), .action("確認加點"), .plain("。"),
             ], "查看屬性點", "plus.circle.fill", false)
         case 12:
             return ([
-                .plain("切到"), .action("主動技能"), .plain("，"),
+                .plain("在"), .action("角色"), .plain("頁切到"), .action("主動技能"), .plain("，"),
                 .action("升階"), .plain("或"), .action("配備"), .plain("第一個技能。"),
             ], "查看主動技能", "bolt.fill", false)
         case 13:
             return ([
-                .plain("切到"), .action("天賦樹"), .plain("，投入第一個"),
+                .plain("在"), .action("角色"), .plain("頁切到"), .action("天賦樹"), .plain("，投入第一個"),
                 .action("天賦點"), .plain("。"),
             ], "查看天賦樹", "point.3.connected.trianglepath.dotted", false)
         case 14:
             let alreadyEnhanced = (equippedWeapon?.enhancementLevel ?? 0) >= 1
             return ([
-                .plain("回到"), .equipment("裝備欄"), .plain("，用錘子把"),
+                .plain("在"), .action("角色"), .plain("頁回到"), .equipment("裝備欄"), .plain("，用錘子把"),
                 .equipment("武器"), .plain("強化到"), .equipment("+1"), .plain("。"),
             ], alreadyEnhanced ? "前往基地" : "查看裝備欄", alreadyEnhanced ? "house.fill" : "hammer.fill", false)
         case 22:
             return ([
-                .plain("最後到"), .action("成就"), .plain("分頁，看看已解鎖的"),
+                .plain("最後到"), .action("角色"), .plain("頁切到"), .action("成就"), .plain("，看看已解鎖的"),
                 .action("成就"), .plain("。"),
             ], "查看成就", "trophy.fill", false)
         default:
@@ -572,8 +575,10 @@ struct CharacterView: View {
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
-                        ProgressView(value: min(1.0, Double(player.heroExp) / Double(required)))
-                            .tint(.purple)
+                        SmoothLinearProgressBar(
+                            value: min(1.0, Double(player.heroExp) / Double(required)),
+                            tint: .purple
+                        )
                         Text("EXP \(player.heroExp) / \(required) · 升級獲得 \(AppConstants.Game.statPointsPerLevel) 屬性點")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -1209,8 +1214,7 @@ struct CharacterView: View {
                     .fontWeight(.semibold)
                     .monospacedDigit()
             }
-            ProgressView(value: Double(unlockedCount), total: Double(total))
-                .tint(.yellow)
+            SmoothLinearProgressBar(value: Double(unlockedCount), total: Double(total), tint: .yellow)
         } header: {
             Text("成就進度")
         }

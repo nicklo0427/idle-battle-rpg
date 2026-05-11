@@ -135,8 +135,7 @@ struct AdventureView: View {
                                 .font(.caption)
                                 .foregroundStyle(color)
                                 .monospacedDigit()
-                                ProgressView(value: task.progress(relativeTo: appState.tick))
-                                .tint(color)                 // T01 區域色
+                            SmoothLinearProgressBar(task: task, tint: color, height: 5)
                                 .padding(.top, 2)
                         }
                         Spacer()
@@ -163,14 +162,13 @@ struct AdventureView: View {
                     TutorialRichText(
                         runs: [
                             .equipment("武器"),
-                            .plain("已裝備。前往"),
-                            .location("金穗之野"),
-                            .location("第 1 層"),
+                            .plain("已裝備。到"),
+                            .action("冒險"),
+                            .plain("頁打開"),
+                            .location("金穗之野第 1 層"),
                             .plain("，"),
-                            .action("點開樓層"),
-                            .plain("並"),
                             .action("挑戰菁英敵人"),
-                            .plain("，取得"),
+                            .plain("取得"),
                             .equipment("防具配方"),
                             .plain("。"),
                         ],
@@ -188,10 +186,23 @@ struct AdventureView: View {
         if let player = players.first, player.onboardingStep == 6 {
             Section {
                 HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: "bubble.left.fill").foregroundStyle(.green)
-                    Text("前往金穗之野探索！必定獲得防具所需材料。")
+                    Image(systemName: "bubble.left.fill")
                         .font(.subheadline)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .foregroundStyle(.orange)
+                    TutorialRichText(
+                        runs: [
+                            .plain("到"),
+                            .action("冒險"),
+                            .plain("頁前往"),
+                            .location("金穗之野"),
+                            .plain("，"),
+                            .action("探索"),
+                            .plain("取得"),
+                            .material("防具素材"),
+                            .plain("。"),
+                        ],
+                        font: .subheadline
+                    )
                 }
                 .padding(.vertical, 4)
             }
@@ -208,7 +219,8 @@ struct AdventureView: View {
                         .foregroundStyle(.orange)
                     TutorialRichText(
                         runs: [
-                            .equipment("防具"), .plain("已穿好。點開"),
+                            .equipment("防具"), .plain("已穿好。到"),
+                            .action("冒險"), .plain("頁點開"),
                             .location("金穗之野第 1 層"), .plain("，按"),
                             .action("出發"), .plain("完成第一次正式出征。"),
                         ],
@@ -231,9 +243,10 @@ struct AdventureView: View {
                         .foregroundStyle(.orange)
                     TutorialRichText(
                         runs: [
-                            .plain("等"), .action("出征"), .plain("完成後，觀看"),
-                            .action("戰鬥"), .plain("並"), .action("收下獎勵"),
-                            .plain("，英雄會解鎖第一批成長點。"),
+                            .plain("在"), .action("冒險"), .plain("頁等待"),
+                            .action("出征"), .plain("完成，觀看"),
+                            .action("戰鬥過程"), .plain("並"), .action("收下獎勵"),
+                            .plain("。"),
                         ],
                         font: .subheadline
                     )
@@ -254,7 +267,8 @@ struct AdventureView: View {
                         .foregroundStyle(.orange)
                     TutorialRichText(
                         runs: [
-                            .plain("點開"), .location("金穗之野第 1 層"), .plain("，在出征前攜帶"),
+                            .plain("回到"), .action("冒險"), .plain("頁點開"),
+                            .location("金穗之野第 1 層"), .plain("，出征前攜帶"),
                             .equipment("料理"), .plain("與"), .equipment("藥水"), .plain("。"),
                         ],
                         font: .subheadline
@@ -891,8 +905,10 @@ private struct FloorDetailSheet: View {
                                     .action("挑戰菁英（引導戰）"),
                                     .plain("。勝利後會解鎖"),
                                     .equipment("防具配方"),
-                                    .plain("，接著回基地找"),
-                                    .action("裁縫師"),
+                                    .plain("，接著回"),
+                                    .location("基地的生產者小屋"),
+                                    .plain("找"),
+                                    .action("裁縫師阿針"),
                                     .plain("。"),
                                 ],
                                 font: .caption,

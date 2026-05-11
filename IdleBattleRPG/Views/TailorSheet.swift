@@ -54,20 +54,25 @@ struct TailorSheet: View {
         switch player?.onboardingStep {
         case 5:
             return [
-                .plain("這件"),
+                .plain("你已經找到"),
+                .action("裁縫師阿針"),
+                .plain("。這件"),
                 .equipment("護甲"),
                 .plain("需要野外的"),
                 .material("乾燥獸皮"),
-                .plain("。去"),
-                .location("荒野"),
-                .plain("走一趟——五分鐘保準找到。"),
+                .plain("，先去"),
+                .location("金穗之野"),
+                .action("探索"),
+                .plain("取得素材。"),
             ]
         case 7:
             return [
                 .material("素材"),
-                .plain("都到手了。讓我縫製一件正式的"),
+                .plain("都到手了。交給"),
+                .action("裁縫師阿針"),
+                .plain("，縫製一件正式的"),
                 .equipment("護甲"),
-                .plain("——稍等片刻便完工。"),
+                .plain("。"),
             ]
         default:
             return nil

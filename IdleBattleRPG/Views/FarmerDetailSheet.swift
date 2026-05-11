@@ -393,8 +393,7 @@ struct FarmerDetailSheet: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
-            ProgressView(value: task.progress(relativeTo: appState.tick))
-                .tint(.green)
+            SmoothLinearProgressBar(task: task, tint: .green, height: 5)
                 .frame(maxWidth: .infinity)
             Text(TaskCountdown.remaining(for: task, relativeTo: appState.tick))
                 .font(.caption2).monospacedDigit()

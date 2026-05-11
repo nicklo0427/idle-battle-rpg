@@ -135,8 +135,11 @@ struct BattleLogSheet: View {
                 Image(systemName: "person.fill").foregroundStyle(.blue)
                 Text("英雄").font(.caption).fontWeight(.semibold)
             }
-            ProgressView(value: Double(max(0, currentHeroHp)), total: Double(max(1, heroMaxHp)))
-                .tint(.blue)
+            SmoothLinearProgressBar(
+                value: Double(max(0, currentHeroHp)),
+                total: Double(max(1, heroMaxHp)),
+                tint: .blue
+            )
                 .animation(.easeInOut(duration: 0.2), value: currentHeroHp)
                 .overlay(alignment: .trailing) {
                     if let dmg = heroDamageFlash {
@@ -148,8 +151,11 @@ struct BattleLogSheet: View {
                 }
             Text("\(max(0, currentHeroHp))/\(heroMaxHp)")
                 .font(.caption2).monospacedDigit().foregroundStyle(.secondary)
-            ProgressView(value: model.heroATBProgress, total: 1.0)
-                .tint(model.isExploring ? .teal : .yellow)
+            SmoothLinearProgressBar(
+                value: model.heroATBProgress,
+                tint: model.isExploring ? .teal : .yellow,
+                height: 4
+            )
                 .animation(.linear(duration: 0.055), value: model.heroATBProgress)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -175,8 +181,11 @@ struct BattleLogSheet: View {
                     }
                 }
             }
-            ProgressView(value: Double(max(0, currentEnemyHp)), total: Double(max(1, enemyMaxHp)))
-                .tint(.red)
+            SmoothLinearProgressBar(
+                value: Double(max(0, currentEnemyHp)),
+                total: Double(max(1, enemyMaxHp)),
+                tint: .red
+            )
                 .animation(.easeInOut(duration: 0.2), value: currentEnemyHp)
                 .overlay(alignment: .trailing) {
                     if let dmg = enemyDamageFlash {
@@ -187,8 +196,7 @@ struct BattleLogSheet: View {
                 }
             Text("\(max(0, currentEnemyHp))/\(enemyMaxHp)")
                 .font(.caption2).monospacedDigit().foregroundStyle(.secondary)
-            ProgressView(value: model.enemyATBProgress, total: 1.0)
-                .tint(.orange)
+            SmoothLinearProgressBar(value: model.enemyATBProgress, tint: .orange, height: 4)
                 .animation(.linear(duration: 0.055), value: model.enemyATBProgress)
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
@@ -211,8 +219,11 @@ struct BattleLogSheet: View {
                         .foregroundStyle(.secondary)
                         .frame(minWidth: 48, alignment: .leading)
                         .lineLimit(1)
-                    ProgressView(value: item.fraction, total: 1.0)
-                        .tint(item.fraction >= 1.0 ? Color.orange : Color.gray)
+                    SmoothLinearProgressBar(
+                        value: item.fraction,
+                        tint: item.fraction >= 1.0 ? Color.orange : Color.gray,
+                        height: 4
+                    )
                         .frame(maxWidth: .infinity)
                         .animation(.linear(duration: 0.1), value: item.fraction)
                     Text(item.fraction >= 1.0 ? "就緒" : "CD")
