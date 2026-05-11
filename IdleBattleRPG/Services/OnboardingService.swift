@@ -54,8 +54,8 @@ struct OnboardingService {
         case 4:
             return .init(hint: [
                 .plain("到"), .action("冒險"), .plain("頁進入"),
-                .location("金穗之野第 1 層"), .plain("，"),
-                .action("挑戰菁英敵人"), .plain("取得"), .equipment("防具配方"), .plain("。"),
+                .location("穀倉前道"), .plain("，"),
+                .action("挑戰穀道裂爪衛"), .plain("取得"), .equipment("防具配方"), .plain("。"),
             ], flavor: "手握武器，準備第一場真正的戰鬥。")
         case 5:
             return .init(hint: [
@@ -84,7 +84,7 @@ struct OnboardingService {
         case 9:
             return .init(hint: [
                 .plain("到"), .action("冒險"), .plain("頁打開"),
-                .location("金穗之野第 1 層"), .plain("，開始第一次正式"),
+                .location("穀倉前道"), .plain("，開始第一次正式"),
                 .action("出征"), .plain("。"),
             ], flavor: "裝備齊了，該讓英雄走一趟真正的路。")
         case 10:
@@ -143,7 +143,7 @@ struct OnboardingService {
         case 19:
             return .init(hint: [
                 .plain("回到"), .action("冒險"), .plain("頁打開"),
-                .location("金穗之野第 1 層"), .plain("，攜帶"),
+                .location("穀倉前道"), .plain("，攜帶"),
                 .equipment("料理"), .plain("與"), .equipment("藥水"),
                 .plain("再"), .action("出征"), .plain("一次。"),
             ], flavor: "把補給帶上戰場，完整循環就接起來了。")

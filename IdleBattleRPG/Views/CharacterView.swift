@@ -110,7 +110,7 @@ struct CharacterView: View {
             .plain("。"),
             .action("冒險"),
             .plain("頁已經開放，接著前往"),
-            .location("金穗之野第 1 層"),
+            .location("穀倉前道"),
             .plain("，尋找能打造"),
             .equipment("防具"),
             .plain("的線索。"),
@@ -168,14 +168,14 @@ struct CharacterView: View {
                         .foregroundStyle(.orange)
                     TutorialRichText(
                         runs: [
-                            .plain("你已經親手裝上"),
+                            .plain("你已經裝備"),
                             .equipment("武器"),
                             .plain("。請點底部"),
                             .action("冒險"),
                             .plain("頁，前往"),
-                            .location("金穗之野第 1 層"),
+                            .location("穀倉前道"),
                             .plain("，"),
-                            .action("點開菁英敵人挑戰"),
+                            .action("挑戰穀道裂爪衛"),
                             .plain("，取得"),
                             .equipment("防具配方"),
                             .plain("。"),

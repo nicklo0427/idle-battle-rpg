@@ -65,7 +65,7 @@ struct OnboardingBannerView: View {
                     .plain("到"),
                     .action("冒險"),
                     .plain("頁進入"),
-                    .location("金穗之野第 1 層"),
+                    .location("穀倉前道"),
                     .plain("，開始第一次"),
                     .action("出征"),
                     .plain("。"),

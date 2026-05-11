@@ -162,10 +162,10 @@ struct AdventureView: View {
                     TutorialRichText(
                         runs: [
                             .equipment("武器"),
-                            .plain("已握在手上。到"),
-                            .location("金穗之野第 1 層"),
+                            .plain("已握穩。進入"),
+                            .location("穀倉前道"),
                             .plain("，"),
-                            .action("點開菁英敵人挑戰"),
+                            .action("挑戰穀道裂爪衛"),
                             .plain("，勝利後會取得"),
                             .equipment("防具配方"),
                             .plain("。"),
@@ -223,7 +223,7 @@ struct AdventureView: View {
                         runs: [
                             .equipment("防具"), .plain("已穿好。到"),
                             .action("冒險"), .plain("頁點開"),
-                            .location("金穗之野第 1 層"), .plain("，按"),
+                            .location("穀倉前道"), .plain("，按"),
                             .action("出發"), .plain("完成第一次正式出征。"),
                         ],
                         font: .subheadline
@@ -274,7 +274,7 @@ struct AdventureView: View {
                     TutorialRichText(
                         runs: [
                             .plain("回到"), .action("冒險"), .plain("頁點開"),
-                            .location("金穗之野第 1 層"), .plain("，出征前攜帶"),
+                            .location("穀倉前道"), .plain("，出征前攜帶"),
                             .equipment("料理"), .plain("與"), .equipment("藥水"), .plain("。"),
                         ],
                         font: .subheadline
@@ -892,7 +892,7 @@ private struct FloorDetailSheet: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(elite.name).fontWeight(.semibold)
                         if canTapElite {
-                            Text(isTutorialElite ? "點擊開始引導戰" : "點擊挑戰菁英")
+                            Text("點擊挑戰\(elite.name)")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
@@ -943,8 +943,8 @@ private struct FloorDetailSheet: View {
                                     .foregroundStyle(.orange)
                                 TutorialRichText(
                                     runs: [
-                                        .plain("點擊上方"),
-                                        .action("菁英敵人"),
+                                        .plain("點擊上方的"),
+                                        .action(elite.name),
                                         .plain("。勝利後會解鎖"),
                                         .equipment("防具配方"),
                                         .plain("，接著回"),
