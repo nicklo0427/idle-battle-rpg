@@ -160,6 +160,37 @@ struct CharacterView: View {
     }
 
     @ViewBuilder
+    private var tutorialAdventureHandoffSection: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "map.fill")
+                        .foregroundStyle(.orange)
+                    TutorialRichText(
+                        runs: [
+                            .plain("你已經親手裝上"),
+                            .equipment("武器"),
+                            .plain("。請點底部"),
+                            .action("冒險"),
+                            .plain("頁，前往"),
+                            .location("金穗之野第 1 層"),
+                            .plain("，"),
+                            .action("點開菁英敵人挑戰"),
+                            .plain("，取得"),
+                            .equipment("防具配方"),
+                            .plain("。"),
+                        ],
+                        font: .subheadline
+                    )
+                }
+            }
+            .padding(.vertical, 4)
+        } header: {
+            TutorialStepHeader(step: 4)
+        }
+    }
+
+    @ViewBuilder
     private var tutorialContinuationSection: some View {
         if let player, let info = characterTutorialInfo(step: player.onboardingStep) {
             Section {
@@ -275,6 +306,8 @@ struct CharacterView: View {
                 // ── 教程引導（T07：step == 3）────────────────────────
                 if player?.onboardingStep == 3 {
                     tutorialUnlockAdventureSection
+                } else if player?.onboardingStep == 4 {
+                    tutorialAdventureHandoffSection
                 } else {
                     tutorialContinuationSection
                 }
