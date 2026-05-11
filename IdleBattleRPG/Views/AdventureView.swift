@@ -162,13 +162,11 @@ struct AdventureView: View {
                     TutorialRichText(
                         runs: [
                             .equipment("武器"),
-                            .plain("已裝備。到"),
-                            .action("冒險"),
-                            .plain("頁打開"),
+                            .plain("已握在手上。到"),
                             .location("金穗之野第 1 層"),
                             .plain("，"),
-                            .action("挑戰菁英敵人"),
-                            .plain("取得"),
+                            .action("點開菁英敵人挑戰"),
+                            .plain("，勝利後會取得"),
                             .equipment("防具配方"),
                             .plain("。"),
                         ],
@@ -882,13 +880,23 @@ private struct FloorDetailSheet: View {
             }
 
             if let elite = EliteDef.find(floorKey: floor.key) {
+                let canChallengeElite = isTutorialElite || (heroStats?.power ?? 0) >= elite.minPowerRequired
+                let canTapElite = !eliteCleared && canChallengeElite && !isBusy
+
                 HStack {
                     Image(webp: elite.key)
                         .resizable()
                         .scaledToFill()
                         .frame(width: 24, height: 24)
                         .clipShape(RoundedRectangle(cornerRadius: 5))
-                    Text(elite.name).fontWeight(.semibold)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(elite.name).fontWeight(.semibold)
+                        if canTapElite {
+                            Text(isTutorialElite ? "點擊開始引導戰" : "點擊挑戰菁英")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                     Spacer()
                     if eliteCleared {
                         Label("已擊敗", systemImage: "star.fill")
@@ -896,16 +904,36 @@ private struct FloorDetailSheet: View {
                             .padding(.horizontal, 6).padding(.vertical, 2)
                             .background(Color.yellow.opacity(0.15))
                             .clipShape(Capsule())
+                    } else if isBusy {
+                        Text("任務中")
+                            .font(.caption2).foregroundStyle(.secondary)
+                    } else if isTutorialElite {
+                        Text("引導戰")
+                            .font(.caption2).fontWeight(.semibold).foregroundStyle(.orange)
+                    } else if canChallengeElite {
+                        Text("可挑戰")
+                            .font(.caption2).fontWeight(.semibold).foregroundStyle(.orange)
                     } else {
                         Text("需 \(elite.minPowerRequired) 戰力")
                             .font(.caption2).foregroundStyle(.secondary)
                     }
+                    if canTapElite {
+                        Image(systemName: "chevron.right")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .padding(.vertical, 4)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    guard canTapElite else { return }
+                    showEliteBattle = true
                 }
 
                 if eliteCleared {
                     Label("菁英已擊敗，獎勵已領取", systemImage: "checkmark.circle.fill")
                         .font(.caption).foregroundStyle(.green)
-                } else if isTutorialElite || (heroStats?.power ?? 0) >= elite.minPowerRequired {
+                } else if canChallengeElite {
                     if isTutorialElite {
                         VStack(alignment: .leading, spacing: 6) {
                             TutorialStepBadge(step: 4)
@@ -915,8 +943,8 @@ private struct FloorDetailSheet: View {
                                     .foregroundStyle(.orange)
                                 TutorialRichText(
                                     runs: [
-                                        .plain("點擊"),
-                                        .action("挑戰菁英（引導戰）"),
+                                        .plain("點擊上方"),
+                                        .action("菁英敵人"),
                                         .plain("。勝利後會解鎖"),
                                         .equipment("防具配方"),
                                         .plain("，接著回"),
@@ -931,24 +959,6 @@ private struct FloorDetailSheet: View {
                             }
                         }
                     }
-
-                    Button {
-                        showEliteBattle = true
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(webp: "icon_elite")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 20, height: 20)
-                            Text(isTutorialElite ? "挑戰菁英（引導戰）" : "挑戰菁英")
-                                .fontWeight(.semibold)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 4)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.orange)
-                    .disabled(isBusy)
                 } else {
                     Label("戰力不足（需 \(elite.minPowerRequired)）", systemImage: "exclamationmark.triangle.fill")
                         .font(.caption).foregroundStyle(.orange)

@@ -105,27 +105,31 @@ struct CharacterView: View {
     private var tutorialUnlockAdventureSection: some View {
         let weaponReady = hasEquippedWeapon
         let messageRuns: [TutorialTextRun] = weaponReady ? [
-            .plain("趁手的"),
+            .plain("你已經親手裝上"),
             .equipment("武器"),
-            .plain("在手了。接下來到"),
-            .action("冒險"),
-            .plain("頁挑戰"),
-            .location("金穗之野"),
-            .plain("的"),
-            .action("菁英敵人"),
-            .plain("，贏得"),
-            .equipment("防具配方"),
             .plain("。"),
+            .action("冒險"),
+            .plain("頁已經開放，接著前往"),
+            .location("金穗之野第 1 層"),
+            .plain("，尋找能打造"),
+            .equipment("防具"),
+            .plain("的線索。"),
         ] : [
-            .plain("到"),
-            .action("角色"),
-            .plain("頁打開"),
+            .plain("新打造的"),
+            .equipment("初始武器"),
+            .plain("已放進"),
+            .equipment("背包"),
+            .plain("。到"),
             .equipment("裝備欄"),
+            .plain("點開"),
+            .equipment("武器欄位"),
             .plain("，從"),
             .equipment("背包"),
-            .plain("選擇並裝備"),
-            .equipment("初始武器"),
-            .plain("。"),
+            .plain("選擇這把"),
+            .equipment("武器"),
+            .plain("親手裝上；裝備完成後，"),
+            .action("冒險"),
+            .plain("頁就會開放。"),
         ]
         Section {
             VStack(alignment: .leading, spacing: 10) {
@@ -134,27 +138,6 @@ struct CharacterView: View {
                         .foregroundStyle(.orange)
                     TutorialRichText(runs: messageRuns, font: .subheadline)
                 }
-                Button {
-                    guard let player else { return }
-                    if weaponReady {
-                        player.onboardingStep = 4
-                        try? context.save()
-                        selectedTab = 1   // 切換至冒險 Tab（tag 1）
-                    } else {
-                        segment = .gear
-                        equipSheetSlot = .weapon
-                    }
-                } label: {
-                    Label(
-                        weaponReady ? "前往冒險（解鎖冒險頁）" : "選擇要裝備的武器",
-                        systemImage: weaponReady ? "map.fill" : "hand.tap.fill"
-                    )
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.orange)
-                .disabled(!weaponReady && !hasUnequippedWeapon)
 
                 if !weaponReady && !hasUnequippedWeapon {
                     TutorialRichText(
@@ -333,10 +316,12 @@ struct CharacterView: View {
             .navigationTitle("角色")
             .onAppear {
                 appState.onboardingService.prepareForCurrentStep()
+                unlockAdventureAfterWeaponTutorialIfNeeded()
                 completeAchievementTutorialIfNeeded()
             }
             .onChange(of: player?.onboardingStep) { _, _ in
                 appState.onboardingService.prepareForCurrentStep()
+                unlockAdventureAfterWeaponTutorialIfNeeded()
             }
             .onChange(of: segment) { _, _ in
                 completeAchievementTutorialIfNeeded()
@@ -439,8 +424,17 @@ struct CharacterView: View {
         appState.onboardingService.finish(player: player)
     }
 
+    private func unlockAdventureAfterWeaponTutorialIfNeeded() {
+        guard let player, player.onboardingStep == 3, hasEquippedWeapon else { return }
+        appState.onboardingService.advance(player: player, from: 3, to: 4)
+    }
+
     private func handleEquipmentEquippedForTutorial(_ item: EquipmentModel) {
         guard let player else { return }
+        if player.onboardingStep == 3, item.slot == .weapon {
+            appState.onboardingService.advance(player: player, from: 3, to: 4)
+            return
+        }
         if player.onboardingStep == 8, item.slot == .armor {
             appState.onboardingService.advance(player: player, from: 8, to: 9)
             selectedTab = 1
