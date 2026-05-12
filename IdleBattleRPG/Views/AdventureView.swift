@@ -221,10 +221,9 @@ struct AdventureView: View {
                         .foregroundStyle(.orange)
                     TutorialRichText(
                         runs: [
-                            .equipment("防具"), .plain("已穿好。到"),
-                            .action("冒險"), .plain("頁點開"),
+                            .equipment("防具"), .plain("已穿好。進入"),
                             .location("穀倉前道"), .plain("，按"),
-                            .action("出發"), .plain("完成第一次正式出征。"),
+                            .action("出發"), .plain("開始第一次正式出征。"),
                         ],
                         font: .subheadline
                     )

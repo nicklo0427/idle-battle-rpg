@@ -191,6 +191,81 @@ struct CharacterView: View {
     }
 
     @ViewBuilder
+    private var tutorialEquipArmorSection: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "shield.fill")
+                        .foregroundStyle(.orange)
+                    TutorialRichText(
+                        runs: [
+                            .plain("新做好的"),
+                            .equipment("防具"),
+                            .plain("已放進"),
+                            .equipment("背包"),
+                            .plain("。到"),
+                            .equipment("裝備欄"),
+                            .plain("點開"),
+                            .equipment("防具欄位"),
+                            .plain("，從"),
+                            .equipment("背包"),
+                            .plain("選擇這件"),
+                            .equipment("防具"),
+                            .plain("親手穿上。"),
+                        ],
+                        font: .subheadline
+                    )
+                }
+
+                if !hasEquippedArmor && !hasUnequippedArmor {
+                    TutorialRichText(
+                        runs: [
+                            .plain("尚未收到可裝備的"),
+                            .equipment("防具"),
+                            .plain("，請先"),
+                            .action("收下"),
+                            .plain("完成的製作任務。"),
+                        ],
+                        font: .caption,
+                        plainColor: .secondary
+                    )
+                }
+            }
+            .padding(.vertical, 4)
+        } header: {
+            TutorialStepHeader(step: 8)
+        }
+    }
+
+    @ViewBuilder
+    private var tutorialFirstExpeditionHandoffSection: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "map.fill")
+                        .foregroundStyle(.orange)
+                    TutorialRichText(
+                        runs: [
+                            .equipment("防具"),
+                            .plain("已穿好。請點底部"),
+                            .action("冒險"),
+                            .plain("頁，進入"),
+                            .location("穀倉前道"),
+                            .plain("，按"),
+                            .action("出發"),
+                            .plain("開始第一次正式出征。"),
+                        ],
+                        font: .subheadline
+                    )
+                }
+            }
+            .padding(.vertical, 4)
+        } header: {
+            TutorialStepHeader(step: 9)
+        }
+    }
+
+    @ViewBuilder
     private var tutorialContinuationSection: some View {
         if let player, let info = characterTutorialInfo(step: player.onboardingStep) {
             Section {
@@ -220,18 +295,6 @@ struct CharacterView: View {
 
     private func characterTutorialInfo(step: Int) -> (runs: [TutorialTextRun], buttonTitle: String, systemImage: String, isDisabled: Bool)? {
         switch step {
-        case 8:
-            if hasEquippedArmor {
-                return ([
-                    .equipment("防具"), .plain("已裝備。接著到"), .action("冒險"),
-                    .plain("頁開始第一次正式"), .action("出征"), .plain("。"),
-                ], "前往冒險", "map.fill", false)
-            }
-            return ([
-                .plain("到"), .action("角色"), .plain("頁打開"),
-                .equipment("裝備欄"), .plain("，從"), .equipment("背包"),
-                .plain("選擇並穿上"), .equipment("防具"), .plain("。"),
-            ], "選擇要裝備的防具", "shield.fill", !hasUnequippedArmor)
         case 11:
             return ([
                 .plain("在"), .action("角色"), .plain("頁點任一屬性的"), .action("+"),
@@ -266,14 +329,6 @@ struct CharacterView: View {
     private func handleCharacterTutorialAction(step: Int) {
         guard let player else { return }
         switch step {
-        case 8:
-            if hasEquippedArmor {
-                appState.onboardingService.advance(player: player, from: 8, to: 9)
-                selectedTab = 1
-            } else {
-                segment = .gear
-                equipSheetSlot = .armor
-            }
         case 11:
             segment = .status
         case 12:
@@ -308,6 +363,10 @@ struct CharacterView: View {
                     tutorialUnlockAdventureSection
                 } else if player?.onboardingStep == 4 {
                     tutorialAdventureHandoffSection
+                } else if player?.onboardingStep == 8 {
+                    tutorialEquipArmorSection
+                } else if player?.onboardingStep == 9 {
+                    tutorialFirstExpeditionHandoffSection
                 } else {
                     tutorialContinuationSection
                 }
@@ -350,11 +409,13 @@ struct CharacterView: View {
             .onAppear {
                 appState.onboardingService.prepareForCurrentStep()
                 unlockAdventureAfterWeaponTutorialIfNeeded()
+                unlockFirstExpeditionAfterArmorTutorialIfNeeded()
                 completeAchievementTutorialIfNeeded()
             }
             .onChange(of: player?.onboardingStep) { _, _ in
                 appState.onboardingService.prepareForCurrentStep()
                 unlockAdventureAfterWeaponTutorialIfNeeded()
+                unlockFirstExpeditionAfterArmorTutorialIfNeeded()
             }
             .onChange(of: segment) { _, _ in
                 completeAchievementTutorialIfNeeded()
@@ -462,6 +523,11 @@ struct CharacterView: View {
         appState.onboardingService.advance(player: player, from: 3, to: 4)
     }
 
+    private func unlockFirstExpeditionAfterArmorTutorialIfNeeded() {
+        guard let player, player.onboardingStep == 8, hasEquippedArmor else { return }
+        appState.onboardingService.advance(player: player, from: 8, to: 9)
+    }
+
     private func handleEquipmentEquippedForTutorial(_ item: EquipmentModel) {
         guard let player else { return }
         if player.onboardingStep == 3, item.slot == .weapon {
@@ -470,7 +536,7 @@ struct CharacterView: View {
         }
         if player.onboardingStep == 8, item.slot == .armor {
             appState.onboardingService.advance(player: player, from: 8, to: 9)
-            selectedTab = 1
+            return
         }
     }
 

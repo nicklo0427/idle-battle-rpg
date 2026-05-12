@@ -77,15 +77,17 @@ struct OnboardingService {
             ], flavor: "皮革的氣味充滿小屋，護甲即將成形。")
         case 8:
             return .init(hint: [
-                .plain("到"), .action("角色"), .plain("頁打開"),
-                .equipment("裝備欄"), .plain("，從"), .equipment("背包"),
-                .plain("親手穿上"), .equipment("防具"), .plain("。"),
+                .plain("新做好的"), .equipment("防具"), .plain("已放進"),
+                .equipment("背包"), .plain("。到"), .equipment("裝備欄"),
+                .plain("點開"), .equipment("防具欄位"), .plain("，從"),
+                .equipment("背包"), .plain("選擇這件"), .equipment("防具"),
+                .plain("親手穿上。"),
             ], flavor: "護甲已放進背包，真正穿上才算準備好。")
         case 9:
             return .init(hint: [
-                .plain("到"), .action("冒險"), .plain("頁打開"),
-                .location("穀倉前道"), .plain("，開始第一次正式"),
-                .action("出征"), .plain("。"),
+                .plain("到"), .action("冒險"), .plain("頁進入"),
+                .location("穀倉前道"), .plain("，按"),
+                .action("出發"), .plain("開始第一次正式出征。"),
             ], flavor: "裝備齊了，該讓英雄走一趟真正的路。")
         case 10:
             return .init(hint: [
