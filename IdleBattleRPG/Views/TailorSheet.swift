@@ -62,7 +62,7 @@ struct TailorSheet: View {
                 .plain("需要野外的"),
                 .material("乾燥獸皮"),
                 .plain("，先去"),
-                .location("金穗之野"),
+                .location("穀倉前道"),
                 .action("探索"),
                 .plain("取得素材。"),
             ]

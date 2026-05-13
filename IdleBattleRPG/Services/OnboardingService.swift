@@ -78,7 +78,7 @@ struct OnboardingService {
         case 6:
             return .init(hint: [
                 .plain("到"), .action("冒險"), .plain("頁前往"),
-                .location("金穗之野"), .plain("，"), .action("探索"),
+                .location("穀倉前道"), .plain("，"), .action("探索"),
                 .plain("取得"), .material("防具素材"), .plain("。"),
             ], flavor: "荒野中的獸皮正是打造護甲的材料。")
         case 7:

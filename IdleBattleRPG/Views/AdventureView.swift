@@ -237,7 +237,7 @@ struct AdventureView: View {
                             .plain("到"),
                             .action("冒險"),
                             .plain("頁前往"),
-                            .location("金穗之野"),
+                            .location("穀倉前道"),
                             .plain("，"),
                             .action("探索"),
                             .plain("取得"),
@@ -762,10 +762,55 @@ private struct FloorDetailSheet: View {
 
     private var onboardingStep: Int { players.first?.onboardingStep ?? OnboardingService.completedStep }
 
+    private var isMapExplorationUnlocked: Bool {
+        onboardingStep >= 6
+    }
+
+    private var isTutorialExploreFloor: Bool {
+        onboardingStep == 6
+        && floor.regionKey == "wildland"
+        && floor.floorIndex == 1
+    }
+
     private var isTutorialStartFloor: Bool {
         (onboardingStep == 9 || onboardingStep == 19)
         && floor.regionKey == "wildland"
         && floor.floorIndex == 1
+    }
+
+    private var tutorialLaunchTipRuns: [TutorialTextRun]? {
+        if isTutorialExploreFloor {
+            return [
+                .plain("從"),
+                .location("穀倉前道"),
+                .plain("開始"),
+                .action("探索"),
+                .plain("，取得"),
+                .material("防具素材"),
+                .plain("。"),
+            ]
+        }
+        if needsTutorialConsumables {
+            return [
+                .plain("確認已選擇"),
+                .equipment("料理"),
+                .plain("與"),
+                .equipment("藥水"),
+                .plain("，再點"),
+                .action("出發"),
+                .plain("。"),
+            ]
+        }
+        if isTutorialStartFloor {
+            return [
+                .plain("維持"),
+                .action("15 分鐘"),
+                .plain("即可。這次會以"),
+                .action("短程教學出征"),
+                .plain("完成。"),
+            ]
+        }
+        return nil
     }
 
     private var needsTutorialConsumables: Bool {
@@ -790,10 +835,13 @@ private struct FloorDetailSheet: View {
         NavigationStack {
             List {
                 floorInfoSection
-                tutorialLaunchTipSection
-                consumableSection
-                launchSection
-                unlockAndEliteSection
+                if isMapExplorationUnlocked {
+                    tutorialLaunchTipSection
+                    consumableSection
+                    launchSection
+                }
+                recipeUnlockSection
+                eliteBattleSection
 
                 Section {
                     DisclosureGroup("掉落物", isExpanded: $infoExpanded) {
@@ -855,20 +903,14 @@ private struct FloorDetailSheet: View {
 
     @ViewBuilder
     private var tutorialLaunchTipSection: some View {
-        if isTutorialStartFloor {
+        if let runs = tutorialLaunchTipRuns {
             Section {
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: "hand.tap.fill")
                         .font(.caption)
                         .foregroundStyle(.orange)
                     TutorialRichText(
-                        runs: needsTutorialConsumables ? [
-                            .plain("確認已選擇"), .equipment("料理"), .plain("與"),
-                            .equipment("藥水"), .plain("，再點"), .action("出發"), .plain("。"),
-                        ] : [
-                            .plain("維持"), .action("15 分鐘"), .plain("即可。這次會以"),
-                            .action("短程教學出征"), .plain("完成。"),
-                        ],
+                        runs: runs,
                         font: .caption,
                         plainColor: .secondary
                     )
@@ -916,11 +958,11 @@ private struct FloorDetailSheet: View {
         }
     }
 
-    // MARK: - Unlock & Elite Section
+    // MARK: - Recipe Unlock & Elite Sections
 
     @ViewBuilder
-    private var unlockAndEliteSection: some View {
-        Section {
+    private var recipeUnlockSection: some View {
+        Section("配方解鎖") {
             HStack {
                 Text(floor.unlocksSlot.icon + " \(floor.unlocksSlot.displayName)配方")
                 Spacer()
@@ -930,11 +972,16 @@ private struct FloorDetailSheet: View {
                     Text("未解鎖").font(.caption).foregroundStyle(.secondary)
                 }
             }
+        }
+    }
 
-            if let elite = EliteDef.find(floorKey: floor.key) {
-                let canChallengeElite = isTutorialElite || (heroStats?.power ?? 0) >= elite.minPowerRequired
-                let canTapElite = !eliteCleared && canChallengeElite && !isBusy
+    @ViewBuilder
+    private var eliteBattleSection: some View {
+        if let elite = EliteDef.find(floorKey: floor.key) {
+            let canChallengeElite = isTutorialElite || (heroStats?.power ?? 0) >= elite.minPowerRequired
+            let canTapElite = !eliteCleared && canChallengeElite && !isBusy
 
+            Section("菁英戰") {
                 HStack {
                     Image(webp: elite.key)
                         .resizable()
@@ -1054,7 +1101,7 @@ private struct FloorDetailSheet: View {
     }
 
     private var launchSection: some View {
-        Section {
+        Section("地圖探索") {
             if isBusy, let task = activeDungeonTask {
                 HStack {
                     Image(webp: "region_\(floor.regionKey)")
