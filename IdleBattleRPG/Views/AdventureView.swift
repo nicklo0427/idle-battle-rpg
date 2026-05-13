@@ -834,6 +834,7 @@ private struct FloorDetailSheet: View {
     var body: some View {
         NavigationStack {
             List {
+                tutorialEliteTipSection
                 floorInfoSection
                 if isMapExplorationUnlocked {
                     tutorialLaunchTipSection
@@ -898,6 +899,37 @@ private struct FloorDetailSheet: View {
                     )
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var tutorialEliteTipSection: some View {
+        if isTutorialElite, let elite = EliteDef.find(floorKey: floor.key) {
+            Section {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "hand.tap.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                    TutorialRichText(
+                        runs: [
+                            .plain("點擊下方的"),
+                            .action(elite.name),
+                            .plain("。勝利後會解鎖"),
+                            .equipment("防具配方"),
+                            .plain("，接著回"),
+                            .location("基地的生產者小屋"),
+                            .plain("找"),
+                            .action("裁縫師阿針"),
+                            .plain("。"),
+                        ],
+                        font: .caption,
+                        plainColor: .secondary
+                    )
+                }
+            } header: {
+                TutorialStepHeader(step: 4)
+            }
+            .listRowBackground(Color.orange.opacity(0.08))
         }
     }
 
@@ -980,85 +1012,64 @@ private struct FloorDetailSheet: View {
         if let elite = EliteDef.find(floorKey: floor.key) {
             let canChallengeElite = isTutorialElite || (heroStats?.power ?? 0) >= elite.minPowerRequired
             let canTapElite = !eliteCleared && canChallengeElite && !isBusy
+            let statusText = eliteCleared ? "已擊敗" : isBusy ? "任務中" : isTutorialElite ? "引導戰" : canChallengeElite ? "可挑戰" : "戰力不足"
+            let statusColor: Color = eliteCleared ? .yellow : isBusy ? .secondary : isTutorialElite || canChallengeElite ? .orange : .secondary
 
             Section("菁英戰") {
-                HStack {
+                HStack(alignment: .center, spacing: 10) {
                     Image(webp: elite.key)
                         .resizable()
                         .scaledToFill()
-                        .frame(width: 24, height: 24)
-                        .clipShape(RoundedRectangle(cornerRadius: 5))
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(elite.name).fontWeight(.semibold)
+                        .frame(width: 44, height: 44)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(elite.name)
+                            .fontWeight(.semibold)
                         if canTapElite {
-                            Text("點擊挑戰\(elite.name)")
+                            Text("擊敗後可解鎖\(floor.unlocksSlot.displayName)配方")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        } else if eliteCleared {
+                            Text("獎勵已領取")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        } else if isBusy {
+                            Text("英雄正在其他任務中")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        } else if !canChallengeElite {
+                            Text("需要 \(elite.minPowerRequired) 戰力")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
                     }
                     Spacer()
-                    if eliteCleared {
-                        Label("已擊敗", systemImage: "star.fill")
-                            .font(.caption).foregroundStyle(.yellow)
-                            .padding(.horizontal, 6).padding(.vertical, 2)
-                            .background(Color.yellow.opacity(0.15))
-                            .clipShape(Capsule())
-                    } else if isBusy {
-                        Text("任務中")
-                            .font(.caption2).foregroundStyle(.secondary)
-                    } else if isTutorialElite {
-                        Text("引導戰")
-                            .font(.caption2).fontWeight(.semibold).foregroundStyle(.orange)
-                    } else if canChallengeElite {
-                        Text("可挑戰")
-                            .font(.caption2).fontWeight(.semibold).foregroundStyle(.orange)
-                    } else {
-                        Text("需 \(elite.minPowerRequired) 戰力")
-                            .font(.caption2).foregroundStyle(.secondary)
-                    }
-                    if canTapElite {
-                        Image(systemName: "chevron.right")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                    }
+                    Text(statusText)
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(statusColor)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(statusColor.opacity(0.12))
+                        .clipShape(Capsule())
                 }
                 .padding(.vertical, 4)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    guard canTapElite else { return }
-                    showEliteBattle = true
-                }
 
-                if eliteCleared {
+                if canTapElite {
+                    Button {
+                        showEliteBattle = true
+                    } label: {
+                        Label("挑戰 \(elite.name)", systemImage: "flame.fill")
+                            .fontWeight(.semibold)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 4)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Color.dungeonRegion(floor.regionKey))
+                } else if eliteCleared {
                     Label("菁英已擊敗，獎勵已領取", systemImage: "checkmark.circle.fill")
                         .font(.caption).foregroundStyle(.green)
-                } else if canChallengeElite {
-                    if isTutorialElite {
-                        VStack(alignment: .leading, spacing: 6) {
-                            TutorialStepBadge(step: 4)
-                            HStack(alignment: .top, spacing: 8) {
-                                Image(systemName: "hand.tap.fill")
-                                    .font(.caption)
-                                    .foregroundStyle(.orange)
-                                TutorialRichText(
-                                    runs: [
-                                        .plain("點擊上方的"),
-                                        .action(elite.name),
-                                        .plain("。勝利後會解鎖"),
-                                        .equipment("防具配方"),
-                                        .plain("，接著回"),
-                                        .location("基地的生產者小屋"),
-                                        .plain("找"),
-                                        .action("裁縫師阿針"),
-                                        .plain("。"),
-                                    ],
-                                    font: .caption,
-                                    plainColor: .secondary
-                                )
-                            }
-                        }
-                    }
-                } else {
+                } else if !canChallengeElite {
                     Label("戰力不足（需 \(elite.minPowerRequired)）", systemImage: "exclamationmark.triangle.fill")
                         .font(.caption).foregroundStyle(.orange)
                 }
