@@ -4,7 +4,7 @@
 // 功能：
 //   - 顯示 .armor slot 鑄造配方
 //   - step 5：材料不足引導（→ 冒險探索）
-//   - step 7：教程防具鑄造（2 秒）
+//   - step 7：教程防具鑄造（10 秒）
 
 import SwiftUI
 import SwiftData
@@ -178,7 +178,7 @@ struct TailorSheet: View {
                     }
                 }
                 Spacer()
-                Text(isTutorialRecipe ? "2 秒" : effectiveDurationDisplay(for: recipe))
+                Text(isTutorialRecipe ? "\(OnboardingService.nonCombatTutorialTaskDurationSeconds) 秒" : effectiveDurationDisplay(for: recipe))
                     .font(.caption).foregroundStyle(.secondary).monospacedDigit()
             }
 
@@ -283,7 +283,7 @@ struct TailorSheet: View {
 
     private func startCraft(recipe: CraftRecipeDef) {
         do {
-            // 引導 step 7：wildland_armor 用 2 秒 tutorial 任務
+            // 引導 step 7：wildland_armor 用 10 秒 tutorial 任務
             if player?.onboardingStep == 7, recipe.outputEquipmentKey == "wildland_armor" {
                 try TaskCreationService(context: context).createTutorialArmorTask()
             } else {

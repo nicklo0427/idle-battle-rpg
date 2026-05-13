@@ -373,7 +373,7 @@ struct CraftSheet: View {
                 }
                 Spacer()
                 // 時長永遠顯示（讓玩家知道等待成本）
-                Text(isTutorialRecipe ? "2 秒" : effectiveDurationDisplay(for: recipe))
+                Text(isTutorialRecipe ? "\(OnboardingService.nonCombatTutorialTaskDurationSeconds) 秒" : effectiveDurationDisplay(for: recipe))
                     .font(.caption)
                     .foregroundStyle(Color.secondary)
                     .monospacedDigit()
@@ -545,7 +545,7 @@ struct CraftSheet: View {
     // MARK: - Action
 
     private func startCraft(recipe: CraftRecipeDef) {
-        // 引導 step 2：點推薦的基礎武器食譜觸發 tutorial craft（2 秒免費，給予職業初始武器）
+        // 引導 step 2：點推薦的基礎武器食譜觸發 tutorial craft（10 秒免費，給予職業初始武器）
         if isTutorialWeaponRecipe(recipe) {
             startTutorialCraft()
             return

@@ -320,7 +320,7 @@ struct PharmacySheet: View {
                         .foregroundStyle(canAfford ? Color.primary : Color.secondary)
                 }
                 Spacer()
-                Text(potion.brewDurationDisplay)
+                Text(isHighlighted ? "\(OnboardingService.nonCombatTutorialTaskDurationSeconds) 秒" : potion.brewDurationDisplay)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()

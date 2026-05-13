@@ -215,7 +215,7 @@ private struct FarmDurationSheet: View {
 
                     // 種下按鈕
                     Button { plant() } label: {
-                        Label(isTutorial ? "種下（教學 2 秒）" : "種下（\(effectiveRounds) 輪）", systemImage: "leaf.fill")
+                        Label(isTutorial ? "種下（教學 \(OnboardingService.nonCombatTutorialTaskDurationSeconds) 秒）" : "種下（\(effectiveRounds) 輪）", systemImage: "leaf.fill")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)

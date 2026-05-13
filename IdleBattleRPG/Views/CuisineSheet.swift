@@ -295,7 +295,7 @@ struct CuisineSheet: View {
                         .foregroundStyle(canAfford ? Color.primary : Color.secondary)
                 }
                 Spacer()
-                Text(cuisine.durationDisplay)
+                Text(isHighlighted ? "\(OnboardingService.nonCombatTutorialTaskDurationSeconds) 秒" : cuisine.durationDisplay)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()

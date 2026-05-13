@@ -149,7 +149,8 @@ struct DungeonBattleSheet: View {
         guard let floor else { return }
 
         // 用確定性引擎結算（combatRng seed 與 BattleLogGenerator 完全相同 → 勝負一致）
-        let result = DungeonSettlementEngine.settle(task: task, floor: floor)
+        let rawResult = DungeonSettlementEngine.settle(task: task, floor: floor)
+        let result = tutorialAdjustedResult(rawResult)
         finalResult = result
 
         // ── 寫入 result* 欄位 ────────────────────────────────────────────
@@ -165,32 +166,53 @@ struct DungeonBattleSheet: View {
             task.resultRolledAtk       = bossWeapon.atk
         }
 
-        // ── 首通 / 地下城推進標記（原 SettlementService.markDungeonProgression）──
-        let svc        = appState.progressionService
-        let wasCleared = svc.isFloorCleared(
-            regionKey:  floor.regionKey,
-            floorIndex: floor.floorIndex
-        )
-        svc.markFloorCleared(
-            regionKey:  floor.regionKey,
-            floorIndex: floor.floorIndex
-        )
-        if !wasCleared {
-            task.resultFirstClearedFloorKey = floor.key
-            firstClearFloor = floor   // 供 finishedPanel 顯示解鎖通知
-        }
+        if !isTutorialArmorMaterialRun {
+            // ── 首通 / 地下城推進標記（原 SettlementService.markDungeonProgression）──
+            let svc        = appState.progressionService
+            let wasCleared = svc.isFloorCleared(
+                regionKey:  floor.regionKey,
+                floorIndex: floor.floorIndex
+            )
+            svc.markFloorCleared(
+                regionKey:  floor.regionKey,
+                floorIndex: floor.floorIndex
+            )
+            if !wasCleared {
+                task.resultFirstClearedFloorKey = floor.key
+                firstClearFloor = floor   // 供 finishedPanel 顯示解鎖通知
+            }
 
-        // ── V8-3 T04：更新個人最佳記錄 ──────────────────────────────────
-        appState.progressionService.updateBest(
-            floorKey: floor.key,
-            wins: result.battlesWon,
-            gold: result.gold
-        )
+            // ── V8-3 T04：更新個人最佳記錄 ──────────────────────────────────
+            appState.progressionService.updateBest(
+                floorKey: floor.key,
+                wins: result.battlesWon,
+                gold: result.gold
+            )
+        }
 
         // ── 清除 battlePending，持久化 ──────────────────────────────────
         task.battlePending = false
         try? context.save()
         isFinished = true
+    }
+
+    private var isTutorialArmorMaterialRun: Bool {
+        task.tutorialKey == OnboardingTutorialKey.armorMaterials
+    }
+
+    private func tutorialAdjustedResult(_ result: FloorDungeonResult) -> FloorDungeonResult {
+        guard isTutorialArmorMaterialRun else { return result }
+        return FloorDungeonResult(
+            gold: 30,
+            materials: [
+                .driedHideBundle: 3,
+                .hide: 3
+            ],
+            battlesWon: result.battlesWon,
+            battlesLost: result.battlesLost,
+            exp: 0,
+            rolledBossWeapon: nil
+        )
     }
 
     // MARK: - 戰鬥統計（V8-3 T03）

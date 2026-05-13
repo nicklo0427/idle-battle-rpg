@@ -10,6 +10,10 @@ struct OnboardingStepInfo {
 }
 
 enum OnboardingTutorialKey {
+    static let gatherWood   = "tutorial_gather"
+    static let starterWeapon = "tutorial_craft"
+    static let armorMaterials = "tutorial_explore"
+    static let starterArmor = "tutorial_armor"
     static let firstDungeon = "tutorial_first_dungeon"
     static let farmWheat    = "tutorial_farm_wheat"
     static let fishStew     = "tutorial_cuisine_fish_stew"
@@ -21,6 +25,8 @@ struct OnboardingService {
 
     static let completedStep = 23
     static let totalSteps = 23
+    static let nonCombatTutorialTaskDurationSeconds = 10
+    static let combatTutorialTaskDurationSeconds = 2
 
     let context: ModelContext
 

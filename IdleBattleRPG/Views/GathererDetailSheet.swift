@@ -317,7 +317,7 @@ struct GathererDetailSheet: View {
 
     // MARK: - Section：教程採集（T06，gatherer_1 + step 0）
 
-    /// Step 0：純文字提示（無按鈕，點地點 row 觸發 2 秒採集）
+    /// Step 0：純文字提示（無按鈕，點地點 row 觸發 10 秒採集）
     @ViewBuilder
     private var tutorialDispatchSection: some View {
         Section {
@@ -584,7 +584,7 @@ struct GathererDetailSheet: View {
     @ViewBuilder
     private func locationRow(_ location: GatherLocationDef) -> some View {
         Button {
-            // 引導 step 0：直接建立 2 秒採集任務，跳過時長選擇
+            // 引導 step 0：直接建立 10 秒採集任務，跳過時長選擇
             if player?.onboardingStep == 0 {
                 startTutorialGather()
             } else {

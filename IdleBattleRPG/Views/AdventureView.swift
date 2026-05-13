@@ -236,7 +236,7 @@ struct AdventureView: View {
         }
     }
 
-    /// Step 10：等待 2 秒教學出征完成，接著觀看戰鬥並收下。
+    /// Step 10：等待短程教學出征完成，接著觀看戰鬥並收下。
     @ViewBuilder
     private var tutorialStep10BubbleSection: some View {
         if let player = players.first, player.onboardingStep == 10 {
@@ -541,11 +541,21 @@ struct AdventureView: View {
         cuisineKey: String = "",   // V7-4
         potionKey:  String = ""    // V7-4
     ) -> TaskModel? {
-        // Ticket 04: 引導 step 6 → 用 tutorial explore task（2 秒保底獸皮）
+        guard let stats = heroStats else {
+            errorMessage = "找不到英雄資料"
+            showError = true
+            return nil
+        }
+
+        // Ticket 04: 引導 step 6 → 用真實樓層短程探索，保證一場戰鬥並套用教學素材獎勵
         if let player = players.first, player.onboardingStep == 6,
            floor.regionKey == "wildland", floor.floorIndex == 1 {
             do {
-                try TaskCreationService(context: context).createTutorialExploreTask()
+                try TaskCreationService(context: context).createTutorialExploreTask(
+                    floorKey: floor.key,
+                    heroStats: stats,
+                    equippedSkillKeys: players.first?.equippedSkillKeys ?? []
+                )
             } catch {
                 errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
                 showError = true
@@ -557,11 +567,6 @@ struct AdventureView: View {
             return (try? context.fetch(descriptor))?.first(where: { $0.status == .inProgress })
         }
 
-        guard let stats = heroStats else {
-            errorMessage = "找不到英雄資料"
-            showError = true
-            return nil
-        }
         if let player = players.first, player.onboardingStep == 9,
            floor.regionKey == "wildland", floor.floorIndex == 1 {
             do {
@@ -814,7 +819,7 @@ private struct FloorDetailSheet: View {
                             .equipment("藥水"), .plain("，再點"), .action("出發"), .plain("。"),
                         ] : [
                             .plain("維持"), .action("15 分鐘"), .plain("即可。這次會以"),
-                            .action("2 秒教學出征"), .plain("完成。"),
+                            .action("短程教學出征"), .plain("完成。"),
                         ],
                         font: .caption,
                         plainColor: .secondary

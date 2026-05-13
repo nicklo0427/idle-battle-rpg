@@ -50,7 +50,7 @@ struct SettlementService {
 
     private func markCompleted(_ task: TaskModel) {
         // 教程任務：提前處理，不走一般 switch
-        if task.definitionKey == "tutorial_gather" {
+        if isTutorial(task, OnboardingTutorialKey.gatherWood) {
             task.resultWood = 6
             if let player = (try? context.fetch(FetchDescriptor<PlayerStateModel>()))?.first {
                 player.onboardingStep = 2
@@ -59,7 +59,7 @@ struct SettlementService {
             return
         }
 
-        if task.definitionKey == "tutorial_craft" {
+        if isTutorial(task, OnboardingTutorialKey.starterWeapon) {
             if let player = (try? context.fetch(FetchDescriptor<PlayerStateModel>()))?.first {
                 player.onboardingStep = 3
             }
@@ -67,7 +67,7 @@ struct SettlementService {
             return
         }
 
-        if task.definitionKey == "tutorial_explore" {
+        if isLegacyTutorialExploreTask(task) {
             task.resultDriedHideBundle = 3
             task.resultHide            = 3
             task.resultGold            = 30
@@ -78,7 +78,7 @@ struct SettlementService {
             return
         }
 
-        if task.definitionKey == "tutorial_armor" {
+        if isTutorial(task, OnboardingTutorialKey.starterArmor) {
             if let player = (try? context.fetch(FetchDescriptor<PlayerStateModel>()))?.first {
                 player.onboardingStep = 8
             }
@@ -97,6 +97,15 @@ struct SettlementService {
             task.battlePending = true
         }
         task.status = .completed
+    }
+
+    private func isTutorial(_ task: TaskModel, _ key: String) -> Bool {
+        task.tutorialKey == key || task.definitionKey == key
+    }
+
+    private func isLegacyTutorialExploreTask(_ task: TaskModel) -> Bool {
+        guard isTutorial(task, OnboardingTutorialKey.armorMaterials) else { return false }
+        return DungeonFloorDef.find(key: task.definitionKey) == nil
     }
 
     // MARK: - Gather 結算（確定性 RNG）

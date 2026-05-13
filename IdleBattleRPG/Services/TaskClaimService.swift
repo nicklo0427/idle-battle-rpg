@@ -248,6 +248,9 @@ struct TaskClaimService {
             onboarding.ensureHeroLevelAtLeast3(player: player)
             onboarding.advance(player: player, from: 10, to: 11)
         }
+        if keys.contains(OnboardingTutorialKey.armorMaterials) {
+            onboarding.advance(player: player, from: 6, to: 7)
+        }
         if keys.contains(OnboardingTutorialKey.farmWheat) {
             onboarding.advance(player: player, from: 16, to: 17)
         }

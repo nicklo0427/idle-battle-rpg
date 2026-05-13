@@ -480,7 +480,7 @@ struct TaskCreationService {
 
     // MARK: - 後續教程任務（V10）
 
-    /// 教程地下城任務：使用真實 floorKey，但以 tutorialKey 辨識，2 秒完成。
+    /// 教程地下城任務：使用真實 floorKey，但以 tutorialKey 辨識，短程完成且保證一場戰鬥。
     func createTutorialDungeonFloorTask(
         floorKey: String,
         heroStats: HeroStats,
@@ -515,13 +515,15 @@ struct TaskCreationService {
         }
 
         let now = Date.now
+        let duration = OnboardingService.combatTutorialTaskDurationSeconds
         let task = TaskModel(
             kind:          .dungeon,
             actorKey:      AppConstants.Actor.player,
             definitionKey: floorKey,
             startedAt:     now,
-            endsAt:        now.addingTimeInterval(2),
+            endsAt:        now.addingTimeInterval(TimeInterval(duration)),
             tutorialKey:   tutorialKey,
+            forcedBattles: 1,
             snapshotPower: heroStats.power,
             snapshotAgi:   heroStats.totalAGI,
             snapshotDex:   heroStats.totalDEX
@@ -544,7 +546,7 @@ struct TaskCreationService {
         NotificationService.schedule(for: task)
     }
 
-    /// 教程農田任務：種下小麥種子，使用真實 seed definitionKey，2 秒完成。
+    /// 教程農田任務：種下小麥種子，使用真實 seed definitionKey，10 秒完成。
     func createTutorialFarmTask() throws {
         OnboardingService(context: context).prepareForCurrentStep()
         let plotKey = AppConstants.FarmerPlot.key(for: 0)
@@ -559,18 +561,19 @@ struct TaskCreationService {
             throw TaskCreationError.insufficientMaterials
         }
         let now = Date.now
+        let duration = OnboardingService.nonCombatTutorialTaskDurationSeconds
         let task = TaskModel(
             kind:          .farming,
             actorKey:      plotKey,
             definitionKey: MaterialType.wheatSeed.rawValue,
             startedAt:     now,
-            endsAt:        now.addingTimeInterval(2),
+            endsAt:        now.addingTimeInterval(TimeInterval(duration)),
             tutorialKey:   OnboardingTutorialKey.farmWheat
         )
         repository.insert(task)
     }
 
-    /// 教程料理任務：製作魚肉燉鍋，補齊差額後照常扣素材 / 金幣，2 秒完成。
+    /// 教程料理任務：製作魚肉燉鍋，補齊差額後照常扣素材 / 金幣，10 秒完成。
     func createTutorialCuisineTask() throws {
         OnboardingService(context: context).prepareForCurrentStep()
         try createTutorialCuisineLikeTask(
@@ -580,7 +583,7 @@ struct TaskCreationService {
         )
     }
 
-    /// 教程煉藥任務：製作小型藥水，補齊差額後照常扣素材 / 金幣，2 秒完成。
+    /// 教程煉藥任務：製作小型藥水，補齊差額後照常扣素材 / 金幣，10 秒完成。
     func createTutorialAlchemyTask() throws {
         OnboardingService(context: context).prepareForCurrentStep()
         guard let def = PotionDef.find("small_potion") else {
@@ -603,12 +606,13 @@ struct TaskCreationService {
             inventory.deduct(amount, of: mat)
         }
         let now = Date.now
+        let duration = OnboardingService.nonCombatTutorialTaskDurationSeconds
         let task = TaskModel(
             kind:          .alchemy,
             actorKey:      AppConstants.Actor.pharmacist,
             definitionKey: def.key,
             startedAt:     now,
-            endsAt:        now.addingTimeInterval(2),
+            endsAt:        now.addingTimeInterval(TimeInterval(duration)),
             tutorialKey:   OnboardingTutorialKey.smallPotion
         )
         repository.insert(task)
@@ -635,12 +639,13 @@ struct TaskCreationService {
             inventory.deduct(amount, of: mat)
         }
         let now = Date.now
+        let duration = OnboardingService.nonCombatTutorialTaskDurationSeconds
         let task = TaskModel(
             kind:          .cuisine,
             actorKey:      actorKey,
             definitionKey: def.key,
             startedAt:     now,
-            endsAt:        now.addingTimeInterval(2),
+            endsAt:        now.addingTimeInterval(TimeInterval(duration)),
             tutorialKey:   tutorialKey
         )
         task.resultCuisineKey = def.key
@@ -649,45 +654,64 @@ struct TaskCreationService {
 
     // MARK: - 教程任務（T06）
 
-    /// 教程採集任務：gatherer_1 採集 5 秒，直接給 6 木材，不扣素材，onboardingStep → 1
+    /// 教程採集任務：gatherer_1 採集 10 秒，直接給 6 木材，不扣素材，onboardingStep → 1
     func createTutorialGatherTask() throws {
         guard let player = (try? context.fetch(FetchDescriptor<PlayerStateModel>()))?.first else {
             throw TaskCreationError.noPlayerState
         }
 
         let now = Date.now
+        let duration = OnboardingService.nonCombatTutorialTaskDurationSeconds
         let task = TaskModel(
             kind:          .gather,
             actorKey:      AppConstants.Actor.gatherer1,
-            definitionKey: "tutorial_gather",
+            definitionKey: OnboardingTutorialKey.gatherWood,
             startedAt:     now,
-            endsAt:        now.addingTimeInterval(2),
-            tutorialKey:   "tutorial_gather"
+            endsAt:        now.addingTimeInterval(TimeInterval(duration)),
+            tutorialKey:   OnboardingTutorialKey.gatherWood
         )
         player.onboardingStep = 1
         repository.insert(task)
     }
 
-    /// 教程探索任務：5 秒，保底 driedHideBundle×3 + hide×3，onboardingStep 由結算設為 7
-    func createTutorialExploreTask() throws {
+    /// 教程探索任務：使用真實樓層短程完成，保底一場戰鬥；教學獎勵於戰鬥完成後套用。
+    func createTutorialExploreTask(
+        floorKey: String,
+        heroStats: HeroStats,
+        equippedSkillKeys: [String] = []
+    ) throws {
+        guard DungeonFloorDef.find(key: floorKey) != nil else {
+            throw TaskCreationError.areaNotFound(floorKey)
+        }
         let inProgress = repository.fetchInProgress()
         if inProgress.contains(where: { $0.kind == .dungeon && $0.actorKey == AppConstants.Actor.player }) {
             throw TaskCreationError.playerAlreadyInDungeon
         }
+        let playerDesc = FetchDescriptor<PlayerStateModel>()
+        guard let player = (try? context.fetch(playerDesc))?.first else {
+            throw TaskCreationError.noPlayerState
+        }
 
         let now = Date.now
+        let duration = OnboardingService.combatTutorialTaskDurationSeconds
         let task = TaskModel(
             kind:          .dungeon,
             actorKey:      AppConstants.Actor.player,
-            definitionKey: "tutorial_explore",
+            definitionKey: floorKey,
             startedAt:     now,
-            endsAt:        now.addingTimeInterval(2),
-            tutorialKey:   "tutorial_explore"
+            endsAt:        now.addingTimeInterval(TimeInterval(duration)),
+            tutorialKey:   OnboardingTutorialKey.armorMaterials,
+            forcedBattles: 1,
+            snapshotPower: heroStats.power,
+            snapshotAgi:   heroStats.totalAGI,
+            snapshotDex:   heroStats.totalDEX
         )
+        task.snapshotSkillKeysRaw   = equippedSkillKeys.joined(separator: ",")
+        task.snapshotSkillLevelsRaw = player.skillLevelsRaw
         repository.insert(task)
     }
 
-    /// 教程防具鑄造任務：tailor 鑄造 2 秒，不扣素材/金幣，onboardingStep 由結算設為 8
+    /// 教程防具鑄造任務：tailor 鑄造 10 秒，不扣素材/金幣，onboardingStep 由結算設為 8
     func createTutorialArmorTask() throws {
         guard (try? context.fetch(FetchDescriptor<PlayerStateModel>()))?.first != nil else {
             throw TaskCreationError.noPlayerState
@@ -699,32 +723,34 @@ struct TaskCreationService {
         }
 
         let now = Date.now
+        let duration = OnboardingService.nonCombatTutorialTaskDurationSeconds
         let task = TaskModel(
             kind:                  .craft,
             actorKey:              AppConstants.Actor.tailor,
-            definitionKey:         "tutorial_armor",
+            definitionKey:         OnboardingTutorialKey.starterArmor,
             startedAt:             now,
-            endsAt:                now.addingTimeInterval(2),
-            tutorialKey:           "tutorial_armor",
+            endsAt:                now.addingTimeInterval(TimeInterval(duration)),
+            tutorialKey:           OnboardingTutorialKey.starterArmor,
             resultCraftedEquipKey: "wildland_armor"
         )
         repository.insert(task)
     }
 
-    /// 教程鑄造任務：blacksmith 鑄造 5 秒，不扣素材/金幣，onboardingStep 由結算推進
+    /// 教程鑄造任務：blacksmith 鑄造 10 秒，不扣素材/金幣，onboardingStep 由結算推進
     func createTutorialCraftTask(for classDef: ClassDef) throws {
         guard let player = (try? context.fetch(FetchDescriptor<PlayerStateModel>()))?.first else {
             throw TaskCreationError.noPlayerState
         }
 
         let now = Date.now
+        let duration = OnboardingService.nonCombatTutorialTaskDurationSeconds
         let task = TaskModel(
             kind:                 .craft,
             actorKey:             AppConstants.Actor.blacksmith,
-            definitionKey:        "tutorial_craft",
+            definitionKey:        OnboardingTutorialKey.starterWeapon,
             startedAt:            now,
-            endsAt:               now.addingTimeInterval(2),
-            tutorialKey:          "tutorial_craft",
+            endsAt:               now.addingTimeInterval(TimeInterval(duration)),
+            tutorialKey:          OnboardingTutorialKey.starterWeapon,
             resultCraftedEquipKey: classDef.starterEquipmentKeys.first
         )
         _ = player  // onboardingStep 由結算時設為 3
