@@ -123,6 +123,9 @@ final class AppState {
         let settled = settlementService.scanAndSettle()
         guard !settled.isEmpty else { return }
         lastSettledCount     = settled.count
+        if presentTutorialCombatIfNeeded(from: settled) {
+            return
+        }
         shouldShowSettlement = true
         showToast("\(settled.count) 筆任務完成，請收下獎勵")
     }
@@ -161,6 +164,7 @@ final class AppState {
 
     /// 設定待即時戰鬥任務，觸發 DungeonBattleSheet（V6-3 T02）。
     func startDungeonBattle(task: TaskModel) {
+        shouldShowSettlement = false
         pendingDungeonBattleTask = task
     }
 
@@ -175,12 +179,47 @@ final class AppState {
         guard !shouldShowSettlement else { return }
         let descriptor = FetchDescriptor<TaskModel>()
         let all = (try? modelContext.fetch(descriptor)) ?? []
-        if all.contains(where: { $0.status == .completed && $0.battlePending }) {
+        let pendingBattles = all.filter { $0.status == .completed && $0.battlePending }
+        if presentTutorialCombatIfNeeded(from: pendingBattles) {
+            return
+        }
+        if !pendingBattles.isEmpty {
             shouldShowSettlement = true
         }
     }
 
     // MARK: - Private
+
+    @discardableResult
+    private func presentTutorialCombatIfNeeded(from tasks: [TaskModel]) -> Bool {
+        guard let task = tasks
+            .filter({ $0.status == .completed && $0.battlePending })
+            .sorted(by: { $0.startedAt < $1.startedAt })
+            .first(where: isTutorialCombatTask) else {
+            return false
+        }
+        guard pendingDungeonBattleTask == nil else { return true }
+        ensureTutorialCombatHasBattle(task)
+        startDungeonBattle(task: task)
+        showToast(tutorialCombatToast(for: task))
+        return true
+    }
+
+    private func isTutorialCombatTask(_ task: TaskModel) -> Bool {
+        task.kind == .dungeon && OnboardingTutorialKey.combatKeys.contains(task.tutorialKey)
+    }
+
+    private func ensureTutorialCombatHasBattle(_ task: TaskModel) {
+        guard isTutorialCombatTask(task), (task.forcedBattles ?? 0) < 1 else { return }
+        task.forcedBattles = 1
+        try? modelContext.save()
+    }
+
+    private func tutorialCombatToast(for task: TaskModel) -> String {
+        task.tutorialKey == OnboardingTutorialKey.armorMaterials
+            ? "探索完成，進入戰鬥"
+            : "出征完成，進入戰鬥"
+    }
 
     /// 每秒比對當前戰力，若超過歷史最高則更新。
     private func updateHighestPower() {

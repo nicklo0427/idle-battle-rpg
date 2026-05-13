@@ -19,6 +19,12 @@ enum OnboardingTutorialKey {
     static let fishStew     = "tutorial_cuisine_fish_stew"
     static let smallPotion  = "tutorial_alchemy_small_potion"
     static let buffedRun    = "tutorial_buffed_dungeon"
+
+    static let combatKeys: Set<String> = [
+        armorMaterials,
+        firstDungeon,
+        buffedRun
+    ]
 }
 
 struct OnboardingService {
