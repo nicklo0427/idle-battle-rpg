@@ -22,6 +22,7 @@ struct TailorSheet: View {
     @State private var errorMessage: String?
     @State private var showError     = false
     @State private var showGrowthSheet = false
+    @State private var hasSeenStep5Tutorial = false
 
     // MARK: - Computed
 
@@ -123,11 +124,28 @@ struct TailorSheet: View {
                 )
             }
         }
+        .onAppear {
+            if player?.onboardingStep == 5 {
+                hasSeenStep5Tutorial = true
+            }
+        }
+        .onDisappear {
+            advanceAfterStep5IfNeeded()
+        }
     }
 
     private func markIntroSeen() {
         player?.markNpcIntroSeen(for: AppConstants.Actor.tailor)
         try? context.save()
+    }
+
+    private func advanceAfterStep5IfNeeded() {
+        guard hasSeenStep5Tutorial,
+              !showGrowthSheet,
+              let player,
+              player.onboardingStep == 5 else { return }
+        appState.onboardingService.advance(player: player, from: 5, to: 6)
+        hasSeenStep5Tutorial = false
     }
 
     // MARK: - Recipe Section

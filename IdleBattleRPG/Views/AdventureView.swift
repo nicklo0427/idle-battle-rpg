@@ -55,6 +55,7 @@ struct AdventureView: View {
             List {
                 activeBannerSection
                 tutorialStep4BubbleSection
+                tutorialStep5BubbleSection
                 tutorialStep6BubbleSection
                 tutorialStep9BubbleSection
                 tutorialStep10BubbleSection
@@ -62,13 +63,6 @@ struct AdventureView: View {
                 regionListSection
             }
             .navigationTitle("冒險")
-            .onAppear {
-                // Ticket 03(A): step 5 → 6 自動推進（玩家切換到冒險頁即視為知曉目標）
-                if let player = players.first, player.onboardingStep == 5 {
-                    player.onboardingStep = 6
-                    try? context.save()
-                }
-            }
             .sheet(item: $selectedFloor) { floor in
                 FloorDetailSheet(
                     floor:             floor,
@@ -79,9 +73,11 @@ struct AdventureView: View {
                     onStart: { duration, cuisineKey, potionKey in
                         if let task = launchFloor(floor: floor, durationSeconds: duration,
                                                   cuisineKey: cuisineKey, potionKey: potionKey) {
-                            startBattleLogModel(task: task, floor: floor)
                             selectedFloor = nil
-                            showBattleLog = true
+                            if !isTutorialCombatTask(task) {
+                                startBattleLogModel(task: task, floor: floor)
+                                showBattleLog = true
+                            }
                         } else {
                             selectedFloor = nil
                         }
@@ -113,39 +109,50 @@ struct AdventureView: View {
         if let task = activeDungeonTask {
             let color = Color.dungeonRegion(activeDungeonFloor?.regionKey ?? "")
             Section {
-                Button {
-                    if !appState.battleLogPlayback.isActive ||
-                        appState.battleLogPlayback.associatedTaskId != task.id,
-                       let floor = activeDungeonFloor {
-                        startBattleLogModel(task: task, floor: floor)
-                    }
-                    showBattleLog = true
-                } label: {
-                    HStack(spacing: 12) {
-                        Image(webp: "region_\(activeDungeonFloor?.regionKey ?? "")")
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 32, height: 32)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(color, lineWidth: 1.5))
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("正在出征：\(viewModel.activeDungeonName(from: tasks) ?? "—")")
-                                .fontWeight(.semibold)
-                            Text(TaskCountdown.remaining(for: task, relativeTo: appState.tick))
-                                .font(.caption)
-                                .foregroundStyle(color)
-                                .monospacedDigit()
-                            SmoothLinearProgressBar(task: task, tint: color, height: 5)
-                                .padding(.top, 2)
+                if isTutorialCombatTask(task) {
+                    activeDungeonBannerContent(task: task, color: color, showsAction: false)
+                        .padding(.vertical, 2)
+                } else {
+                    Button {
+                        if !appState.battleLogPlayback.isActive ||
+                            appState.battleLogPlayback.associatedTaskId != task.id,
+                           let floor = activeDungeonFloor {
+                            startBattleLogModel(task: task, floor: floor)
                         }
-                        Spacer()
-                        Label("查看過程", systemImage: "text.alignleft")
-                            .font(.caption)
-                            .foregroundStyle(color)
+                        showBattleLog = true
+                    } label: {
+                        activeDungeonBannerContent(task: task, color: color, showsAction: true)
+                            .padding(.vertical, 2)
                     }
-                    .padding(.vertical, 2)
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func activeDungeonBannerContent(task: TaskModel, color: Color, showsAction: Bool) -> some View {
+        HStack(spacing: 12) {
+            Image(webp: "region_\(activeDungeonFloor?.regionKey ?? "")")
+                .resizable()
+                .scaledToFill()
+                .frame(width: 32, height: 32)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(color, lineWidth: 1.5))
+            VStack(alignment: .leading, spacing: 2) {
+                Text("正在出征：\(viewModel.activeDungeonName(from: tasks) ?? "—")")
+                    .fontWeight(.semibold)
+                Text(TaskCountdown.remaining(for: task, relativeTo: appState.tick))
+                    .font(.caption)
+                    .foregroundStyle(color)
+                    .monospacedDigit()
+                SmoothLinearProgressBar(task: task, tint: color, height: 5)
+                    .padding(.top, 2)
+            }
+            Spacer()
+            if showsAction {
+                Label("查看過程", systemImage: "text.alignleft")
+                    .font(.caption)
+                    .foregroundStyle(color)
             }
         }
     }
@@ -177,6 +184,42 @@ struct AdventureView: View {
             } header: {
                 TutorialStepHeader(step: 4)
             }
+        }
+    }
+
+    /// Step 5：擊敗菁英後，提醒玩家回基地找裁縫師確認防具素材。
+    @ViewBuilder
+    private var tutorialStep5BubbleSection: some View {
+        if let player = players.first, player.onboardingStep == 5 {
+            Section {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "bubble.left.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(.orange)
+                    TutorialRichText(
+                        runs: [
+                            .plain("已擊敗"),
+                            .action("穀道裂爪衛"),
+                            .plain("並取得"),
+                            .equipment("防具配方"),
+                            .plain("。回"),
+                            .location("基地的生產者小屋"),
+                            .plain("找"),
+                            .action("裁縫師阿針"),
+                            .plain("，看看"),
+                            .equipment("田野皮甲"),
+                            .plain("還缺哪些"),
+                            .material("防具素材"),
+                            .plain("。"),
+                        ],
+                        font: .subheadline
+                    )
+                }
+                .padding(.vertical, 4)
+            } header: {
+                TutorialStepHeader(step: 5)
+            }
+            .listRowBackground(Color.orange.opacity(0.08))
         }
     }
 
@@ -406,7 +449,8 @@ struct AdventureView: View {
         Button {
             guard unlocked else { return }
             if isActiveFloor, let task = activeDungeonTask {
-                // 進行中樓層：直接開 BattleLogSheet
+                guard !isTutorialCombatTask(task) else { return }
+                // 一般進行中樓層：直接開 BattleLogSheet；教學戰鬥任務到期後才進戰鬥 Sheet。
                 if !appState.battleLogPlayback.isActive ||
                     appState.battleLogPlayback.associatedTaskId != task.id {
                     startBattleLogModel(task: task, floor: floor)
@@ -526,6 +570,10 @@ struct AdventureView: View {
     }
 
     // MARK: - Helpers
+
+    private func isTutorialCombatTask(_ task: TaskModel) -> Bool {
+        task.kind == .dungeon && OnboardingTutorialKey.combatKeys.contains(task.tutorialKey)
+    }
 
     private func isTutorialRecommendedFloor(region: DungeonRegionDef, floor: DungeonFloorDef) -> Bool {
         guard let step = players.first?.onboardingStep,
